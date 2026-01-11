@@ -1,0 +1,4 @@
+<resources>
+
+    <style name="Theme.ParkBuddy" parent="android:Theme.Black.NoTitleBar.Fullscreen" />
+</resources>
