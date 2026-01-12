@@ -1,12 +1,8 @@
-package dev.parkbuddy.core.data.di
+package dev.bongballe.parkbuddy.data.di
 
-import android.content.Context
-import androidx.room.Room
-import dev.parkbuddy.core.data.database.ParkBuddyDatabase
-import dev.parkbuddy.core.data.database.StreetCleaningDao
-import dev.parkbuddy.core.data.network.SfOpenDataApi
-import dev.parkbuddy.core.data.repository.StreetCleaningRepositoryImpl
-import dev.bongballe.parkbuddy.repository.StreetCleaningRepository
+import dev.bongballe.parkbuddy.data.network.SfOpenDataApi
+import dev.bongballe.parkbuddy.data.repository.StreetCleaningRepository
+import dev.bongballe.parkbuddy.data.repository.StreetCleaningRepositoryImpl
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesTo
 import dev.zacsweers.metro.Provides
@@ -18,16 +14,6 @@ import retrofit2.converter.kotlinx.serialization.asConverterFactory
 
 @ContributesTo(AppScope::class)
 interface DataProvider {
-
-  @Provides
-  fun provideDatabase(context: Context): ParkBuddyDatabase {
-    return Room.databaseBuilder(context, ParkBuddyDatabase::class.java, "park_buddy_db").build()
-  }
-
-  @Provides
-  fun provideDao(database: ParkBuddyDatabase): StreetCleaningDao {
-    return database.streetCleaningDao()
-  }
 
   @Provides
   fun provideRetrofit(json: Json, okHttpClient: OkHttpClient): Retrofit {

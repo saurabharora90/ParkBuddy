@@ -1,4 +1,4 @@
-package dev.parkbuddy.core.data.network
+package dev.bongballe.parkbuddy.data.network
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable

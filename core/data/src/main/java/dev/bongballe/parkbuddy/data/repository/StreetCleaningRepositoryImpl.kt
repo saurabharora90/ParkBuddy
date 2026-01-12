@@ -1,10 +1,9 @@
-package dev.parkbuddy.core.data.repository
+package dev.bongballe.parkbuddy.data.repository
 
-import dev.parkbuddy.core.data.database.StreetCleaningDao
-import dev.parkbuddy.core.data.database.StreetCleaningSegment
-import dev.parkbuddy.core.data.network.SfOpenDataApi
+import dev.bongballe.parkbuddy.data.network.SfOpenDataApi
+import dev.bongballe.parkbuddy.database.StreetCleaningDao
+import dev.bongballe.parkbuddy.database.StreetCleaningSegment
 import dev.bongballe.parkbuddy.model.StreetCleaningSegmentModel
-import dev.bongballe.parkbuddy.repository.StreetCleaningRepository
 import dev.zacsweers.metro.Inject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map

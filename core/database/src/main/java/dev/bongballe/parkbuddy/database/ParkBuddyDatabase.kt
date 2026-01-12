@@ -1,4 +1,4 @@
-package dev.parkbuddy.core.data.database
+package dev.bongballe.parkbuddy.database
 
 import androidx.room.Database
 import androidx.room.RoomDatabase

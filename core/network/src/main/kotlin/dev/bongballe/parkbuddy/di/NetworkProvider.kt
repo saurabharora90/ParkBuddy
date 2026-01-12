@@ -9,8 +9,7 @@ import okhttp3.OkHttpClient
 @ContributesTo(AppScope::class)
 interface NetworkProvider {
 
-  @Provides
-  fun providesOkHttpClient(): OkHttpClient = OkHttpClient.Builder().build()
+  @Provides fun providesOkHttpClient(): OkHttpClient = OkHttpClient.Builder().build()
 
   @Provides
   fun provideJson(): Json {

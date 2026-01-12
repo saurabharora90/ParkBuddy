@@ -22,9 +22,10 @@ dependencyResolutionManagement {
 rootProject.name = "Park Buddy"
 include(":app")
 include(":core:model")
-include(":core:data")
+include(":core:database")
 include(":core:base")
 include(":core:network")
 include(":core:theme")
+include(":core:data")
 include(":feature:map")
 include(":feature:reminders")

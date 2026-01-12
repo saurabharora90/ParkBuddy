@@ -1,4 +1,4 @@
-package dev.bongballe.parkbuddy.repository
+package dev.bongballe.parkbuddy.data.repository
 
 import dev.bongballe.parkbuddy.model.StreetCleaningSegmentModel
 import kotlinx.coroutines.flow.Flow
