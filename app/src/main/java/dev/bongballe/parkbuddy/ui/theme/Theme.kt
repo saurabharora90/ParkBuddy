@@ -14,7 +14,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
-private val DarkColorScheme = darkColorScheme(
+private val DarkColorScheme =
+  darkColorScheme(
     primary = PrimaryDark,
     onPrimary = OnPrimaryDark,
     primaryContainer = PrimaryContainerDark,
@@ -34,10 +35,11 @@ private val DarkColorScheme = darkColorScheme(
     background = BackgroundDark,
     onBackground = OnBackgroundDark,
     surface = SurfaceDark,
-    onSurface = OnSurfaceDark
-)
+    onSurface = OnSurfaceDark,
+  )
 
-private val LightColorScheme = lightColorScheme(
+private val LightColorScheme =
+  lightColorScheme(
     primary = PrimaryLight,
     onPrimary = OnPrimaryLight,
     primaryContainer = PrimaryContainerLight,
@@ -57,37 +59,34 @@ private val LightColorScheme = lightColorScheme(
     background = BackgroundLight,
     onBackground = OnBackgroundLight,
     surface = SurfaceLight,
-    onSurface = OnSurfaceLight
-)
+    onSurface = OnSurfaceLight,
+  )
 
 @Composable
 fun ParkBuddyTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = true,
-    content: @Composable () -> Unit
+  darkTheme: Boolean = isSystemInDarkTheme(),
+  // Dynamic color is available on Android 12+
+  dynamicColor: Boolean = true,
+  content: @Composable () -> Unit,
 ) {
-    val colorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        }
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
+  val colorScheme =
+    when {
+      dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
+        val context = LocalContext.current
+        if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+      }
+      darkTheme -> DarkColorScheme
+      else -> LightColorScheme
     }
-    val view = LocalView.current
-    if (!view.isInEditMode) {
-        SideEffect {
-            val window = (view.context as Activity).window
-            // Edge-to-Edge: Status bar color should be transparent
-            //window.statusBarColor = android.graphics.Color.TRANSPARENT
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
-        }
+  val view = LocalView.current
+  if (!view.isInEditMode) {
+    SideEffect {
+      val window = (view.context as Activity).window
+      // Edge-to-Edge: Status bar color should be transparent
+      // window.statusBarColor = android.graphics.Color.TRANSPARENT
+      WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
     }
+  }
 
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = Typography,
-        content = content
-    )
+  MaterialTheme(colorScheme = colorScheme, typography = Typography, content = content)
 }

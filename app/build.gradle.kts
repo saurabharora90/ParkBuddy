@@ -36,29 +36,26 @@ foundry {
 
 dependencies {
     implementation(platform(libs.compose.bom))
-    implementation(project(":core:domain"))
-    implementation(project(":core:data"))
     implementation(project(":core:common"))
+    implementation(project(":core:data"))
+    implementation(project(":core:domain"))
     implementation(project(":feature:map"))
     implementation(project(":feature:reminders"))
-
+    // WorkManager
+    implementation("androidx.work:work-runtime-ktx:2.9.0")
+    implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.navigation3)
     implementation(libs.androidx.navigation3.runtime)
     implementation(libs.androidx.navigation3.ui)
-    implementation(libs.metrox.viewmodel)
-    implementation(libs.metrox.viewmodel.compose)
-    implementation(libs.androidx.activity.compose)
     implementation(libs.bundles.compose)
     implementation(libs.bundles.compose.debug)
     implementation(libs.metrox.android)
     implementation(libs.metrox.viewmodel)
     implementation(libs.metrox.viewmodel.compose)
 
-    // WorkManager
-    implementation("androidx.work:work-runtime-ktx:2.9.0")
-    
     testImplementation(libs.junit)
+
     androidTestImplementation(libs.androidx.junit)
 }

@@ -18,16 +18,15 @@ foundry {
 
 
 dependencies {
-    implementation(project(":core:domain"))
     implementation(project(":core:common"))
-
-    implementation(libs.androidx.room.runtime)
+    implementation(project(":core:domain"))
     implementation(libs.androidx.room.ktx)
-    ksp(libs.androidx.room.compiler)
-
+    implementation(libs.androidx.room.runtime)
+    implementation(libs.kotlinx.serialization.json)
     implementation(libs.okhttp)
     implementation(libs.okhttp.logging.interceptor)
     implementation(libs.retrofit)
     implementation(libs.retrofit.converter.kotlinx.serialization)
-    implementation(libs.kotlinx.serialization.json)
+
+    ksp(libs.androidx.room.compiler)
 }

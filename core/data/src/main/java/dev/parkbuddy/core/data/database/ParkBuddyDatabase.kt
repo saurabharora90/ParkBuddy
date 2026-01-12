@@ -5,5 +5,5 @@ import androidx.room.RoomDatabase
 
 @Database(entities = [StreetCleaningSegment::class], version = 1)
 abstract class ParkBuddyDatabase : RoomDatabase() {
-    abstract fun streetCleaningDao(): StreetCleaningDao
+  abstract fun streetCleaningDao(): StreetCleaningDao
 }

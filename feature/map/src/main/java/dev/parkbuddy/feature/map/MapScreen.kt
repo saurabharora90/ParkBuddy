@@ -41,133 +41,110 @@ import kotlinx.serialization.json.Json
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MapScreen(
-    viewModel: MapViewModel,
-    onNavigateToWatchlist: () -> Unit
-) {
-    val segments by viewModel.streetCleaningSegments.collectAsState()
-    val context = LocalContext.current
-    
-    // San Francisco coordinates
-    val sf = LatLng(37.7749, -122.4194)
-    val cameraPositionState = rememberCameraPositionState {
-        position = CameraPosition.fromLatLngZoom(sf, 12f)
-    }
+fun MapScreen(viewModel: MapViewModel, onNavigateToWatchlist: () -> Unit) {
+  val segments by viewModel.streetCleaningSegments.collectAsState()
+  val context = LocalContext.current
 
-    var hasLocationPermission by remember {
-        mutableStateOf(
-            ContextCompat.checkSelfPermission(
-                context,
-                Manifest.permission.ACCESS_FINE_LOCATION
-            ) == PackageManager.PERMISSION_GRANTED
-        )
-    }
+  // San Francisco coordinates
+  val sf = LatLng(37.7749, -122.4194)
+  val cameraPositionState = rememberCameraPositionState {
+    position = CameraPosition.fromLatLngZoom(sf, 12f)
+  }
 
-    val launcher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestMultiplePermissions()
+  var hasLocationPermission by remember {
+    mutableStateOf(
+      ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) ==
+        PackageManager.PERMISSION_GRANTED
+    )
+  }
+
+  val launcher =
+    rememberLauncherForActivityResult(
+      contract = ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
-        hasLocationPermission = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
-                permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+      hasLocationPermission =
+        permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+          permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
     }
 
-    LaunchedEffect(Unit) {
-        if (!hasLocationPermission) {
-            launcher.launch(
-                arrayOf(
-                    Manifest.permission.ACCESS_FINE_LOCATION,
-                    Manifest.permission.ACCESS_COARSE_LOCATION
-                )
-            )
-        }
+  LaunchedEffect(Unit) {
+    if (!hasLocationPermission) {
+      launcher.launch(
+        arrayOf(
+          Manifest.permission.ACCESS_FINE_LOCATION,
+          Manifest.permission.ACCESS_COARSE_LOCATION,
+        )
+      )
     }
+  }
 
-    var selectedSegment by remember { mutableStateOf<StreetCleaningSegmentModel?>(null) }
-    val sheetState = rememberModalBottomSheetState()
+  var selectedSegment by remember { mutableStateOf<StreetCleaningSegmentModel?>(null) }
+  val sheetState = rememberModalBottomSheetState()
 
-    Scaffold(
+  Scaffold(
+    modifier = Modifier.fillMaxSize(),
+    floatingActionButton = { Button(onClick = onNavigateToWatchlist) { Text("Watchlist") } },
+  ) { innerPadding ->
+    Box(modifier = Modifier.padding(innerPadding)) {
+      GoogleMap(
         modifier = Modifier.fillMaxSize(),
-        floatingActionButton = {
-            Button(onClick = onNavigateToWatchlist) {
-                Text("Watchlist")
-            }
+        cameraPositionState = cameraPositionState,
+        properties = MapProperties(isMyLocationEnabled = hasLocationPermission),
+        uiSettings = MapUiSettings(myLocationButtonEnabled = true),
+      ) {
+        segments.forEach { segment ->
+          val points = parseLocationData(segment.locationData)
+          if (points.isNotEmpty()) {
+            Polyline(
+              points = points,
+              color = if (segment.isWatched) Color.Green else Color.Red,
+              width = 10f,
+              clickable = true,
+              onClick = { selectedSegment = segment },
+            )
+          }
         }
-    ) { innerPadding ->
-        Box(modifier = Modifier.padding(innerPadding)) {
-            GoogleMap(
-                modifier = Modifier.fillMaxSize(),
-                cameraPositionState = cameraPositionState,
-                properties = MapProperties(
-                    isMyLocationEnabled = hasLocationPermission
-                ),
-                uiSettings = MapUiSettings(
-                    myLocationButtonEnabled = true
-                )
-            ) {
-                segments.forEach { segment ->
-                    val points = parseLocationData(segment.locationData)
-                    if (points.isNotEmpty()) {
-                        Polyline(
-                            points = points,
-                            color = if (segment.isWatched) Color.Green else Color.Red,
-                            width = 10f,
-                            clickable = true,
-                            onClick = {
-                                selectedSegment = segment
-                            }
-                        )
-                    }
-                }
-            }
+      }
 
-            if (selectedSegment != null) {
-                ModalBottomSheet(
-                    onDismissRequest = { selectedSegment = null },
-                    sheetState = sheetState
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .padding(16.dp)
-                            .padding(bottom = 32.dp)
-                    ) {
-                        Text(
-                            text = "Street Cleaning Schedule",
-                            style = MaterialTheme.typography.headlineSmall
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = selectedSegment?.schedule ?: "Unknown Schedule",
-                            style = MaterialTheme.typography.bodyLarge
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Button(
-                            onClick = {
-                                selectedSegment?.let {
-                                    viewModel.toggleWatchStatus(it)
-                                    selectedSegment = null // Close sheet after action
-                                }
-                            }
-                        ) {
-                            Text(if (selectedSegment?.isWatched == true) "Unwatch" else "Watch")
-                        }
-                    }
+      if (selectedSegment != null) {
+        ModalBottomSheet(onDismissRequest = { selectedSegment = null }, sheetState = sheetState) {
+          Column(modifier = Modifier.padding(16.dp).padding(bottom = 32.dp)) {
+            Text(text = "Street Cleaning Schedule", style = MaterialTheme.typography.headlineSmall)
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+              text = selectedSegment?.schedule ?: "Unknown Schedule",
+              style = MaterialTheme.typography.bodyLarge,
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Button(
+              onClick = {
+                selectedSegment?.let {
+                  viewModel.toggleWatchStatus(it)
+                  selectedSegment = null // Close sheet after action
                 }
+              }
+            ) {
+              Text(if (selectedSegment?.isWatched == true) "Unwatch" else "Watch")
             }
+          }
         }
+      }
     }
+  }
 }
 
 // Helper to parse the JSON string back to LatLng list
 // In a real app, this should probably be done in the ViewModel or Repository mapping
 fun parseLocationData(json: String): List<LatLng> {
-    return try {
-        val coordinates = Json.decodeFromString<List<List<Double>>>(json)
-        
-        coordinates.map { point ->
-            // GeoJSON is [Longitude, Latitude]
-            // Google Maps LatLng is (Latitude, Longitude)
-            LatLng(point[1], point[0])
-        }
-    } catch (e: Exception) {
-        emptyList()
+  return try {
+    val coordinates = Json.decodeFromString<List<List<Double>>>(json)
+
+    coordinates.map { point ->
+      // GeoJSON is [Longitude, Latitude]
+      // Google Maps LatLng is (Latitude, Longitude)
+      LatLng(point[1], point[0])
     }
+  } catch (e: Exception) {
+    emptyList()
+  }
 }

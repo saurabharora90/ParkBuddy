@@ -18,17 +18,15 @@ foundry {
 
 dependencies {
     implementation(platform(libs.compose.bom))
-    implementation(project(":core:domain"))
     implementation(project(":core:common"))
     implementation(project(":core:data"))
-
-    implementation(libs.maps.compose)
+    implementation(project(":core:domain"))
     implementation(libs.androidx.activity.compose)
-    implementation(libs.play.services.location)
-    implementation(libs.kotlinx.serialization.json)
     implementation(libs.bundles.compose)
     implementation(libs.bundles.compose.debug)
-
+    implementation(libs.kotlinx.serialization.json)
+    implementation(libs.maps.compose)
     implementation(libs.metrox.viewmodel)
     implementation(libs.metrox.viewmodel.compose)
+    implementation(libs.play.services.location)
 }

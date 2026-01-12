@@ -16,30 +16,26 @@ import kotlinx.coroutines.launch
 @ContributesIntoMap(AppScope::class)
 @ViewModelKey(MapViewModel::class)
 @Inject
-class MapViewModel(
-    private val repository: StreetCleaningRepository
-) : ViewModel() {
+class MapViewModel(private val repository: StreetCleaningRepository) : ViewModel() {
 
-    val streetCleaningSegments: StateFlow<List<StreetCleaningSegmentModel>> = repository.getAllSegments()
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = emptyList()
-        )
+  val streetCleaningSegments: StateFlow<List<StreetCleaningSegmentModel>> =
+    repository
+      .getAllSegments()
+      .stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList(),
+      )
 
-    init {
-        refreshData()
-    }
+  init {
+    refreshData()
+  }
 
-    fun refreshData() {
-        viewModelScope.launch {
-            repository.refreshData()
-        }
-    }
+  fun refreshData() {
+    viewModelScope.launch { repository.refreshData() }
+  }
 
-    fun toggleWatchStatus(segment: StreetCleaningSegmentModel) {
-        viewModelScope.launch {
-            repository.setWatchStatus(segment.id, !segment.isWatched)
-        }
-    }
+  fun toggleWatchStatus(segment: StreetCleaningSegmentModel) {
+    viewModelScope.launch { repository.setWatchStatus(segment.id, !segment.isWatched) }
+  }
 }

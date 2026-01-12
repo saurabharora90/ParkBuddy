@@ -8,9 +8,8 @@ import dev.zacsweers.metrox.android.MetroApplication
 
 class ParkBuddyApplication : Application(), MetroApplication {
 
-    private val appGraph by lazy { createGraphFactory<AppGraph.Factory>().create(this) }
+  private val appGraph by lazy { createGraphFactory<AppGraph.Factory>().create(this) }
 
-    override val appComponentProviders: MetroAppComponentProviders
-        get() = appGraph
-
+  override val appComponentProviders: MetroAppComponentProviders
+    get() = appGraph
 }

@@ -9,19 +9,16 @@ import dev.zacsweers.metrox.android.MetroAppComponentProviders
 import dev.zacsweers.metrox.viewmodel.ViewModelGraph
 
 @DependencyGraph(AppScope::class)
-interface AppGraph :
-  MetroAppComponentProviders,
-  ViewModelGraph {
+interface AppGraph : MetroAppComponentProviders, ViewModelGraph {
 
-  @Provides
-  fun provideApplicationContext(application: Application): Context = application
+  @Provides fun provideApplicationContext(application: Application): Context = application
 
   /*@Provides
-  @WithScope(AppScope::class)
-  fun providesApplicationCoroutineScope(
-    @WithDispatcherType(DispatcherType.MAIN) dispatcher: CoroutineDispatcher,
-  ): CoroutineScope = CoroutineScope(SupervisorJob() + dispatcher)
-*/
+    @WithScope(AppScope::class)
+    fun providesApplicationCoroutineScope(
+      @WithDispatcherType(DispatcherType.MAIN) dispatcher: CoroutineDispatcher,
+    ): CoroutineScope = CoroutineScope(SupervisorJob() + dispatcher)
+  */
   @DependencyGraph.Factory
   fun interface Factory {
     fun create(@Provides application: Application): AppGraph
