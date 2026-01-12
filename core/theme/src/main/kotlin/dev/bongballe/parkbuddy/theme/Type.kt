@@ -1,4 +1,4 @@
-package dev.bongballe.parkbuddy.ui.theme
+package dev.bongballe.parkbuddy.theme
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle

@@ -1,4 +1,4 @@
-package dev.bongballe.parkbuddy.ui.theme
+package dev.bongballe.parkbuddy.theme
 
 import android.app.Activity
 import android.os.Build

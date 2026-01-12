@@ -23,14 +23,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
-import dev.bongballe.parkbuddy.ui.theme.ParkBuddyTheme
+import dev.bongballe.parkbuddy.theme.ParkBuddyTheme
 import dev.parkbuddy.feature.map.MapScreen
 import dev.parkbuddy.feature.map.MapViewModel
 import dev.parkbuddy.feature.reminders.CleaningReminderWorker

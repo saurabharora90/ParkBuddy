@@ -37,9 +37,10 @@ foundry {
 dependencies {
   implementation(platform(libs.compose.bom))
   implementation(project(":core:base"))
-  implementation(project(":core:network"))
   implementation(project(":core:data"))
   implementation(project(":core:model"))
+  implementation(project(":core:network"))
+  implementation(project(":core:theme"))
   implementation(project(":feature:map"))
   implementation(project(":feature:reminders"))
   // WorkManager
@@ -52,10 +53,10 @@ dependencies {
   implementation(libs.androidx.navigation3.ui)
   implementation(libs.bundles.compose)
   implementation(libs.bundles.compose.debug)
+  implementation(libs.kotlinx.coroutines.android)
   implementation(libs.metrox.android)
   implementation(libs.metrox.viewmodel)
   implementation(libs.metrox.viewmodel.compose)
-  implementation(libs.kotlinx.coroutines.android)
 
   testImplementation(libs.junit)
 
