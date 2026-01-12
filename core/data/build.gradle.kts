@@ -18,7 +18,7 @@ foundry {
 
 
 dependencies {
-    implementation(project(":core:common"))
+    implementation(project(":core:base"))
     implementation(project(":core:domain"))
     implementation(libs.androidx.room.ktx)
     implementation(libs.androidx.room.runtime)

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<lint>
+    <issue id="all">
+        <!--Do not run on generated code-->
+        <ignore path="**/build/**" />
+    </issue>
+    <!-- Awful lint check, your build just starts randomly failing as soon as a new version is available?
+    Or you have to put it in the lint-baseline but then that starts failing when the new available version changes?
+    Insane. -->
+    <issue id="AndroidGradlePluginVersion" severity="ignore" />
+    <!-- It's ok if we're missing density folders. -->
+    <issue id="IconMissingDensityFolder" severity="ignore" />
+
+    <!-- Android wear checks https://dev.to/charlietap/free-android-lint-perf-103p -->
+    <issue id="InvalidWearFeatureAttribute" severity="ignore" />
+    <issue id="SquareAndRoundTilePreviews" severity="ignore" />
+    <issue id="TilePreviewImageFormat" severity="ignore" />
+    <issue id="TileProviderPermissions" severity="ignore" />
+    <issue id="WatchFaceEditor" severity="ignore" />
+    <issue id="WatchFaceForAndroidX" severity="ignore" />
+    <issue id="WatchFaceFormatDeclaresHasNoCode" severity="ignore" />
+    <issue id="WatchFaceFormatMissingVersion" severity="ignore" />
+    <issue id="WatchFaceFormatInvalidVersion" severity="ignore" />
+    <issue id="WearableActionDuplicate" severity="ignore" />
+    <issue id="WearableConfigurationAction" severity="ignore" />
+    <issue id="WearStandaloneAppFlag" severity="ignore" />
+    <issue id="WearSplashScreen" severity="ignore" />
+    <issue id="WearRecents" severity="ignore" />
+    <issue id="WearPasswordInput" severity="ignore" />
+    <issue id="WearMaterialTheme" severity="ignore" />
+    <issue id="WearBackNavigation" severity="ignore" />
+</lint>

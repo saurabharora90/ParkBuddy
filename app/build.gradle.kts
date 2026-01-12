@@ -36,7 +36,7 @@ foundry {
 
 dependencies {
     implementation(platform(libs.compose.bom))
-    implementation(project(":core:common"))
+    implementation(project(":core:base"))
     implementation(project(":core:data"))
     implementation(project(":core:domain"))
     implementation(project(":feature:map"))

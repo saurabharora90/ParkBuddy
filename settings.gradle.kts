@@ -23,6 +23,6 @@ rootProject.name = "Park Buddy"
 include(":app")
 include(":core:domain")
 include(":core:data")
-include(":core:common")
+include(":core:base")
 include(":feature:map")
 include(":feature:reminders")
