@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "dev.bongballe.parkbuddy.data"
+    namespace = "dev.bongballe.parkbuddy.data.impl"
 }
 
 foundry {
@@ -16,9 +16,11 @@ foundry {
 }
 
 dependencies {
+    implementation(project(":core:data:api"))
     implementation(project(":core:database"))
     implementation(project(":core:model"))
     implementation(project(":core:network"))
+    implementation(libs.okhttp)
     implementation(libs.retrofit)
     implementation(libs.retrofit.converter.kotlinx.serialization)
 }

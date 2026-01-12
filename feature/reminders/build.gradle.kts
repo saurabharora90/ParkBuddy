@@ -18,7 +18,7 @@ foundry {
 dependencies {
   implementation(platform(libs.compose.bom))
   implementation(project(":core:base"))
-  implementation(project(":core:data"))
+  implementation(project(":core:data:api"))
   implementation(project(":core:model"))
   // WorkManager
   implementation("androidx.work:work-runtime-ktx:2.9.0")

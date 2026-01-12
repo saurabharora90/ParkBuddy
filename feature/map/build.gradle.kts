@@ -19,7 +19,7 @@ foundry {
 dependencies {
   implementation(platform(libs.compose.bom))
   implementation(project(":core:base"))
-  implementation(project(":core:data"))
+  implementation(project(":core:data:api"))
   implementation(project(":core:model"))
   implementation(libs.androidx.activity.compose)
   implementation(libs.bundles.compose)
