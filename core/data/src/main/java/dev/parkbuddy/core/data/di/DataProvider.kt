@@ -12,6 +12,7 @@ import dev.zacsweers.metro.ContributesTo
 import dev.zacsweers.metro.Provides
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
 
@@ -29,14 +30,10 @@ interface DataProvider {
   }
 
   @Provides
-  fun provideJson(): Json {
-    return Json { ignoreUnknownKeys = true }
-  }
-
-  @Provides
-  fun provideRetrofit(json: Json): Retrofit {
+  fun provideRetrofit(json: Json, okHttpClient: OkHttpClient): Retrofit {
     return Retrofit.Builder()
       .baseUrl("https://data.sfgov.org/")
+      .client(okHttpClient)
       .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
       .build()
   }
