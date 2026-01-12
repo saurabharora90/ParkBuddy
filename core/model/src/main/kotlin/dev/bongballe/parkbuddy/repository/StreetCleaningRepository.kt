@@ -1,6 +1,6 @@
-package dev.parkbuddy.core.domain.repository
+package dev.bongballe.parkbuddy.repository
 
-import dev.parkbuddy.core.domain.model.StreetCleaningSegmentModel
+import dev.bongballe.parkbuddy.model.StreetCleaningSegmentModel
 import kotlinx.coroutines.flow.Flow
 
 interface StreetCleaningRepository {

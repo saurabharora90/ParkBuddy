@@ -39,7 +39,7 @@ dependencies {
   implementation(project(":core:base"))
   implementation(project(":core:network"))
   implementation(project(":core:data"))
-  implementation(project(":core:domain"))
+  implementation(project(":core:model"))
   implementation(project(":feature:map"))
   implementation(project(":feature:reminders"))
   // WorkManager

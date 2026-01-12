@@ -19,8 +19,8 @@ foundry {
 
 dependencies {
     implementation(project(":core:network"))
-    implementation(project(":core:domain"))
-    implementation(libs.androidx.room.ktx)
+  implementation(project(":core:model"))
+  implementation(libs.androidx.room.ktx)
     implementation(libs.androidx.room.runtime)
     implementation(libs.retrofit)
     implementation(libs.retrofit.converter.kotlinx.serialization)

@@ -6,7 +6,7 @@ import dev.parkbuddy.core.data.database.ParkBuddyDatabase
 import dev.parkbuddy.core.data.database.StreetCleaningDao
 import dev.parkbuddy.core.data.network.SfOpenDataApi
 import dev.parkbuddy.core.data.repository.StreetCleaningRepositoryImpl
-import dev.parkbuddy.core.domain.repository.StreetCleaningRepository
+import dev.bongballe.parkbuddy.repository.StreetCleaningRepository
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesTo
 import dev.zacsweers.metro.Provides

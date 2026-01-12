@@ -26,9 +26,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.compose.viewModel
-import dev.parkbuddy.core.domain.model.StreetCleaningSegmentModel
-import dev.parkbuddy.core.domain.repository.StreetCleaningRepository
+import dev.bongballe.parkbuddy.model.StreetCleaningSegmentModel
+import dev.bongballe.parkbuddy.repository.StreetCleaningRepository
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesIntoMap
 import dev.zacsweers.metro.Inject

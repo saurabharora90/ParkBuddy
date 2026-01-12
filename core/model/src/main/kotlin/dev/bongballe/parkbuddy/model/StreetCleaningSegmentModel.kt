@@ -1,4 +1,4 @@
-package dev.parkbuddy.core.domain.model
+package dev.bongballe.parkbuddy.model
 
 data class StreetCleaningSegmentModel(
   val id: Long,

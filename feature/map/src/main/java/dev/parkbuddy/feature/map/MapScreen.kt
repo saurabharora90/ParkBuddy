@@ -36,7 +36,7 @@ import com.google.maps.android.compose.MapProperties
 import com.google.maps.android.compose.MapUiSettings
 import com.google.maps.android.compose.Polyline
 import com.google.maps.android.compose.rememberCameraPositionState
-import dev.parkbuddy.core.domain.model.StreetCleaningSegmentModel
+import dev.bongballe.parkbuddy.model.StreetCleaningSegmentModel
 import kotlinx.serialization.json.Json
 
 @OptIn(ExperimentalMaterial3Api::class)

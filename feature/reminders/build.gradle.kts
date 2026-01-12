@@ -19,7 +19,7 @@ dependencies {
     implementation(platform(libs.compose.bom))
     implementation(project(":core:base"))
     implementation(project(":core:data"))
-    implementation(project(":core:domain"))
+    implementation(project(":core:model"))
     // WorkManager
     implementation("androidx.work:work-runtime-ktx:2.9.0")
     implementation(libs.androidx.activity.compose)
