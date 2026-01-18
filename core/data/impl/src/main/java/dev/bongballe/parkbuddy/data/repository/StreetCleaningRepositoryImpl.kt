@@ -28,19 +28,15 @@ class StreetCleaningRepositoryImpl(
     try {
       val response = api.getStreetCleaningData()
       val entities =
-        response.mapNotNull { dto ->
+        response.map { dto ->
           // Serialize geometry to String
-          val locationData = dto.geometry?.coordinates?.let { json.encodeToString(it) }
+          val locationData = dto.geometry.coordinates.let { json.encodeToString(it) }
 
-          if (locationData != null) {
-            StreetCleaningSegment(
-              schedule = "${dto.weekday} ${dto.fromhour}-${dto.tohour}",
-              locationData = locationData,
-              isWatched = false,
-            )
-          } else {
-            null
-          }
+          StreetCleaningSegment(
+            schedule = "${dto.weekday} ${dto.fromhour}-${dto.tohour}",
+            locationData = locationData,
+            isWatched = false,
+          )
         }
       dao.insertSegments(entities)
     } catch (e: Exception) {
