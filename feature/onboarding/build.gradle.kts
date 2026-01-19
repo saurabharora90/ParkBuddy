@@ -21,6 +21,7 @@ dependencies {
   implementation(project(":core:base"))
   implementation(project(":core:theme"))
   implementation(project(":core:model"))
+  implementation(libs.accompanist.permissions)
   implementation(libs.androidx.activity.compose)
   implementation(libs.bundles.compose)
   implementation(libs.bundles.compose.debug)

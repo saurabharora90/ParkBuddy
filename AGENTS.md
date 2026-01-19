@@ -37,6 +37,7 @@ The project follows a modularized architecture with a clear separation of concer
 
 ## Key Conventions
 *   **Dependency Injection**: Use `@DependencyGraph` and Metro's graph generation instead of Hilt/Dagger.
+    *   **ViewModels**: MUST be annotated with `@ContributesIntoMap(AppScope::class)`, `@ViewModelKey(MyViewModel::class)`, and `@Inject` to be properly discoverable by the ViewModel factory.
 *   **Code Style**: Adhere to the formatting enforced by Spotless (likely ktfmt).
 *   **Navigation**: Uses the newer Navigation 3 type-safe APIs.
 

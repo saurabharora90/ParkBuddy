@@ -32,6 +32,7 @@ import androidx.work.WorkManager
 import dev.bongballe.parkbuddy.theme.ParkBuddyTheme
 import dev.parkbuddy.feature.map.MapScreen
 import dev.parkbuddy.feature.map.MapViewModel
+import dev.parkbuddy.feature.onboarding.permission.RequestPermissionScreen
 import dev.parkbuddy.feature.reminders.CleaningReminderWorker
 import dev.parkbuddy.feature.reminders.WatchlistScreen
 import dev.zacsweers.metro.AppScope
@@ -43,6 +44,8 @@ import dev.zacsweers.metrox.viewmodel.LocalMetroViewModelFactory
 import dev.zacsweers.metrox.viewmodel.MetroViewModelFactory
 import dev.zacsweers.metrox.viewmodel.metroViewModel
 import java.util.concurrent.TimeUnit
+
+data object RouteRequestPermission
 
 data object RouteMap
 
@@ -95,7 +98,7 @@ class MainActivity(private val viewModelFactory: MetroViewModelFactory) : Compon
 
           val mapViewModel = metroViewModel<MapViewModel>()
 
-          val backStack = remember { mutableStateListOf<Any>(RouteMap) }
+          val backStack = remember { mutableStateListOf<Any>(RouteRequestPermission) }
           Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
             NavDisplay(
               backStack = backStack,
@@ -107,6 +110,14 @@ class MainActivity(private val viewModelFactory: MetroViewModelFactory) : Compon
                 ),
               entryProvider =
                 entryProvider {
+                  entry<RouteRequestPermission> {
+                    RequestPermissionScreen(
+                      onPermissionsGranted = {
+                        backStack.clear()
+                        backStack.add(RouteMap)
+                      }
+                    )
+                  }
                   entry<RouteMap> {
                     MapScreen(
                       viewModel = mapViewModel,
