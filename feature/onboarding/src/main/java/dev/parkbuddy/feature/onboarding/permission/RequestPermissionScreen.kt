@@ -3,6 +3,7 @@ package dev.parkbuddy.feature.onboarding.permission
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -31,6 +32,8 @@ import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -47,9 +50,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -67,6 +68,7 @@ import com.google.accompanist.permissions.rememberPermissionState
 import dev.bongballe.parkbuddy.theme.SageContainer
 import dev.bongballe.parkbuddy.theme.SageGreen
 import dev.bongballe.parkbuddy.theme.SagePrimary
+import dev.parkbuddy.core.ui.SageHeroIllustration
 
 @OptIn(ExperimentalPermissionsApi::class)
 @Composable
@@ -234,40 +236,11 @@ fun RequestPermissionScreenContent(
         modifier = Modifier.fillMaxWidth().height(220.dp).padding(top = 8.dp, bottom = 40.dp),
         contentAlignment = Alignment.Center,
       ) {
-        // Background Glows
-        Box(
-          modifier =
-            Modifier.size(224.dp).background(SageGreen.copy(alpha = 0.1f), CircleShape).drawBehind {
-              drawCircle(
-                brush =
-                  Brush.radialGradient(
-                    colors = listOf(SageGreen.copy(alpha = 0.2f), Color.Transparent)
-                  ),
-                radius = size.minDimension / 1.5f,
-              )
-            }
+        SageHeroIllustration(
+          icon = Icons.Default.LocalParking,
+          modifier = Modifier.matchParentSize(),
+          iconSize = 56.dp,
         )
-
-        // Parking Icon (Center)
-        Box(
-          modifier =
-            Modifier.size(112.dp)
-              .background(SageContainer, RoundedCornerShape(32.dp))
-              .border(1.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(32.dp))
-              .shadow(
-                elevation = 10.dp,
-                shape = RoundedCornerShape(32.dp),
-                spotColor = SageGreen.copy(alpha = 0.1f),
-              ),
-          contentAlignment = Alignment.Center,
-        ) {
-          Icon(
-            imageVector = Icons.Default.LocalParking,
-            contentDescription = null,
-            modifier = Modifier.size(56.dp),
-            tint = SageGreen,
-          )
-        }
 
         // Smaller Icons
         Row(
@@ -283,14 +256,14 @@ fun RequestPermissionScreenContent(
       Column(modifier = Modifier.fillMaxWidth().padding(bottom = 32.dp)) {
         Text(
           text = "Hands-Free Protection",
-          style = MaterialTheme.typography.headlineMedium.copy(fontSize = 30.sp),
+          style = MaterialTheme.typography.headlineMedium,
           color = MaterialTheme.colorScheme.onSurface,
           modifier = Modifier.padding(bottom = 12.dp),
         )
         Text(
           text =
             "To make the magic happen without you ever opening the app, ParkBuddy needs to stay \"in the loop\" with your car. We’ll automatically note your spot and only alert you if a tow truck or sweeper is scheduled.",
-          style = MaterialTheme.typography.bodyLarge,
+          style = MaterialTheme.typography.bodyMedium,
           color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
       }
@@ -383,54 +356,59 @@ private fun PermissionCard(
   title: String,
   description: String,
   isGranted: Boolean,
+  modifier: Modifier = Modifier,
 ) {
-  Row(
-    modifier =
-      Modifier.fillMaxWidth()
-        .background(Color.White, RoundedCornerShape(28.dp))
-        .border(
-          1.dp,
+  Card(
+    modifier = modifier.fillMaxWidth(),
+    shape = RoundedCornerShape(28.dp),
+    colors = CardDefaults.cardColors(containerColor = Color.White),
+    border =
+      BorderStroke(
+        width = 1.dp,
+        color =
           if (isGranted) SagePrimary.copy(alpha = 0.5f)
           else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-          RoundedCornerShape(28.dp),
-        )
-        .padding(20.dp),
-    verticalAlignment = Alignment.CenterVertically,
+      ),
   ) {
-    Box(
-      modifier =
-        Modifier.size(56.dp)
-          .background(SageContainer.copy(alpha = 0.5f), RoundedCornerShape(20.dp)),
-      contentAlignment = Alignment.Center,
+    Row(
+      modifier = Modifier.fillMaxWidth().padding(20.dp),
+      verticalAlignment = Alignment.CenterVertically,
     ) {
+      Box(
+        modifier =
+          Modifier.size(56.dp)
+            .background(SageContainer.copy(alpha = 0.5f), RoundedCornerShape(20.dp)),
+        contentAlignment = Alignment.Center,
+      ) {
+        Icon(
+          imageVector = icon,
+          contentDescription = null,
+          tint = SageGreen,
+          modifier = Modifier.size(32.dp),
+        )
+      }
+
+      Column(modifier = Modifier.padding(horizontal = 16.dp).weight(1f)) {
+        Text(
+          text = title,
+          style = MaterialTheme.typography.titleLarge.copy(fontSize = 18.sp),
+          color = MaterialTheme.colorScheme.onSurface,
+        )
+        Text(
+          text = description,
+          style = MaterialTheme.typography.bodySmall,
+          color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+      }
+
       Icon(
-        imageVector = icon,
-        contentDescription = null,
-        tint = SageGreen,
-        modifier = Modifier.size(32.dp),
+        imageVector =
+          if (isGranted) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
+        contentDescription = if (isGranted) "Granted" else "Not Granted",
+        tint = if (isGranted) SageGreen else SageGreen.copy(alpha = 0.3f),
+        modifier = Modifier.size(28.dp),
       )
     }
-
-    Column(modifier = Modifier.padding(horizontal = 16.dp).weight(1f)) {
-      Text(
-        text = title,
-        style = MaterialTheme.typography.titleLarge.copy(fontSize = 18.sp),
-        color = MaterialTheme.colorScheme.onSurface,
-      )
-      Text(
-        text = description,
-        style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-      )
-    }
-
-    Icon(
-      imageVector =
-        if (isGranted) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
-      contentDescription = if (isGranted) "Granted" else "Not Granted",
-      tint = if (isGranted) SageGreen else SageGreen.copy(alpha = 0.3f),
-      modifier = Modifier.size(28.dp),
-    )
   }
 }
 
