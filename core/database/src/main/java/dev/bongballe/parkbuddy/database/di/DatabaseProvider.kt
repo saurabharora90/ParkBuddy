@@ -9,7 +9,7 @@ import dev.zacsweers.metro.ContributesTo
 import dev.zacsweers.metro.Provides
 
 @ContributesTo(AppScope::class)
-interface DataProvider {
+interface DatabaseProvider {
 
   @Provides
   fun provideDatabase(context: Context): ParkBuddyDatabase {

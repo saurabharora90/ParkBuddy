@@ -20,9 +20,8 @@ import kotlinx.coroutines.launch
 @ContributesIntoMap(AppScope::class)
 @ViewModelKey(BluetoothDeviceSelectionViewModel::class)
 @Inject
-class BluetoothDeviceSelectionViewModel(
-  private val preferencesRepository: PreferencesRepository
-) : ViewModel() {
+class BluetoothDeviceSelectionViewModel(private val preferencesRepository: PreferencesRepository) :
+  ViewModel() {
 
   private val _uiState = MutableStateFlow(BluetoothSelectionUiState())
   val uiState: StateFlow<BluetoothSelectionUiState> = _uiState.asStateFlow()
@@ -39,31 +38,26 @@ class BluetoothDeviceSelectionViewModel(
     }
 
     val pairedDevices: Set<BluetoothDevice> = bluetoothAdapter.bondedDevices ?: emptySet()
-    
-    _uiState.update { 
-        it.copy(devices = pairedDevices.map { device ->
-            BluetoothDeviceUiModel(
-                name = device.name ?: "Unknown Device",
-                address = device.address
-            )
-        }) 
+
+    _uiState.update {
+      it.copy(
+        devices =
+          pairedDevices.map { device ->
+            BluetoothDeviceUiModel(name = device.name ?: "Unknown Device", address = device.address)
+          }
+      )
     }
   }
 
   fun selectDevice(device: BluetoothDeviceUiModel) {
     _uiState.update { it.copy(selectedDevice = device) }
-    viewModelScope.launch {
-        preferencesRepository.setBluetoothDeviceAddress(device.address)
-    }
+    viewModelScope.launch { preferencesRepository.setBluetoothDeviceAddress(device.address) }
   }
 }
 
 data class BluetoothSelectionUiState(
   val devices: List<BluetoothDeviceUiModel> = emptyList(),
-  val selectedDevice: BluetoothDeviceUiModel? = null
+  val selectedDevice: BluetoothDeviceUiModel? = null,
 )
 
-data class BluetoothDeviceUiModel(
-    val name: String,
-    val address: String
-)
+data class BluetoothDeviceUiModel(val name: String, val address: String)

@@ -4,10 +4,15 @@ import dev.bongballe.parkbuddy.data.network.SfOpenDataApi
 import dev.bongballe.parkbuddy.database.StreetCleaningDao
 import dev.bongballe.parkbuddy.database.StreetCleaningSegment
 import dev.bongballe.parkbuddy.model.StreetCleaningSegmentModel
+import dev.zacsweers.metro.AppScope
+import dev.zacsweers.metro.ContributesBinding
 import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
+@ContributesBinding(AppScope::class)
+@SingleIn(AppScope::class)
 @Inject
 class StreetCleaningRepositoryImpl(
   private val dao: StreetCleaningDao,

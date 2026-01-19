@@ -1,10 +1,12 @@
 package dev.bongballe.parkbuddy.data.repository
 
+import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.preferencesDataStore
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesBinding
 import dev.zacsweers.metro.Inject
@@ -15,8 +17,9 @@ import kotlinx.coroutines.flow.map
 @ContributesBinding(AppScope::class)
 @SingleIn(AppScope::class)
 @Inject
-class PreferencesRepositoryImpl(private val dataStore: DataStore<Preferences>) :
-  PreferencesRepository {
+class PreferencesRepositoryImpl(private val context: Context) : PreferencesRepository {
+
+  val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
 
   private object Keys {
     val INITIAL_SYNC_DONE = booleanPreferencesKey("initial_sync_done")
@@ -24,16 +27,16 @@ class PreferencesRepositoryImpl(private val dataStore: DataStore<Preferences>) :
   }
 
   override val isInitialSyncDone: Flow<Boolean> =
-    dataStore.data.map { preferences -> preferences[Keys.INITIAL_SYNC_DONE] ?: false }
+    context.dataStore.data.map { preferences -> preferences[Keys.INITIAL_SYNC_DONE] ?: false }
 
   override suspend fun setInitialSyncDone(isDone: Boolean) {
-    dataStore.edit { preferences -> preferences[Keys.INITIAL_SYNC_DONE] = isDone }
+    context.dataStore.edit { preferences -> preferences[Keys.INITIAL_SYNC_DONE] = isDone }
   }
 
   override val bluetoothDeviceAddress: Flow<String?> =
-    dataStore.data.map { preferences -> preferences[Keys.BLUETOOTH_DEVICE_ADDRESS] }
+    context.dataStore.data.map { preferences -> preferences[Keys.BLUETOOTH_DEVICE_ADDRESS] }
 
   override suspend fun setBluetoothDeviceAddress(address: String) {
-    dataStore.edit { preferences -> preferences[Keys.BLUETOOTH_DEVICE_ADDRESS] = address }
+    context.dataStore.edit { preferences -> preferences[Keys.BLUETOOTH_DEVICE_ADDRESS] = address }
   }
 }

@@ -3,7 +3,6 @@ package dev.parkbuddy.feature.onboarding.bluetooth
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,7 +23,6 @@ import androidx.compose.material.icons.filled.BluetoothConnected
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -32,8 +30,6 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -182,13 +178,16 @@ fun BluetoothDeviceSelectionScreenContent(
 private fun BluetoothDeviceCard(
   device: BluetoothDeviceUiModel,
   isSelected: Boolean,
-  modifier : Modifier = Modifier,
+  modifier: Modifier = Modifier,
   onClick: () -> Unit,
 ) {
   Card(
     modifier = modifier.fillMaxWidth(),
     shape = RoundedCornerShape(20.dp),
-    colors = CardDefaults.cardColors(containerColor =  if (isSelected) SageContainer.copy(alpha = 0.3f) else Color.White),
+    colors =
+      CardDefaults.cardColors(
+        containerColor = if (isSelected) SageContainer.copy(alpha = 0.3f) else Color.White
+      ),
     border =
       BorderStroke(
         width = 1.dp,
@@ -196,12 +195,9 @@ private fun BluetoothDeviceCard(
           if (isSelected) SagePrimary
           else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
       ),
-    onClick = { onClick() }
+    onClick = { onClick() },
   ) {
-    Row(
-      modifier = Modifier.padding(16.dp),
-      verticalAlignment = Alignment.CenterVertically,
-    ) {
+    Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
       Box(
         modifier =
           Modifier.size(48.dp)
@@ -212,7 +208,8 @@ private fun BluetoothDeviceCard(
         contentAlignment = Alignment.Center,
       ) {
         Icon(
-          imageVector = if (isSelected) Icons.Default.BluetoothConnected else Icons.Default.Bluetooth,
+          imageVector =
+            if (isSelected) Icons.Default.BluetoothConnected else Icons.Default.Bluetooth,
           contentDescription = null,
           tint = if (isSelected) Color.White else SageGreen,
           modifier = Modifier.size(24.dp),
