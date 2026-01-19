@@ -5,6 +5,8 @@ import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothManager
 import android.content.Context
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import dev.bongballe.parkbuddy.data.repository.PreferencesRepository
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesIntoMap
 import dev.zacsweers.metro.Inject
@@ -18,7 +20,9 @@ import kotlinx.coroutines.launch
 @ContributesIntoMap(AppScope::class)
 @ViewModelKey(BluetoothDeviceSelectionViewModel::class)
 @Inject
-class BluetoothDeviceSelectionViewModel : ViewModel() {
+class BluetoothDeviceSelectionViewModel(
+  private val preferencesRepository: PreferencesRepository
+) : ViewModel() {
 
   private val _uiState = MutableStateFlow(BluetoothSelectionUiState())
   val uiState: StateFlow<BluetoothSelectionUiState> = _uiState.asStateFlow()
@@ -48,6 +52,9 @@ class BluetoothDeviceSelectionViewModel : ViewModel() {
 
   fun selectDevice(device: BluetoothDeviceUiModel) {
     _uiState.update { it.copy(selectedDevice = device) }
+    viewModelScope.launch {
+        preferencesRepository.setBluetoothDeviceAddress(device.address)
+    }
   }
 }
 
