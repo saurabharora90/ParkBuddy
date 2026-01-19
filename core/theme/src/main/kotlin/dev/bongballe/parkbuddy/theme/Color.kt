@@ -2,15 +2,27 @@ package dev.bongballe.parkbuddy.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Vibrant, Energetic Color Scheme
-val PrimaryLight = Color(0xFF006C4C)
-val OnPrimaryLight = Color(0xFFFFFFFF)
-val PrimaryContainerLight = Color(0xFF89F8C7)
-val OnPrimaryContainerLight = Color(0xFF002114)
+// Sage Green Theme Palette
+val SageGreen = Color(0xFF556B2F)
+val SagePrimary = Color(0xFF4A6741)
+val SageOnPrimary = Color(0xFFFFFFFF)
+val SageContainer = Color(0xFFD8E7D1)
+val SageOnContainer = Color(0xFF131F0F)
+val TonalSurface = Color(0xFFF2F4F0)
+val SurfaceVariant = Color(0xFFE0E4DB)
+val OnSurface = Color(0xFF1A1C19)
+val OnSurfaceVariant = Color(0xFF43483F)
 
-val SecondaryLight = Color(0xFF4C6358)
+// Existing Colors (keeping for reference or fallback if needed, but primary roles will be
+// overridden)
+val PrimaryLight = SagePrimary
+val OnPrimaryLight = SageOnPrimary
+val PrimaryContainerLight = SageContainer
+val OnPrimaryContainerLight = SageOnContainer
+
+val SecondaryLight = SageGreen // Using SageGreen as secondary for accents
 val OnSecondaryLight = Color(0xFFFFFFFF)
-val SecondaryContainerLight = Color(0xFFCEE9DA)
+val SecondaryContainerLight = Color(0xFFCEE9DA) // Keep existing or derive
 val OnSecondaryContainerLight = Color(0xFF092016)
 
 val TertiaryLight = Color(0xFF3E6373)
@@ -23,33 +35,9 @@ val OnErrorLight = Color(0xFFFFFFFF)
 val ErrorContainerLight = Color(0xFFFFDAD6)
 val OnErrorContainerLight = Color(0xFF410002)
 
-val BackgroundLight = Color(0xFFFBFDF9)
-val OnBackgroundLight = Color(0xFF191C1A)
-val SurfaceLight = Color(0xFFFBFDF9)
-val OnSurfaceLight = Color(0xFF191C1A)
-
-// Dark Theme
-val PrimaryDark = Color(0xFF6CDBAC)
-val OnPrimaryDark = Color(0xFF003825)
-val PrimaryContainerDark = Color(0xFF005138)
-val OnPrimaryContainerDark = Color(0xFF89F8C7)
-
-val SecondaryDark = Color(0xFFB3CCBE)
-val OnSecondaryDark = Color(0xFF1E352B)
-val SecondaryContainerDark = Color(0xFF354B41)
-val OnSecondaryContainerDark = Color(0xFFCEE9DA)
-
-val TertiaryDark = Color(0xFFA6CCDE)
-val OnTertiaryDark = Color(0xFF083543)
-val TertiaryContainerDark = Color(0xFF254B5A)
-val OnTertiaryContainerDark = Color(0xFFC1E8FB)
-
-val ErrorDark = Color(0xFFFFB4AB)
-val OnErrorDark = Color(0xFF690005)
-val ErrorContainerDark = Color(0xFF93000A)
-val OnErrorContainerDark = Color(0xFFFFDAD6)
-
-val BackgroundDark = Color(0xFF191C1A)
-val OnBackgroundDark = Color(0xFFE1E3DF)
-val SurfaceDark = Color(0xFF191C1A)
-val OnSurfaceDark = Color(0xFFE1E3DF)
+val BackgroundLight = TonalSurface
+val OnBackgroundLight = OnSurface
+val SurfaceLight = TonalSurface
+val OnSurfaceLight = OnSurface
+val SurfaceVariantLight = SurfaceVariant
+val OnSurfaceVariantLight = OnSurfaceVariant

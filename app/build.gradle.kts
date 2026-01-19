@@ -44,6 +44,7 @@ dependencies {
   implementation(project(":core:theme"))
   implementation(project(":feature:map"))
   implementation(project(":feature:reminders"))
+  implementation(project(":feature:onboarding"))
   // WorkManager
   implementation("androidx.work:work-runtime-ktx:2.9.0")
   implementation(libs.androidx.activity.compose)
