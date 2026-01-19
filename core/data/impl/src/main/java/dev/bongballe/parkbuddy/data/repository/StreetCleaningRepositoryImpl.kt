@@ -29,16 +29,27 @@ class StreetCleaningRepositoryImpl(
 
   override suspend fun refreshData() {
     try {
-      val response = api.getStreetCleaningData()
-      val entities =
-        response.map { dto ->
-          StreetCleaningSegment(
-            schedule = "${dto.weekday} ${dto.fromhour}-${dto.tohour}",
-            locationData = dto.geometry,
-            isWatched = false,
-          )
+      var offset = 0
+      val limit = 1000
+      var hasMoreData = true
+
+      while (hasMoreData) {
+        val response = api.getStreetCleaningData(limit = limit, offset = offset)
+        if (response.isEmpty()) {
+          hasMoreData = false
+        } else {
+          val entities =
+            response.map { dto ->
+              StreetCleaningSegment(
+                schedule = "${dto.weekday} ${dto.fromhour}-${dto.tohour}",
+                locationData = dto.geometry,
+                isWatched = false,
+              )
+            }
+          dao.insertSegments(entities)
+          offset += limit
         }
-      dao.insertSegments(entities)
+      }
     } catch (e: Exception) {
       // Handle error, maybe log it
       e.printStackTrace()
