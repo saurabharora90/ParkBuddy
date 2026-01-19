@@ -46,6 +46,7 @@ dependencies {
   implementation(project(":feature:map"))
   implementation(project(":feature:onboarding"))
   implementation(project(":feature:reminders"))
+  implementation("com.google.android.material:material:1.9.0")
   implementation(libs.androidx.activity.compose)
   implementation(libs.androidx.core.ktx)
   implementation(libs.androidx.lifecycle.runtime.ktx)
