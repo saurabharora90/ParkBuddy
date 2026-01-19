@@ -32,6 +32,7 @@ slackFoundry = "0.33.1"
 sortDependencies = "0.16"
 spotless = "8.1.0"
 truth = "1.2.0"
+workmanager = "2.11.0"
 
 [libraries]
 accompanist-permissions = { group = "com.google.accompanist", name = "accompanist-permissions", version.ref = "accompanistPermissions" }
@@ -78,6 +79,7 @@ roborazzi = { group = "io.github.takahirom.roborazzi", name = "roborazzi", versi
 roborazzi-rule = { group = "io.github.takahirom.roborazzi", name = "roborazzi-junit-rule", version.ref = "roborazzi" }
 play-services-location = { group = "com.google.android.gms", name = "play-services-location", version.ref = "playServicesLocation" }
 truth = { group = "com.google.truth", name = "truth", version.ref = "truth" }
+workmanager = { group = "androidx.work", name = "work-runtime-ktx", version.ref = "workmanager" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

@@ -42,11 +42,10 @@ dependencies {
   implementation(project(":core:model"))
   implementation(project(":core:network"))
   implementation(project(":core:theme"))
+  implementation(project(":core:work-manager"))
   implementation(project(":feature:map"))
-  implementation(project(":feature:reminders"))
   implementation(project(":feature:onboarding"))
-  // WorkManager
-  implementation("androidx.work:work-runtime-ktx:2.9.0")
+  implementation(project(":feature:reminders"))
   implementation(libs.androidx.activity.compose)
   implementation(libs.androidx.core.ktx)
   implementation(libs.androidx.lifecycle.runtime.ktx)
@@ -59,6 +58,7 @@ dependencies {
   implementation(libs.metrox.android)
   implementation(libs.metrox.viewmodel)
   implementation(libs.metrox.viewmodel.compose)
+  implementation(libs.workmanager)
 
   testImplementation(libs.junit)
 

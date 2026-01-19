@@ -6,7 +6,6 @@ import androidx.datastore.core.handlers.ReplaceFileCorruptionHandler
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.emptyPreferences
-import androidx.datastore.preferences.preferencesDataStore
 import androidx.datastore.preferences.preferencesDataStoreFile
 import dev.bongballe.parkbuddy.DispatcherType
 import dev.bongballe.parkbuddy.data.network.SfOpenDataApi
@@ -46,7 +45,7 @@ interface DataProvider {
   @SingleIn(AppScope::class)
   fun providesDataStore(
     context: Context,
-    @WithDispatcherType(DispatcherType.IO) dispatcher: CoroutineDispatcher
+    @WithDispatcherType(DispatcherType.IO) dispatcher: CoroutineDispatcher,
   ): DataStore<Preferences> {
     return PreferenceDataStoreFactory.create(
       corruptionHandler = ReplaceFileCorruptionHandler(produceNewData = { emptyPreferences() }),

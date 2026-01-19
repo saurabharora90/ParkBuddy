@@ -4,6 +4,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesBinding
 import dev.zacsweers.metro.Inject
@@ -11,12 +12,11 @@ import dev.zacsweers.metro.SingleIn
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
-import androidx.datastore.preferences.core.stringPreferencesKey
-
 @ContributesBinding(AppScope::class)
 @SingleIn(AppScope::class)
 @Inject
-class PreferencesRepositoryImpl(private val dataStore: DataStore<Preferences>) : PreferencesRepository {
+class PreferencesRepositoryImpl(private val dataStore: DataStore<Preferences>) :
+  PreferencesRepository {
 
   private object Keys {
     val INITIAL_SYNC_DONE = booleanPreferencesKey("initial_sync_done")

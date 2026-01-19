@@ -2,6 +2,7 @@ package dev.parkbuddy.feature.map
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dev.bongballe.parkbuddy.data.repository.PreferencesRepository
 import dev.bongballe.parkbuddy.data.repository.StreetCleaningRepository
 import dev.bongballe.parkbuddy.model.StreetCleaningSegmentModel
 import dev.zacsweers.metro.AppScope
@@ -10,13 +11,17 @@ import dev.zacsweers.metro.Inject
 import dev.zacsweers.metrox.viewmodel.ViewModelKey
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 @ContributesIntoMap(AppScope::class)
 @ViewModelKey(MapViewModel::class)
 @Inject
-class MapViewModel(private val repository: StreetCleaningRepository) : ViewModel() {
+class MapViewModel(
+  private val repository: StreetCleaningRepository,
+  private val preferencesRepository: PreferencesRepository,
+) : ViewModel() {
 
   val streetCleaningSegments: StateFlow<List<StreetCleaningSegmentModel>> =
     repository
@@ -28,11 +33,12 @@ class MapViewModel(private val repository: StreetCleaningRepository) : ViewModel
       )
 
   init {
-    refreshData()
-  }
-
-  fun refreshData() {
-    viewModelScope.launch { repository.refreshData() }
+    viewModelScope.launch {
+      if (!preferencesRepository.isInitialSyncDone.first()) {
+        repository.refreshData()
+        preferencesRepository.setInitialSyncDone(true)
+      }
+    }
   }
 
   fun toggleWatchStatus(segment: StreetCleaningSegmentModel) {

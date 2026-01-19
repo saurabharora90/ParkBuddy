@@ -20,8 +20,7 @@ dependencies {
   implementation(project(":core:base"))
   implementation(project(":core:data:api"))
   implementation(project(":core:model"))
-  // WorkManager
-  implementation("androidx.work:work-runtime-ktx:2.9.0")
+  implementation(project(":core:work-manager"))
   implementation(libs.androidx.activity.compose)
   implementation(libs.androidx.core.ktx)
   implementation(libs.androidx.lifecycle.runtime.ktx)
