@@ -1,36 +1,25 @@
 package dev.bongballe.parkbuddy
 
-import android.Manifest
 import android.app.Activity
-import android.content.pm.PackageManager
-import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.platform.LocalContext
-import androidx.core.content.ContextCompat
+import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
-import androidx.work.PeriodicWorkRequestBuilder
-import androidx.work.WorkManager
+import dev.bongballe.parkbuddy.data.repository.PreferencesRepository
+import dev.bongballe.parkbuddy.data.repository.StreetCleaningRepository
 import dev.bongballe.parkbuddy.theme.ParkBuddyTheme
 import dev.parkbuddy.feature.map.MapScreen
 import dev.parkbuddy.feature.map.MapViewModel
 import dev.parkbuddy.feature.onboarding.permission.RequestPermissionScreen
-import dev.parkbuddy.feature.reminders.CleaningReminderWorker
-import dev.parkbuddy.feature.reminders.WatchlistScreen
+import dev.parkbuddy.feature.reminders.watchlist.WatchlistScreen
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesIntoMap
 import dev.zacsweers.metro.Inject
@@ -39,7 +28,8 @@ import dev.zacsweers.metrox.android.ActivityKey
 import dev.zacsweers.metrox.viewmodel.LocalMetroViewModelFactory
 import dev.zacsweers.metrox.viewmodel.MetroViewModelFactory
 import dev.zacsweers.metrox.viewmodel.metroViewModel
-import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 
 data object RouteRequestPermission
 
@@ -52,14 +42,21 @@ data object RouteWatchList
 @ContributesIntoMap(AppScope::class, binding<Activity>())
 @ActivityKey(MainActivity::class)
 @Inject
-class MainActivity(private val viewModelFactory: MetroViewModelFactory) : ComponentActivity() {
+class MainActivity(
+  private val viewModelFactory: MetroViewModelFactory,
+  private val repository: StreetCleaningRepository,
+  private val preferencesRepository: PreferencesRepository,
+) : ComponentActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
     enableEdgeToEdge()
 
-    // Schedule the worker (simplified for MVP)
-    val workRequest = PeriodicWorkRequestBuilder<CleaningReminderWorker>(1, TimeUnit.DAYS).build()
-    WorkManager.getInstance(this).enqueue(workRequest)
+    lifecycleScope.launch {
+      if (!preferencesRepository.isInitialSyncDone.first()) {
+        repository.refreshData()
+        preferencesRepository.setInitialSyncDone(true)
+      }
+    }
 
     setContent {
       CompositionLocalProvider(LocalMetroViewModelFactory provides viewModelFactory) {
