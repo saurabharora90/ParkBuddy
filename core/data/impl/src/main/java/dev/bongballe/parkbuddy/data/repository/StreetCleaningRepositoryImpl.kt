@@ -7,13 +7,11 @@ import dev.bongballe.parkbuddy.model.StreetCleaningSegmentModel
 import dev.zacsweers.metro.Inject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
-import kotlinx.serialization.json.Json
 
 @Inject
 class StreetCleaningRepositoryImpl(
   private val dao: StreetCleaningDao,
   private val api: SfOpenDataApi,
-  private val json: Json,
 ) : StreetCleaningRepository {
 
   override fun getAllSegments(): Flow<List<StreetCleaningSegmentModel>> {
@@ -29,12 +27,9 @@ class StreetCleaningRepositoryImpl(
       val response = api.getStreetCleaningData()
       val entities =
         response.map { dto ->
-          // Serialize geometry to String
-          val locationData = dto.geometry.coordinates.let { json.encodeToString(it) }
-
           StreetCleaningSegment(
             schedule = "${dto.weekday} ${dto.fromhour}-${dto.tohour}",
-            locationData = locationData,
+            locationData = dto.geometry,
             isWatched = false,
           )
         }

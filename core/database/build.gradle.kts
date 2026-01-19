@@ -18,8 +18,10 @@ foundry {
 
 
 dependencies {
+    implementation(project(":core:model"))
     implementation(libs.androidx.room.ktx)
     implementation(libs.androidx.room.runtime)
+    implementation(libs.kotlinx.serialization.json)
 
     ksp(libs.androidx.room.compiler)
 }

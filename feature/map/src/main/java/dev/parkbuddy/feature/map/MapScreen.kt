@@ -36,8 +36,8 @@ import com.google.maps.android.compose.MapProperties
 import com.google.maps.android.compose.MapUiSettings
 import com.google.maps.android.compose.Polyline
 import com.google.maps.android.compose.rememberCameraPositionState
+import dev.bongballe.parkbuddy.model.Geometry
 import dev.bongballe.parkbuddy.model.StreetCleaningSegmentModel
-import kotlinx.serialization.json.Json
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -133,13 +133,10 @@ fun MapScreen(viewModel: MapViewModel, onNavigateToWatchlist: () -> Unit) {
   }
 }
 
-// Helper to parse the JSON string back to LatLng list
-// In a real app, this should probably be done in the ViewModel or Repository mapping
-fun parseLocationData(json: String): List<LatLng> {
+// Helper to parse the Geometry to LatLng list
+fun parseLocationData(geometry: Geometry): List<LatLng> {
   return try {
-    val coordinates = Json.decodeFromString<List<List<Double>>>(json)
-
-    coordinates.map { point ->
+    geometry.coordinates.map { point ->
       // GeoJSON is [Longitude, Latitude]
       // Google Maps LatLng is (Latitude, Longitude)
       LatLng(point[1], point[0])
