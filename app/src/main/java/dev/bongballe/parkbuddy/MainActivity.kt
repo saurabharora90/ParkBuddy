@@ -43,6 +43,8 @@ import java.util.concurrent.TimeUnit
 
 data object RouteRequestPermission
 
+data object RouteBluetoothDeviceSelection
+
 data object RouteMap
 
 data object RouteWatchList
@@ -62,36 +64,6 @@ class MainActivity(private val viewModelFactory: MetroViewModelFactory) : Compon
     setContent {
       CompositionLocalProvider(LocalMetroViewModelFactory provides viewModelFactory) {
         ParkBuddyTheme {
-          val context = LocalContext.current
-
-          // Notification Permission Logic
-          var hasNotificationPermission by remember {
-            mutableStateOf(
-              if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                ContextCompat.checkSelfPermission(
-                  context,
-                  Manifest.permission.POST_NOTIFICATIONS,
-                ) == PackageManager.PERMISSION_GRANTED
-              } else {
-                true
-              }
-            )
-          }
-
-          val permissionLauncher =
-            rememberLauncherForActivityResult(
-              contract = ActivityResultContracts.RequestPermission(),
-              onResult = { isGranted -> hasNotificationPermission = isGranted },
-            )
-
-          LaunchedEffect(Unit) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-              if (!hasNotificationPermission) {
-                permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-              }
-            }
-          }
-
           val mapViewModel = metroViewModel<MapViewModel>()
 
           val backStack = remember { mutableStateListOf<Any>(RouteRequestPermission) }
@@ -109,7 +81,7 @@ class MainActivity(private val viewModelFactory: MetroViewModelFactory) : Compon
                   RequestPermissionScreen(
                     onPermissionsGranted = {
                       backStack.clear()
-                      backStack.add(RouteMap)
+                      backStack.add(RouteBluetoothDeviceSelection)
                     }
                   )
                 }
@@ -120,6 +92,14 @@ class MainActivity(private val viewModelFactory: MetroViewModelFactory) : Compon
                   )
                 }
                 entry<RouteWatchList> { WatchlistScreen() }
+                entry<RouteBluetoothDeviceSelection> {
+                  dev.parkbuddy.feature.onboarding.bluetooth.BluetoothDeviceSelectionScreen(
+                    onDeviceSelected = {
+                      backStack.clear()
+                      backStack.add(RouteMap)
+                    }
+                  )
+                }
               },
           )
         }

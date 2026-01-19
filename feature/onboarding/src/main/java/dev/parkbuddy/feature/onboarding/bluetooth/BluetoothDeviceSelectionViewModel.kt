@@ -1,11 +1,9 @@
 package dev.parkbuddy.feature.onboarding.bluetooth
 
-import android.annotation.SuppressLint
-import android.bluetooth.BluetoothDevice
-import android.bluetooth.BluetoothManager
-import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dev.bongballe.parkbuddy.core.bluetooth.BluetoothController
+import dev.bongballe.parkbuddy.core.bluetooth.BluetoothDeviceUiModel
 import dev.bongballe.parkbuddy.data.repository.PreferencesRepository
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesIntoMap
@@ -20,33 +18,17 @@ import kotlinx.coroutines.launch
 @ContributesIntoMap(AppScope::class)
 @ViewModelKey(BluetoothDeviceSelectionViewModel::class)
 @Inject
-class BluetoothDeviceSelectionViewModel(private val preferencesRepository: PreferencesRepository) :
-  ViewModel() {
+class BluetoothDeviceSelectionViewModel(
+  private val preferencesRepository: PreferencesRepository,
+  private val bluetoothController: BluetoothController,
+) : ViewModel() {
 
   private val _uiState = MutableStateFlow(BluetoothSelectionUiState())
   val uiState: StateFlow<BluetoothSelectionUiState> = _uiState.asStateFlow()
 
-  @SuppressLint("MissingPermission") // Permissions should be handled before calling this
-  fun loadPairedDevices(context: Context) {
-    val bluetoothManager = context.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager
-    val bluetoothAdapter = bluetoothManager?.adapter
-
-    if (bluetoothAdapter == null || !bluetoothAdapter.isEnabled) {
-      // Handle case where Bluetooth is not available or enabled
-      _uiState.update { it.copy(devices = emptyList()) }
-      return
-    }
-
-    val pairedDevices: Set<BluetoothDevice> = bluetoothAdapter.bondedDevices ?: emptySet()
-
-    _uiState.update {
-      it.copy(
-        devices =
-          pairedDevices.map { device ->
-            BluetoothDeviceUiModel(name = device.name ?: "Unknown Device", address = device.address)
-          }
-      )
-    }
+  fun loadPairedDevices() {
+    val devices = bluetoothController.getPairedDevices()
+    _uiState.update { it.copy(devices = devices) }
   }
 
   fun selectDevice(device: BluetoothDeviceUiModel) {
@@ -59,5 +41,3 @@ data class BluetoothSelectionUiState(
   val devices: List<BluetoothDeviceUiModel> = emptyList(),
   val selectedDevice: BluetoothDeviceUiModel? = null,
 )
-
-data class BluetoothDeviceUiModel(val name: String, val address: String)

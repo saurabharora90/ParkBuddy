@@ -1,5 +1,7 @@
 package dev.parkbuddy.feature.onboarding.bluetooth
 
+import android.Manifest
+import android.os.Build
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -49,26 +51,50 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.isGranted
+import com.google.accompanist.permissions.rememberPermissionState
+import dev.bongballe.parkbuddy.core.bluetooth.BluetoothDeviceUiModel
 import dev.bongballe.parkbuddy.theme.SageContainer
 import dev.bongballe.parkbuddy.theme.SageGreen
 import dev.bongballe.parkbuddy.theme.SagePrimary
 import dev.parkbuddy.core.ui.SageHeroIllustration
+import dev.zacsweers.metrox.viewmodel.metroViewModel
 
 @OptIn(ExperimentalPermissionsApi::class)
 @Composable
 fun BluetoothDeviceSelectionScreen(
-  viewModel: BluetoothDeviceSelectionViewModel = viewModel(),
+  viewModel: BluetoothDeviceSelectionViewModel = metroViewModel(),
   onDeviceSelected: () -> Unit,
 ) {
   val uiState by viewModel.uiState.collectAsState()
   val context = LocalContext.current
 
-  LaunchedEffect(context) { viewModel.loadPairedDevices(context) }
+  LaunchedEffect(Unit) { viewModel.loadPairedDevices() }
+
+  val notificationPermissionState =
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+      rememberPermissionState(Manifest.permission.POST_NOTIFICATIONS) { isGranted ->
+        if (isGranted) {
+          onDeviceSelected()
+        } else {
+          // Proceed anyway, or handle denial. For now, we proceed.
+          onDeviceSelected()
+        }
+      }
+    } else {
+      null
+    }
 
   BluetoothDeviceSelectionScreenContent(
     uiState = uiState,
     onDeviceSelect = viewModel::selectDevice,
-    onContinueClick = onDeviceSelected,
+    onContinueClick = {
+      if (notificationPermissionState != null && !notificationPermissionState.status.isGranted) {
+        notificationPermissionState.launchPermissionRequest()
+      } else {
+        onDeviceSelected()
+      }
+    },
   )
 }
 
