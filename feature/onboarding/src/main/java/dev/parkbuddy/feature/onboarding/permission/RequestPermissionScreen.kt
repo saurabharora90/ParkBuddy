@@ -65,10 +65,11 @@ import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.PermissionStatus
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
 import com.google.accompanist.permissions.rememberPermissionState
+import dev.bongballe.parkbuddy.theme.ParkBuddyTheme
 import dev.bongballe.parkbuddy.theme.SageContainer
 import dev.bongballe.parkbuddy.theme.SageGreen
 import dev.bongballe.parkbuddy.theme.SagePrimary
-import dev.parkbuddy.core.ui.SageHeroIllustration
+import dev.parkbuddy.core.ui.SquircleIcon
 
 @OptIn(ExperimentalPermissionsApi::class)
 @Composable
@@ -231,15 +232,14 @@ fun RequestPermissionScreenContent(
           .verticalScroll(rememberScrollState()),
       horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-      // Illustration
       Box(
-        modifier = Modifier.fillMaxWidth().height(220.dp).padding(top = 8.dp, bottom = 40.dp),
+        modifier = Modifier.padding(top = 8.dp, bottom = 40.dp),
         contentAlignment = Alignment.Center,
       ) {
-        SageHeroIllustration(
+        SquircleIcon(
           icon = Icons.Default.LocalParking,
-          modifier = Modifier.matchParentSize(),
-          iconSize = 56.dp,
+          size = 120.dp,
+          shape = RoundedCornerShape(24.dp),
         )
 
         // Smaller Icons
@@ -333,19 +333,16 @@ fun RequestPermissionScreenContent(
 
 @Composable
 private fun SmallIconCard(icon: ImageVector) {
-  Box(
-    modifier =
-      Modifier.size(48.dp)
-        .background(Color.White, RoundedCornerShape(16.dp))
-        .border(1.dp, MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(16.dp))
-        .shadow(elevation = 2.dp, shape = RoundedCornerShape(16.dp)),
-    contentAlignment = Alignment.Center,
+  Card(
+    shape = RoundedCornerShape(16.dp),
+    colors = CardDefaults.cardColors(containerColor = Color.White),
+    elevation = CardDefaults.elevatedCardElevation(),
   ) {
     Icon(
       imageVector = icon,
+      tint = MaterialTheme.colorScheme.primary,
       contentDescription = null,
-      tint = SagePrimary,
-      modifier = Modifier.size(24.dp),
+      modifier = Modifier.size(48.dp).padding(12.dp),
     )
   }
 }
@@ -415,7 +412,7 @@ private fun PermissionCard(
 @Preview(showBackground = true)
 @Composable
 private fun RequestPermissionScreenPreview() {
-  MaterialTheme {
+  ParkBuddyTheme {
     RequestPermissionScreenContent(
       uiState = OnboardingUiState(),
       showRationale = false,
@@ -429,7 +426,7 @@ private fun RequestPermissionScreenPreview() {
 @Preview(showBackground = true)
 @Composable
 private fun RequestPermissionScreenGrantedPreview() {
-  MaterialTheme {
+  ParkBuddyTheme {
     RequestPermissionScreenContent(
       uiState =
         OnboardingUiState(

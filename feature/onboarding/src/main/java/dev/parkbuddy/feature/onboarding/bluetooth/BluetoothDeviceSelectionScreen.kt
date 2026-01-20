@@ -4,7 +4,6 @@ import android.Manifest
 import android.os.Build
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -49,15 +48,15 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
 import dev.bongballe.parkbuddy.core.bluetooth.BluetoothDeviceUiModel
+import dev.bongballe.parkbuddy.theme.ParkBuddyTheme
 import dev.bongballe.parkbuddy.theme.SageContainer
 import dev.bongballe.parkbuddy.theme.SageGreen
 import dev.bongballe.parkbuddy.theme.SagePrimary
-import dev.parkbuddy.core.ui.SageHeroIllustration
+import dev.parkbuddy.core.ui.SquircleIcon
 import dev.zacsweers.metrox.viewmodel.metroViewModel
 
 @OptIn(ExperimentalPermissionsApi::class)
@@ -108,7 +107,7 @@ fun BluetoothDeviceSelectionScreenContent(
   Scaffold(
     topBar = {
       TopAppBar(
-        title = { Text(text = "Connect Your Car", style = MaterialTheme.typography.titleLarge) }
+        title = { Text(text = "Select Your Car", style = MaterialTheme.typography.titleLarge) }
       )
     },
     containerColor = MaterialTheme.colorScheme.background,
@@ -116,31 +115,22 @@ fun BluetoothDeviceSelectionScreenContent(
     Column(
       modifier = Modifier.fillMaxSize().padding(paddingValues).padding(horizontal = 24.dp),
       horizontalAlignment = Alignment.CenterHorizontally,
+      verticalArrangement = Arrangement.spacedBy(24.dp),
     ) {
-
-      // Illustration
-      SageHeroIllustration(
+      SquircleIcon(
         icon = Icons.Default.DirectionsCar,
-        modifier = Modifier.padding(top = 8.dp, bottom = 16.dp),
-        containerHeight = 180.dp,
-        iconSize = 40.dp,
+        contentDescription = null,
+        size = 72.dp,
+        shape = RoundedCornerShape(16.dp),
+        modifier = Modifier.padding(top = 8.dp),
       )
 
-      // Text Content
-      Column(modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp)) {
-        Text(
-          text = "Select Your Vehicle",
-          style = MaterialTheme.typography.headlineMedium,
-          color = MaterialTheme.colorScheme.onSurface,
-          modifier = Modifier.padding(bottom = 12.dp),
-        )
-        Text(
-          text =
-            "Select your vehicle from your paired devices. ParkBuddy uses this \"handshake\" to know exactly when and where your parking session begins—no manual input required.",
-          style = MaterialTheme.typography.bodyMedium,
-          color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-      }
+      Text(
+        text =
+          "Select your vehicle from your paired devices. ParkBuddy uses this \"handshake\" to know exactly when and where your parking session begins—no manual input required.",
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+      )
 
       // Device List
       if (uiState.devices.isEmpty()) {
@@ -165,8 +155,6 @@ fun BluetoothDeviceSelectionScreenContent(
           }
         }
       }
-
-      Spacer(modifier = Modifier.height(24.dp))
 
       // Buttons
       Button(
@@ -272,7 +260,7 @@ private fun BluetoothDeviceCard(
 @Preview(showBackground = true)
 @Composable
 private fun BluetoothDeviceSelectionPreview() {
-  MaterialTheme {
+  ParkBuddyTheme {
     BluetoothDeviceSelectionScreenContent(
       uiState =
         BluetoothSelectionUiState(

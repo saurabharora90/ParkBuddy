@@ -30,6 +30,8 @@ val OnTertiaryLight = Color(0xFFFFFFFF)
 val TertiaryContainerLight = Color(0xFFC1E8FB)
 val OnTertiaryContainerLight = Color(0xFF001F29)
 
+val Terracotta = Color(0xFFBC5449)
+
 val ErrorLight = Color(0xFFBA1A1A)
 val OnErrorLight = Color(0xFFFFFFFF)
 val ErrorContainerLight = Color(0xFFFFDAD6)
