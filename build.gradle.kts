@@ -14,3 +14,12 @@ plugins {
     alias(libs.plugins.sort.dependencies) apply true
     alias(libs.plugins.spotless) apply true
 }
+
+subprojects {
+  plugins.withId("io.gitlab.arturbosch.detekt") {
+    dependencies {
+      // use your version
+      detektPlugins(libs.detekt.compose.rules)
+    }
+  }
+}
