@@ -20,6 +20,8 @@ dependencies {
   implementation(project(":core:base"))
   implementation(project(":core:data:api"))
   implementation(project(":core:model"))
+  implementation(project(":core:shared-ui"))
+  implementation(project(":core:theme"))
   implementation(project(":core:work-manager"))
   implementation(libs.androidx.activity.compose)
   implementation(libs.androidx.core.ktx)
@@ -27,6 +29,8 @@ dependencies {
   implementation(libs.bundles.compose)
   implementation(libs.bundles.compose.debug)
   implementation(libs.compose.material.icons)
+  implementation(libs.compose.material.icons.extended)
+  implementation(libs.metrox.android)
   implementation(libs.metrox.viewmodel)
   implementation(libs.metrox.viewmodel.compose)
 }

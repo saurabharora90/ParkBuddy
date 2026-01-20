@@ -13,11 +13,20 @@ interface DatabaseProvider {
 
   @Provides
   fun provideDatabase(context: Context): ParkBuddyDatabase {
-    return Room.databaseBuilder(context, ParkBuddyDatabase::class.java, "park_buddy_db").build()
+    return Room.databaseBuilder(context, ParkBuddyDatabase::class.java, "park_buddy_db")
+      .fallbackToDestructiveMigration(true)
+      .build()
   }
 
   @Provides
   fun provideDao(database: ParkBuddyDatabase): StreetCleaningDao {
     return database.streetCleaningDao()
+  }
+
+  @Provides
+  fun provideReminderDao(
+    database: ParkBuddyDatabase
+  ): dev.bongballe.parkbuddy.database.ReminderDao {
+    return database.reminderDao()
   }
 }
