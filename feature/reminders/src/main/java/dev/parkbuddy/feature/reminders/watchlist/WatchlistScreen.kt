@@ -400,7 +400,7 @@ private fun WatchlistScreenPreview_Populated() {
   val mockSegments =
     listOf(
       StreetCleaningSegmentModel(
-        id = 1,
+        id = "1",
         streetName = "Mission St",
         schedule = "Mon, Wed, Fri 12:00-14:00",
         locationData = Geometry("MultiLineString", emptyList()),
@@ -409,7 +409,7 @@ private fun WatchlistScreenPreview_Populated() {
         servicedOnHolidays = false,
       ),
       StreetCleaningSegmentModel(
-        id = 2,
+        id = "2",
         streetName = "Valencia St",
         schedule = "Tue, Thu 08:00-10:00",
         locationData = Geometry("MultiLineString", emptyList()),

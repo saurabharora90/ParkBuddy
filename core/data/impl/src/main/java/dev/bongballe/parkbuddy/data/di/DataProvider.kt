@@ -1,5 +1,6 @@
 package dev.bongballe.parkbuddy.data.di
 
+import com.skydoves.retrofit.adapters.result.ResultCallAdapterFactory
 import dev.bongballe.parkbuddy.data.network.SfOpenDataApi
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesTo
@@ -20,6 +21,7 @@ interface DataProvider {
     return Retrofit.Builder()
       .baseUrl("https://data.sfgov.org/")
       .client(okHttpClient)
+      .addCallAdapterFactory(ResultCallAdapterFactory.create())
       .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
       .build()
   }

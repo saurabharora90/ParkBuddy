@@ -18,6 +18,7 @@ jdk = "21" # read by Foundry
 junit = "4.13.2"
 junitVersion = "1.3.0"
 retrofit = "3.0.0"
+retrofit-adapters-result = "1.1.0"
 robolectric = "4.16"
 roborazzi = "1.54.0"
 room = "2.8.4"
@@ -29,6 +30,7 @@ mapsCompose = "7.0.0"
 metro = "0.9.4"
 nav3Core = "1.0.0"
 slackFoundry = "0.33.1"
+sqlite = "2.6.2"
 sortDependencies = "0.16"
 spotless = "8.1.0"
 truth = "1.2.0"
@@ -47,6 +49,7 @@ androidx-navigation3-ui = { module = "androidx.navigation3:navigation3-ui", vers
 androidx-room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
 androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
 androidx-room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
+androidx-room-sqlite-bundled = { group = "androidx.sqlite", name = "sqlite-bundled", version.ref = "sqlite" }
 
 compose-animation = { group = "androidx.compose.animation", name = "animation" }
 compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "composeBom" }
@@ -73,6 +76,7 @@ metrox-viewmodel = { group = "dev.zacsweers.metro", name = "metrox-viewmodel", v
 metrox-viewmodel-compose = { group = "dev.zacsweers.metro", name = "metrox-viewmodel-compose", version.ref = "metro" }
 okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }
 retrofit = { group = "com.squareup.retrofit2", name = "retrofit", version.ref = "retrofit" }
+retrofit-adapters-result = { group = "com.github.skydoves", name = "retrofit-adapters-result", version.ref = "retrofit-adapters-result" }
 retrofit-converter-kotlinx-serialization = { group = "com.squareup.retrofit2", name = "converter-kotlinx-serialization", version.ref = "retrofit" }
 robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
 roborazzi = { group = "io.github.takahirom.roborazzi", name = "roborazzi", version.ref = "roborazzi" }

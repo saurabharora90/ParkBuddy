@@ -21,13 +21,8 @@ class DataRefreshWorker(
 ) : CoroutineWorker(context, workerParams) {
 
   override suspend fun doWork(): Result {
-    return try {
-      repository.refreshData()
-      Result.success()
-    } catch (e: Exception) {
-      e.printStackTrace()
-      Result.retry()
-    }
+    val result = repository.refreshData()
+    return if (result) Result.success() else Result.retry()
   }
 
   @WorkerKey(DataRefreshWorker::class)

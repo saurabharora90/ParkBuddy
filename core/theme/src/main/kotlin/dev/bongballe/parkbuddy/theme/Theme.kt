@@ -1,7 +1,6 @@
 package dev.bongballe.parkbuddy.theme
 
 import android.app.Activity
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
@@ -36,13 +35,7 @@ private val LightColorScheme =
   )
 
 @Composable
-fun ParkBuddyTheme(
-  // We ignore the system dark theme setting to enforce the branded light theme
-  darkTheme: Boolean = isSystemInDarkTheme(),
-  // Dynamic color is disabled to enforce the branded light theme
-  dynamicColor: Boolean = false,
-  content: @Composable () -> Unit,
-) {
+fun ParkBuddyTheme(content: @Composable () -> Unit) {
   // Always use the LightColorScheme
   val colorScheme = LightColorScheme
 

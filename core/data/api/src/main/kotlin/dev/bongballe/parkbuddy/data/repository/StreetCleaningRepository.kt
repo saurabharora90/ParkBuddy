@@ -8,7 +8,13 @@ interface StreetCleaningRepository {
 
   fun getWatchedSegments(): Flow<List<StreetCleaningSegmentModel>>
 
-  suspend fun refreshData()
+  fun searchSegments(query: String): Flow<List<StreetCleaningSegmentModel>>
 
-  suspend fun setWatchStatus(id: Long, isWatched: Boolean)
+  /**
+   * Refreshes the street cleaning data
+   * @return true if data was refreshed, false otherwise
+   */
+  suspend fun refreshData() : Boolean
+
+  suspend fun setWatchStatus(id: String, isWatched: Boolean)
 }

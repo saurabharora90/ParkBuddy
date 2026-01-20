@@ -20,8 +20,10 @@ dependencies {
     implementation(project(":core:database"))
     implementation(project(":core:model"))
     implementation(project(":core:network"))
+    implementation(project(":core:work-manager"))
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.okhttp)
     implementation(libs.retrofit)
+    implementation(libs.retrofit.adapters.result)
     implementation(libs.retrofit.converter.kotlinx.serialization)
 }

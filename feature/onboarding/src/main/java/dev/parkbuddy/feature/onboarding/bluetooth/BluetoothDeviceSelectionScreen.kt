@@ -42,7 +42,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -66,8 +65,6 @@ fun BluetoothDeviceSelectionScreen(
   onDeviceSelected: () -> Unit,
 ) {
   val uiState by viewModel.uiState.collectAsState()
-  val context = LocalContext.current
-
   LaunchedEffect(Unit) { viewModel.loadPairedDevices() }
 
   val notificationPermissionState =
@@ -127,7 +124,8 @@ fun BluetoothDeviceSelectionScreenContent(
 
       Text(
         text =
-          "Select your vehicle from your paired devices. ParkBuddy uses this \"handshake\" to know exactly when and where your parking session begins—no manual input required.",
+          "Select your vehicle from your paired devices. ParkBuddy uses this \"handshake\" " +
+            "to know exactly when and where your parking session begins—no manual input required.",
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
       )

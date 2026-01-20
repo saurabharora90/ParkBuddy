@@ -1,14 +1,14 @@
 package dev.bongballe.parkbuddy.data.model
 
 import dev.bongballe.parkbuddy.data.repository.serializers.StringToBooleanSerializer
-import dev.bongballe.parkbuddy.model.Geometry
 import dev.bongballe.parkbuddy.model.Weekday
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonElement
 
 @Serializable
 data class StreetCleaningResponse(
-  val cnn: String = "",
+  @SerialName("cnn") val cnn: String = "",
   @SerialName("corridor") val streetName: String = "",
   @SerialName("week1")
   @Serializable(StringToBooleanSerializer::class)
@@ -29,7 +29,10 @@ data class StreetCleaningResponse(
   @Serializable(StringToBooleanSerializer::class)
   val servicedOnHolidays: Boolean = false,
   val weekday: Weekday = Weekday.Holiday,
-  @SerialName("fromhour") val fromhour: Int = 0,
-  @SerialName("tohour") val tohour: Int = 0,
-  @SerialName("line") val geometry: Geometry,
+  @SerialName("fromhour") val fromhour: String = "",
+  @SerialName("tohour") val tohour: String = "",
+  @SerialName("line") val geometry: JsonElement? = null,
+  @SerialName("limits") val limits: String = "",
+  @SerialName("blockside") val blockSide: String = "",
+  @SerialName("cnnrightleft") val cnnRightLeft: String = "",
 )

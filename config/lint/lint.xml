@@ -10,6 +10,7 @@
     <issue id="AndroidGradlePluginVersion" severity="ignore" />
     <!-- It's ok if we're missing density folders. -->
     <issue id="IconMissingDensityFolder" severity="ignore" />
+    <issue id="UnknownIssueId" severity="ignore" />
 
     <!-- Android wear checks https://dev.to/charlietap/free-android-lint-perf-103p -->
     <issue id="InvalidWearFeatureAttribute" severity="ignore" />

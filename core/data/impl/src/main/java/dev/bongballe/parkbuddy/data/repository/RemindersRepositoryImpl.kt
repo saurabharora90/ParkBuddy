@@ -1,7 +1,7 @@
 package dev.bongballe.parkbuddy.data.repository
 
 import dev.bongballe.parkbuddy.database.ReminderDao
-import dev.bongballe.parkbuddy.database.ReminderSetting
+import dev.bongballe.parkbuddy.database.ReminderSettingEntity
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesBinding
 import dev.zacsweers.metro.Inject
@@ -19,7 +19,7 @@ class RemindersRepositoryImpl(private val reminderDao: ReminderDao) : RemindersR
   }
 
   override suspend fun addReminder(minutesBefore: Int) {
-    reminderDao.insertReminder(ReminderSetting(minutesBefore = minutesBefore))
+    reminderDao.insertReminder(ReminderSettingEntity(minutesBefore = minutesBefore))
   }
 
   override suspend fun removeReminder(minutesBefore: Int) {

@@ -205,7 +205,9 @@ fun RequestPermissionScreenContent(
       title = { Text(text = "Permissions Required") },
       text = {
         Text(
-          "To provide zero-touch parking alerts, ParkBuddy needs to access your location even when the app is closed or not in use.\n\n Your location data is only used locally to check for cleaning rules and is never shared."
+          "To provide zero-touch parking alerts, ParkBuddy needs to access your location " +
+            "even when the app is closed or not in use.\n\n Your location data is only used " +
+            "locally to check for cleaning rules and is never shared."
         )
       },
       confirmButton = { TextButton(onClick = onConfirmRationale) { Text("OK") } },
@@ -262,7 +264,9 @@ fun RequestPermissionScreenContent(
         )
         Text(
           text =
-            "To make the magic happen without you ever opening the app, ParkBuddy needs to stay \"in the loop\" with your car. We’ll automatically note your spot and only alert you if a tow truck or sweeper is scheduled.",
+            "To make the magic happen without you ever opening the app, " +
+              "ParkBuddy needs to stay \"in the loop\" with your car. We’ll automatically " +
+              "note your spot and only alert you if a tow truck or sweeper is scheduled.",
           style = MaterialTheme.typography.bodyMedium,
           color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -284,7 +288,8 @@ fun RequestPermissionScreenContent(
           icon = Icons.AutoMirrored.Filled.BluetoothSearching,
           title = "Nearby Devices",
           description =
-            "We use your car’s Bluetooth as a \"handshake\" to know exactly when and where your parking session begins.",
+            "We use your car’s Bluetooth as a \"handshake\" to" +
+              " know exactly when and where your parking session begins.",
           isGranted = uiState.isBluetoothGranted,
         )
       }

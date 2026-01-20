@@ -9,5 +9,5 @@ interface SfOpenDataApi {
   suspend fun getStreetCleaningData(
     @Query("\$limit") limit: Int = 1000,
     @Query("\$offset") offset: Int = 0,
-  ): List<StreetCleaningResponse>
+  ): Result<List<StreetCleaningResponse>>
 }

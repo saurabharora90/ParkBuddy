@@ -10,15 +10,15 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface ReminderDao {
   @Query("SELECT * FROM reminder_settings ORDER BY minutesBefore ASC")
-  fun getReminders(): Flow<List<ReminderSetting>>
+  fun getReminders(): Flow<List<ReminderSettingEntity>>
 
   @Insert(onConflict = OnConflictStrategy.REPLACE)
-  suspend fun insertReminder(reminder: ReminderSetting)
+  suspend fun insertReminder(reminder: ReminderSettingEntity)
 
   @Insert(onConflict = OnConflictStrategy.REPLACE)
-  suspend fun insertReminders(reminders: List<ReminderSetting>)
+  suspend fun insertReminders(reminders: List<ReminderSettingEntity>)
 
-  @Delete suspend fun deleteReminder(reminder: ReminderSetting)
+  @Delete suspend fun deleteReminder(reminder: ReminderSettingEntity)
 
   @Query("DELETE FROM reminder_settings") suspend fun clearReminders()
 
