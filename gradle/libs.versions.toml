@@ -11,6 +11,7 @@ coroutines = "1.10.2"
 detekt = "1.23.8"
 google-coreLibraryDesugaring = "2.1.5"
 kotlin = "2.3.0"
+kotlinx-datetime = "0.7.1"
 kotlinx-serialization = "1.9.0"
 ksp = "2.3.0"
 ktfmt = "0.61" # read by Foundry
@@ -66,6 +67,7 @@ coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coi
 detekt-compose-rules = { group = "io.nlopez.compose.rules", name = "detekt", version.ref = "composeRulesDetekt" }
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }
 kotlinx-coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "coroutines" }
+kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlinx-datetime" }
 kotlinx-serialization-core = { module = "org.jetbrains.kotlinx:kotlinx-serialization-core", version.ref = "kotlinx-serialization" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
 google-coreLibraryDesugaring = { group = "com.android.tools", name = "desugar_jdk_libs", version.ref = "google-coreLibraryDesugaring" } #read by Foundry

@@ -1,8 +1,15 @@
 package dev.bongballe.parkbuddy.model
 
-import java.time.DayOfWeek
-import java.time.LocalTime
-import java.time.ZonedDateTime
+import kotlin.time.Instant
+import kotlinx.datetime.DateTimeUnit
+import kotlinx.datetime.DayOfWeek
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.LocalTime
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.plus
+import kotlinx.datetime.toInstant
+import kotlinx.datetime.toLocalDateTime
 
 /**
  * Represents a parkable street segment.
@@ -75,10 +82,13 @@ data class SweepingSchedule(
   val week5: Boolean,
   val holidays: Boolean,
 ) {
-  fun nextOccurrence(now: ZonedDateTime): ZonedDateTime? {
+  fun nextOccurrence(
+    now: Instant,
+    zone: TimeZone = TimeZone.currentSystemDefault(),
+  ): Instant? {
     val targetDayOfWeek = weekday.toDayOfWeek() ?: return null
 
-    var candidate = now.toLocalDate()
+    var candidate = now.toLocalDateTime(zone).date
     repeat(52 * 7) {
       if (candidate.dayOfWeek == targetDayOfWeek) {
         val weekOfMonth = getWeekOfMonth(candidate)
@@ -91,21 +101,24 @@ data class SweepingSchedule(
           else -> false
         }
         if (isValidWeek) {
-          val cleaningStart = candidate.atTime(fromHour, 0)
-            .atZone(now.zone)
-          if (cleaningStart.isAfter(now)) {
+          val cleaningStart = LocalDateTime(candidate, LocalTime(fromHour, 0))
+            .toInstant(zone)
+          if (cleaningStart > now) {
             return cleaningStart
           }
         }
       }
-      candidate = candidate.plusDays(1)
+      candidate = candidate.plus(1, DateTimeUnit.DAY)
     }
     return null
   }
 
-  private fun getWeekOfMonth(date: java.time.LocalDate): Int {
-    val firstOfMonth = date.withDayOfMonth(1)
-    val firstTargetDay = firstOfMonth.with(java.time.temporal.TemporalAdjusters.nextOrSame(date.dayOfWeek))
+  private fun getWeekOfMonth(date: LocalDate): Int {
+    val firstOfMonth = LocalDate(date.year, date.month, 1)
+    var firstTargetDay = firstOfMonth
+    while (firstTargetDay.dayOfWeek != date.dayOfWeek) {
+      firstTargetDay = firstTargetDay.plus(1, DateTimeUnit.DAY)
+    }
     return ((date.dayOfMonth - firstTargetDay.dayOfMonth) / 7) + 1
   }
 

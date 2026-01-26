@@ -22,7 +22,7 @@ import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesBinding
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
-import java.time.LocalTime
+import kotlinx.datetime.LocalTime
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -310,9 +310,9 @@ class ParkingRepositoryImpl(
     val minute = time % 100
     // API returns 2400 for midnight (end of day), normalize to 23:59
     return if (hour >= 24) {
-      LocalTime.of(23, 59)
+      LocalTime(23, 59)
     } else {
-      LocalTime.of(hour, minute.coerceIn(0, 59))
+      LocalTime(hour, minute.coerceIn(0, 59))
     }
   }
 
