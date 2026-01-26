@@ -1,5 +1,6 @@
 package dev.parkbuddy.feature.map
 
+import android.annotation.SuppressLint
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -19,6 +20,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
+import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.LatLngBounds
@@ -35,7 +40,9 @@ import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.tasks.await
 
+@SuppressLint("MissingPermission")
 @OptIn(ExperimentalMaterial3Api::class, MapsComposeExperimentalApi::class, FlowPreview::class)
 @Composable
 fun MapScreen(viewModel: MapViewModel, onNavigateToWatchlist: () -> Unit) {
@@ -48,10 +55,25 @@ fun MapScreen(viewModel: MapViewModel, onNavigateToWatchlist: () -> Unit) {
   val spotsWithPoints =
     remember(spots) { spots.map { spot -> spot to parseLocationData(spot.geometry) } }
 
-  val sf = LatLng(37.7749, -122.4194)
   val sfBounds = LatLngBounds(LatLng(37.703397, -122.519967), LatLng(37.832396, -122.354979))
-  val cameraPositionState = rememberCameraPositionState {
-    position = CameraPosition.fromLatLngZoom(sf, 15f)
+  val cameraPositionState = rememberCameraPositionState()
+
+  val context = LocalContext.current
+  LaunchedEffect(Unit) {
+    val locationClient = LocationServices.getFusedLocationProviderClient(context)
+    val location =
+      try {
+        locationClient.getCurrentLocation(Priority.PRIORITY_BALANCED_POWER_ACCURACY, null).await()
+      } catch (_: Exception) {
+        null
+      }
+    val startPosition =
+      if (location != null && sfBounds.contains(LatLng(location.latitude, location.longitude))) {
+        LatLng(location.latitude, location.longitude)
+      } else {
+        LatLng(37.7749, -122.4194) // Fallback to SF center
+      }
+    cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(startPosition, 16f))
   }
 
   // Use state + LaunchedEffect with debounce instead of derivedStateOf
@@ -95,7 +117,7 @@ fun MapScreen(viewModel: MapViewModel, onNavigateToWatchlist: () -> Unit) {
           MapProperties(
             isMyLocationEnabled = true,
             latLngBoundsForCameraTarget = sfBounds,
-            minZoomPreference = 13f,
+            minZoomPreference = 15f,
             maxZoomPreference = 18f,
           ),
       ) {

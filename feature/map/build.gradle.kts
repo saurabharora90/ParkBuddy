@@ -28,6 +28,7 @@ dependencies {
   implementation(libs.bundles.compose.debug)
   implementation(libs.compose.material.icons)
   implementation(libs.compose.material.icons.extended)
+  implementation(libs.kotlinx.coroutines.play.services)
   implementation(libs.kotlinx.datetime)
   implementation(libs.kotlinx.serialization.json)
   implementation(libs.maps.compose)
