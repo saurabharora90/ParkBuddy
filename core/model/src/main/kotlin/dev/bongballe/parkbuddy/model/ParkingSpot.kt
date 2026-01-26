@@ -123,10 +123,10 @@ data class SweepingSchedule(
   }
 
   fun formatSchedule(): String {
-    val dayName = weekday.name.take(3)
+    val dayName = weekday.name
     val fromTime = if (fromHour < 12) "${fromHour}am" else if (fromHour == 12) "12pm" else "${fromHour - 12}pm"
     val toTime = if (toHour < 12) "${toHour}am" else if (toHour == 12) "12pm" else "${toHour - 12}pm"
-    return "$dayName $fromTime-$toTime"
+    return "$dayName, $fromTime - $toTime"
   }
 }
 

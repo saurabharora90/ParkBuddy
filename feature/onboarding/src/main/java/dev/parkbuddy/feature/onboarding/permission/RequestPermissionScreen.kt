@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -30,8 +29,6 @@ import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -50,7 +47,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -66,9 +62,9 @@ import com.google.accompanist.permissions.PermissionStatus
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
 import com.google.accompanist.permissions.rememberPermissionState
 import dev.bongballe.parkbuddy.theme.ParkBuddyTheme
-import dev.bongballe.parkbuddy.theme.SageContainer
 import dev.bongballe.parkbuddy.theme.SageGreen
 import dev.bongballe.parkbuddy.theme.SagePrimary
+import dev.parkbuddy.core.ui.ParkBuddyButton
 import dev.parkbuddy.core.ui.SquircleIcon
 
 @OptIn(ExperimentalPermissionsApi::class)
@@ -298,28 +294,11 @@ fun RequestPermissionScreenContent(
       Spacer(modifier = Modifier.height(32.dp))
 
       // Buttons
-      Button(
+      ParkBuddyButton(
+        label = "Continue",
         onClick = onContinueClick,
-        modifier =
-          Modifier.fillMaxWidth()
-            .height(64.dp)
-            .shadow(
-              elevation = 8.dp,
-              spotColor = SagePrimary.copy(alpha = 0.2f),
-              shape = CircleShape,
-            ),
-        colors =
-          ButtonDefaults.buttonColors(
-            containerColor = SagePrimary,
-            contentColor = MaterialTheme.colorScheme.onPrimary,
-          ),
-        shape = CircleShape,
-      ) {
-        Text(
-          text = "Enable Permissions",
-          style = MaterialTheme.typography.titleLarge.copy(fontSize = 18.sp),
-        )
-      }
+        modifier = Modifier.fillMaxWidth(),
+      )
 
       Text(
         text = "STANDARD SYSTEM PROMPTS WILL FOLLOW",
@@ -376,19 +355,13 @@ private fun PermissionCard(
       modifier = Modifier.fillMaxWidth().padding(20.dp),
       verticalAlignment = Alignment.CenterVertically,
     ) {
-      Box(
-        modifier =
-          Modifier.size(56.dp)
-            .background(SageContainer.copy(alpha = 0.5f), RoundedCornerShape(20.dp)),
-        contentAlignment = Alignment.Center,
-      ) {
-        Icon(
-          imageVector = icon,
-          contentDescription = null,
-          tint = SageGreen,
-          modifier = Modifier.size(32.dp),
-        )
-      }
+      SquircleIcon(
+        icon = icon,
+        size = 56.dp,
+        shape = RoundedCornerShape(20.dp),
+        iconTint = MaterialTheme.colorScheme.primary,
+        backgroundTint = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+      )
 
       Column(modifier = Modifier.padding(horizontal = 16.dp).weight(1f)) {
         Text(

@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bluetooth
@@ -24,8 +23,6 @@ import androidx.compose.material.icons.filled.BluetoothConnected
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -40,13 +37,11 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
@@ -55,6 +50,7 @@ import dev.bongballe.parkbuddy.theme.ParkBuddyTheme
 import dev.bongballe.parkbuddy.theme.SageContainer
 import dev.bongballe.parkbuddy.theme.SageGreen
 import dev.bongballe.parkbuddy.theme.SagePrimary
+import dev.parkbuddy.core.ui.ParkBuddyButton
 import dev.parkbuddy.core.ui.SquircleIcon
 import dev.zacsweers.metrox.viewmodel.metroViewModel
 
@@ -154,32 +150,12 @@ fun BluetoothDeviceSelectionScreenContent(
         }
       }
 
-      // Buttons
-      Button(
+      ParkBuddyButton(
+        label = "Save & Start Protecting",
         onClick = onContinueClick,
+        modifier = Modifier.fillMaxWidth(),
         enabled = uiState.selectedDevice != null,
-        modifier =
-          Modifier.fillMaxWidth()
-            .height(64.dp)
-            .shadow(
-              elevation = if (uiState.selectedDevice != null) 8.dp else 0.dp,
-              spotColor = SagePrimary.copy(alpha = 0.2f),
-              shape = CircleShape,
-            ),
-        colors =
-          ButtonDefaults.buttonColors(
-            containerColor = SagePrimary,
-            contentColor = MaterialTheme.colorScheme.onPrimary,
-            disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-            disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-          ),
-        shape = CircleShape,
-      ) {
-        Text(
-          text = "Save & Start Protecting",
-          style = MaterialTheme.typography.titleLarge.copy(fontSize = 18.sp),
-        )
-      }
+      )
 
       Spacer(modifier = Modifier.height(24.dp))
     }

@@ -32,6 +32,9 @@ val OnTertiaryContainerLight = Color(0xFF001F29)
 
 val Terracotta = Color(0xFFBC5449)
 
+// Map colors
+val GoldenYellow = Color(0xFFD4A84B) // Complementary warm yellow for non-watched streets
+
 val ErrorLight = Color(0xFFBA1A1A)
 val OnErrorLight = Color(0xFFFFFFFF)
 val ErrorContainerLight = Color(0xFFFFDAD6)
