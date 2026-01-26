@@ -13,8 +13,8 @@ import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDe
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
+import dev.bongballe.parkbuddy.data.repository.ParkingRepository
 import dev.bongballe.parkbuddy.data.repository.PreferencesRepository
-import dev.bongballe.parkbuddy.data.repository.StreetCleaningRepository
 import dev.bongballe.parkbuddy.theme.ParkBuddyTheme
 import dev.parkbuddy.feature.map.MapScreen
 import dev.parkbuddy.feature.map.MapViewModel
@@ -44,7 +44,7 @@ data object RouteWatchList
 @Inject
 class MainActivity(
   private val viewModelFactory: MetroViewModelFactory,
-  private val repository: StreetCleaningRepository,
+  private val repository: ParkingRepository,
   private val preferencesRepository: PreferencesRepository,
 ) : ComponentActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
@@ -52,9 +52,14 @@ class MainActivity(
     enableEdgeToEdge()
 
     lifecycleScope.launch {
-      if (!preferencesRepository.isInitialSyncDone.first()) {
-        repository.refreshData()
-        preferencesRepository.setInitialSyncDone(true)
+      // Check if data needs refresh - either first sync or database was wiped
+      val needsSync =
+        !preferencesRepository.isInitialSyncDone.first() ||
+          repository.getAllSpots().first().isEmpty()
+      if (needsSync) {
+        val didRefreshSucceed = repository.refreshData()
+        if (didRefreshSucceed)
+          preferencesRepository.setInitialSyncDone(true)
       }
     }
 
@@ -79,7 +84,7 @@ class MainActivity(
                     onPermissionsGranted = {
                       backStack.clear()
                       backStack.add(RouteBluetoothDeviceSelection)
-                    }
+                    },
                   )
                 }
                 entry<RouteMap> {
@@ -94,7 +99,7 @@ class MainActivity(
                     onDeviceSelected = {
                       backStack.clear()
                       backStack.add(RouteMap)
-                    }
+                    },
                   )
                 }
               },
