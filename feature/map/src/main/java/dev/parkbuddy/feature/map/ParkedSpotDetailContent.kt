@@ -24,6 +24,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -41,6 +46,8 @@ import dev.parkbuddy.core.ui.ParkBuddyButton
 import dev.parkbuddy.core.ui.SquircleIcon
 import kotlin.time.Clock
 import kotlin.time.Duration
+import kotlin.time.Instant
+import kotlinx.coroutines.delay
 
 @Composable
 internal fun ParkedSpotDetailContent(
@@ -50,13 +57,22 @@ internal fun ParkedSpotDetailContent(
   onEndSession: () -> Unit,
   modifier: Modifier = Modifier,
 ) {
+  var currentTime by remember { mutableStateOf(Clock.System.now()) }
+
+  LaunchedEffect(Unit) {
+    while (true) {
+      delay(1000)
+      currentTime = Clock.System.now()
+    }
+  }
+
   Column(
     modifier = modifier
       .background(MaterialTheme.colorScheme.background)
       .padding(horizontal = 16.dp, vertical = 24.dp),
     verticalArrangement = Arrangement.spacedBy(20.dp),
   ) {
-    val now = Clock.System.now()
+    val now = currentTime
     val nextSweepingSchedule =
       spot.sweepingSchedules.sortedBy { it.nextOccurrence(now) }.firstOrNull()
     val nextCleaning = nextSweepingSchedule?.nextOccurrence(now)

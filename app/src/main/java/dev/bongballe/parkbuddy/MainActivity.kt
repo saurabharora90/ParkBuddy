@@ -24,7 +24,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.navigation3.runtime.entryProvider
@@ -98,9 +97,7 @@ class MainActivity(
                     }
                   )
                 }
-                entry<Main> {
-                  MainScreen()
-                }
+                entry<Main> { MainScreen() }
                 entry<RouteBluetoothDeviceSelection> {
                   BluetoothDeviceSelectionScreen(
                     onDeviceSelected = {
