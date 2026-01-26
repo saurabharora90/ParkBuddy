@@ -2,37 +2,60 @@ package dev.parkbuddy.feature.reminders.watchlist
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import dev.bongballe.parkbuddy.data.repository.RemindersRepository
-import dev.bongballe.parkbuddy.data.repository.StreetCleaningRepository
-import dev.bongballe.parkbuddy.model.StreetCleaningSegmentModel
+import dev.bongballe.parkbuddy.data.repository.ParkingRepository
+import dev.bongballe.parkbuddy.model.ParkingSpot
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesIntoMap
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metrox.viewmodel.ViewModelKey
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-@OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
+@OptIn(ExperimentalCoroutinesApi::class)
 @ContributesIntoMap(AppScope::class)
 @ViewModelKey(WatchlistViewModel::class)
 @Inject
-class WatchlistViewModel(
-  private val repository: StreetCleaningRepository,
-  private val remindersRepository: RemindersRepository,
-) : ViewModel() {
+class WatchlistViewModel(private val repository: ParkingRepository) : ViewModel() {
 
-  val watchedSegments: StateFlow<List<StreetCleaningSegmentModel>> =
+  val availableZones: StateFlow<List<String>> =
     repository
-      .getWatchedSegments()
+      .getAllRppZones()
+      .stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList(),
+      )
+
+  val selectedZone: StateFlow<String?> =
+    repository
+      .getUserRppZone()
+      .stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = null,
+      )
+
+  val watchedSpotCount: StateFlow<Int> =
+    selectedZone
+      .flatMapLatest { zone -> if (zone == null) flowOf(0) else repository.countSpotsByZone(zone) }
+      .stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = 0,
+      )
+
+  val watchedSpots: StateFlow<List<ParkingSpot>> =
+    selectedZone
+      .flatMapLatest { zone ->
+        if (zone == null) flowOf(emptyList()) else repository.getSpotsByZone(zone)
+      }
       .stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
@@ -40,69 +63,42 @@ class WatchlistViewModel(
       )
 
   val reminders: StateFlow<List<Int>> =
-    remindersRepository
+    repository
       .getReminders()
-      .stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5000),
-        initialValue = emptyList(), // Default/Initial
-      )
-
-  private val _searchQuery = MutableStateFlow("")
-  val searchQuery = _searchQuery.asStateFlow()
-
-  private val _isSearchActive = MutableStateFlow(false)
-  val isSearchActive = _isSearchActive.asStateFlow()
-
-  val searchResults: StateFlow<List<StreetCleaningSegmentModel>> =
-    _searchQuery
-      .debounce(300)
-      .flatMapLatest { query ->
-        if (query.isBlank()) flowOf(emptyList()) else repository.searchSegments(query)
-      }
       .stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = emptyList(),
       )
 
-  fun onSearchQueryChanged(query: String) {
-    _searchQuery.value = query
+  private val _isZonePickerExpanded = MutableStateFlow(false)
+  val isZonePickerExpanded = _isZonePickerExpanded.asStateFlow()
+
+  fun setZonePickerExpanded(expanded: Boolean) {
+    _isZonePickerExpanded.value = expanded
   }
 
-  fun onSearchActiveChanged(active: Boolean) {
-    _isSearchActive.value = active
-    if (!active) {
-      _searchQuery.value = ""
-    }
-  }
-
-  fun watch(segment: StreetCleaningSegmentModel) {
+  fun selectZone(zone: String?) {
     viewModelScope.launch {
-      repository.setWatchStatus(segment.id, true)
-      // Check if reminders are empty, if so, add defaults (12h, 4h)
-      if (reminders.value.isEmpty()) {
-        remindersRepository.addReminder(12 * 60) // 12 hours
-        remindersRepository.addReminder(4 * 60) // 4 hours
+      repository.setUserRppZone(zone)
+      if (zone != null && reminders.value.isEmpty()) {
+        repository.addReminder(60)
+        repository.addReminder(24 * 60)
       }
     }
-    onSearchActiveChanged(false)
-  }
-
-  fun unwatch(segment: StreetCleaningSegmentModel) {
-    viewModelScope.launch { repository.setWatchStatus(segment.id, false) }
+    _isZonePickerExpanded.value = false
   }
 
   fun addReminder(hours: Int, minutes: Int) {
     viewModelScope.launch {
       val totalMinutes = hours * 60 + minutes
       if (totalMinutes > 0) {
-        remindersRepository.addReminder(totalMinutes)
+        repository.addReminder(totalMinutes)
       }
     }
   }
 
   fun removeReminder(minutes: Int) {
-    viewModelScope.launch { remindersRepository.removeReminder(minutes) }
+    viewModelScope.launch { repository.removeReminder(minutes) }
   }
 }
