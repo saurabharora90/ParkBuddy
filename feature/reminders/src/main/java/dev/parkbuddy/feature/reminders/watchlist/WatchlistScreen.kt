@@ -273,7 +273,9 @@ private fun ZoneSelectorCard(
 fun ReminderItem(minutes: Int, onDelete: () -> Unit) {
   val hours = minutes / 60
   val mins = minutes % 60
-  val timeString = if (hours > 0) "$hours hr ${mins} min before" else "$mins min before"
+  val timeString =
+    if (mins == 0) "$hours hr before"
+    else if (hours == 0) "$mins min before" else "$hours hr $mins min before"
 
   Card(
     modifier = Modifier.fillMaxWidth(),
