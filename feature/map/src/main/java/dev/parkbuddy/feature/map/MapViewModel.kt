@@ -36,7 +36,7 @@ class MapViewModel(
     val spots: List<ParkingSpot>,
     val watchedSpots: List<ParkingSpot>,
     val parkedLocation: Triple<ParkedLocation, ParkingSpot, List<ReminderMinutes>>?,
-    val shouldShowParkedLocationBottomSheet: Boolean
+    val shouldShowParkedLocationBottomSheet: Boolean,
   )
 
   private val shouldShowParkedLocationBottomSheet: MutableStateFlow<Boolean> =
@@ -44,34 +44,43 @@ class MapViewModel(
 
   val stateFlow: StateFlow<State> =
     combine(
-      flow = repository.getAllSpots(),
-      flow2 = repository.getUserRppZone().flatMapLatest { zone ->
-        if (zone == null) flowOf(emptyList()) else repository.getSpotsByZone(zone)
-      },
-      flow3 = preferencesRepository.parkedLocation,
-      flow4 = repository.getReminders(),
-      flow5 = shouldShowParkedLocationBottomSheet,
-      transform = { parkingSpots, watchedSpots, parkedLocation, reminder, shouldShowParkedLocationBottomSheet ->
-        State(
-          spots = parkingSpots,
-          watchedSpots = watchedSpots,
-          parkedLocation = parkedLocation?.let {
-            val spot = parkingSpots.first { it.objectId == parkedLocation.spotId }
-            Triple(parkedLocation, spot, reminder.sortedDescending())
+        flow = repository.getAllSpots(),
+        flow2 =
+          repository.getUserRppZone().flatMapLatest { zone ->
+            if (zone == null) flowOf(emptyList()) else repository.getSpotsByZone(zone)
           },
-          shouldShowParkedLocationBottomSheet = shouldShowParkedLocationBottomSheet,
-        )
-      },
-    ).stateIn(
-      scope = viewModelScope,
-      started = SharingStarted.WhileSubscribed(5000),
-      initialValue = State(
-        spots = emptyList(),
-        watchedSpots = emptyList(),
-        parkedLocation = null,
-        shouldShowParkedLocationBottomSheet = false,
-      ),
-    )
+        flow3 = preferencesRepository.parkedLocation,
+        flow4 = repository.getReminders(),
+        flow5 = shouldShowParkedLocationBottomSheet,
+        transform = {
+          parkingSpots,
+          watchedSpots,
+          parkedLocation,
+          reminder,
+          shouldShowParkedLocationBottomSheet ->
+          State(
+            spots = parkingSpots,
+            watchedSpots = watchedSpots,
+            parkedLocation =
+              parkedLocation?.let {
+                val spot = parkingSpots.first { it.objectId == parkedLocation.spotId }
+                Triple(parkedLocation, spot, reminder.sortedDescending())
+              },
+            shouldShowParkedLocationBottomSheet = shouldShowParkedLocationBottomSheet,
+          )
+        },
+      )
+      .stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue =
+          State(
+            spots = emptyList(),
+            watchedSpots = emptyList(),
+            parkedLocation = null,
+            shouldShowParkedLocationBottomSheet = false,
+          ),
+      )
 
   init {
     viewModelScope.launch {

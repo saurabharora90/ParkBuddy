@@ -1,7 +1,6 @@
 package dev.parkbuddy.feature.reminders.watchlist
 
 import androidx.compose.foundation.BorderStroke
-import dev.bongballe.parkbuddy.model.ReminderMinutes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -53,6 +52,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import dev.bongballe.parkbuddy.model.ParkingSpot
+import dev.bongballe.parkbuddy.model.ReminderMinutes
 import dev.bongballe.parkbuddy.theme.Terracotta
 import dev.parkbuddy.core.ui.SquircleIcon
 import dev.zacsweers.metrox.viewmodel.metroViewModel

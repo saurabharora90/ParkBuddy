@@ -86,12 +86,12 @@ fun MapScreen(modifier: Modifier = Modifier, viewModel: MapViewModel = metroView
 
   LaunchedEffect(spotsWithPoints) {
     snapshotFlow {
-      Triple(
-        cameraPositionState.isMoving,
-        cameraPositionState.position.zoom,
-        cameraPositionState.projection?.visibleRegion?.latLngBounds,
-      )
-    }
+        Triple(
+          cameraPositionState.isMoving,
+          cameraPositionState.position.zoom,
+          cameraPositionState.projection?.visibleRegion?.latLngBounds,
+        )
+      }
       .filter { (isMoving, _, _) -> !isMoving }
       .debounce(100)
       .distinctUntilChanged()
@@ -142,7 +142,7 @@ fun MapScreen(modifier: Modifier = Modifier, viewModel: MapViewModel = metroView
             onClick = {
               viewModel.requestParkedLocationBottomSheet()
               true
-            }
+            },
           )
         }
       }
@@ -173,12 +173,8 @@ fun MapScreen(modifier: Modifier = Modifier, viewModel: MapViewModel = metroView
           ParkedSpotDetailContent(
             spot = state.parkedLocation!!.second,
             reminders = state.parkedLocation!!.third,
-            onMovedCar = {
-              viewModel.clearParkedLocation()
-            },
-            onEndSession = {
-              viewModel.clearParkedLocation()
-            },
+            onMovedCar = { viewModel.clearParkedLocation() },
+            onEndSession = { viewModel.clearParkedLocation() },
           )
         }
       }

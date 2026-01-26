@@ -14,12 +14,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CleaningServices
-import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.NotificationsOff
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -46,7 +44,6 @@ import dev.parkbuddy.core.ui.ParkBuddyButton
 import dev.parkbuddy.core.ui.SquircleIcon
 import kotlin.time.Clock
 import kotlin.time.Duration
-import kotlin.time.Instant
 import kotlinx.coroutines.delay
 
 @Composable
@@ -67,9 +64,10 @@ internal fun ParkedSpotDetailContent(
   }
 
   Column(
-    modifier = modifier
-      .background(MaterialTheme.colorScheme.background)
-      .padding(horizontal = 16.dp, vertical = 24.dp),
+    modifier =
+      modifier
+        .background(MaterialTheme.colorScheme.background)
+        .padding(horizontal = 16.dp, vertical = 24.dp),
     verticalArrangement = Arrangement.spacedBy(20.dp),
   ) {
     val now = currentTime
@@ -148,23 +146,11 @@ internal fun ParkedSpotDetailContent(
             val minutesUntil = duration.inWholeMinutes % 60
             val secondsUntil = duration.inWholeSeconds % 60
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-              CountDownText(
-                hoursUntil.toInt(),
-                "HOURS",
-                modifier = Modifier.weight(1f),
-              )
+              CountDownText(hoursUntil.toInt(), "HOURS", modifier = Modifier.weight(1f))
 
-              CountDownText(
-                minutesUntil.toInt(),
-                "MINS",
-                modifier = Modifier.weight(1f),
-              )
+              CountDownText(minutesUntil.toInt(), "MINS", modifier = Modifier.weight(1f))
 
-              CountDownText(
-                secondsUntil.toInt(),
-                "SECS",
-                modifier = Modifier.weight(1f),
-              )
+              CountDownText(secondsUntil.toInt(), "SECS", modifier = Modifier.weight(1f))
             }
           }
         }
@@ -184,10 +170,7 @@ internal fun ParkedSpotDetailContent(
             fontWeight = FontWeight.Bold,
             letterSpacing = 0.5.sp,
           )
-          Surface(
-            shape = RoundedCornerShape(12.dp),
-            color = Terracotta.copy(alpha = 0.15f),
-          ) {
+          Surface(shape = RoundedCornerShape(12.dp), color = Terracotta.copy(alpha = 0.15f)) {
             Text(
               text = "${reminders.size} ACTIVE",
               style = MaterialTheme.typography.labelSmall,
@@ -203,11 +186,12 @@ internal fun ParkedSpotDetailContent(
           val timeUntilAlert = alertTime - now
           val hoursUntilAlert = timeUntilAlert.inWholeHours
 
-          val timeLabel = when {
-            hoursUntilAlert < 12 -> "TONIGHT"
-            hoursUntilAlert < 24 -> "TOMORROW"
-            else -> "UPCOMING"
-          }
+          val timeLabel =
+            when {
+              hoursUntilAlert < 12 -> "TONIGHT"
+              hoursUntilAlert < 24 -> "TOMORROW"
+              else -> "UPCOMING"
+            }
 
           AlertCard(
             title = "Alert ${index + 1}: Move Reminder",
@@ -247,8 +231,7 @@ private fun CountDownText(timeLeft: Int, unit: String, modifier: Modifier = Modi
   ) {
     Box(
       modifier =
-        Modifier
-          .fillMaxWidth()
+        Modifier.fillMaxWidth()
           .height(80.dp)
           .clip(RoundedCornerShape(16.dp))
           .background(color = MaterialTheme.colorScheme.primaryContainer.copy(0.2f)),
@@ -286,7 +269,7 @@ private fun AlertCard(title: String, subtitle: String, timeLabel: String) {
         icon = Icons.Default.NotificationsActive,
         size = 48.dp,
         iconTint = Terracotta,
-        backgroundTint = Terracotta.copy(alpha = 0.15f)
+        backgroundTint = Terracotta.copy(alpha = 0.15f),
       )
 
       Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {

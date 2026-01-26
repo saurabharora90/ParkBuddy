@@ -40,16 +40,9 @@ fun ParkBuddyButton(
     shape = MaterialTheme.shapes.large,
   ) {
     icon?.let {
-      Icon(
-        imageVector = it,
-        contentDescription = null,
-        modifier = Modifier.size(20.dp),
-      )
+      Icon(imageVector = it, contentDescription = null, modifier = Modifier.size(20.dp))
       Spacer(modifier = Modifier.width(8.dp))
     }
-    Text(
-      text = label,
-      style = MaterialTheme.typography.titleLarge.copy(fontSize = 18.sp),
-    )
+    Text(text = label, style = MaterialTheme.typography.titleLarge.copy(fontSize = 18.sp))
   }
 }
