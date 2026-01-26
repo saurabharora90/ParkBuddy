@@ -22,11 +22,14 @@ import androidx.compose.ui.platform.LocalContext
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.google.android.gms.maps.CameraUpdateFactory
+import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.LatLngBounds
 import com.google.maps.android.compose.GoogleMap
 import com.google.maps.android.compose.MapProperties
 import com.google.maps.android.compose.MapsComposeExperimentalApi
+import com.google.maps.android.compose.Marker
+import com.google.maps.android.compose.MarkerState
 import com.google.maps.android.compose.Polyline
 import com.google.maps.android.compose.rememberCameraPositionState
 import dev.bongballe.parkbuddy.model.Geometry
@@ -44,8 +47,10 @@ import kotlinx.coroutines.tasks.await
 @OptIn(ExperimentalMaterial3Api::class, MapsComposeExperimentalApi::class, FlowPreview::class)
 @Composable
 fun MapScreen(modifier: Modifier = Modifier, viewModel: MapViewModel = metroViewModel()) {
-  val spots by viewModel.parkingSpots.collectAsState()
-  val watchedSpots by viewModel.watchedSpots.collectAsState()
+  val state by viewModel.stateFlow.collectAsState()
+  val spots = state.spots
+  val watchedSpots = state.watchedSpots
+  val parkedLocation = state.parkedLocation
 
   val watchedSpotIds = remember(watchedSpots) { watchedSpots.map { it.objectId }.toSet() }
 
@@ -81,12 +86,12 @@ fun MapScreen(modifier: Modifier = Modifier, viewModel: MapViewModel = metroView
 
   LaunchedEffect(spotsWithPoints) {
     snapshotFlow {
-        Triple(
-          cameraPositionState.isMoving,
-          cameraPositionState.position.zoom,
-          cameraPositionState.projection?.visibleRegion?.latLngBounds,
-        )
-      }
+      Triple(
+        cameraPositionState.isMoving,
+        cameraPositionState.position.zoom,
+        cameraPositionState.projection?.visibleRegion?.latLngBounds,
+      )
+    }
       .filter { (isMoving, _, _) -> !isMoving }
       .debounce(100)
       .distinctUntilChanged()
@@ -101,7 +106,7 @@ fun MapScreen(modifier: Modifier = Modifier, viewModel: MapViewModel = metroView
   }
 
   var selectedSpot by remember { mutableStateOf<ParkingSpot?>(null) }
-  val sheetState = rememberModalBottomSheetState()
+  val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
   Scaffold(modifier = modifier.fillMaxSize()) { innerPadding ->
     Box(modifier = Modifier.padding(innerPadding)) {
@@ -128,6 +133,18 @@ fun MapScreen(modifier: Modifier = Modifier, viewModel: MapViewModel = metroView
             )
           }
         }
+
+        parkedLocation?.let { (location, _) ->
+          Marker(
+            state = MarkerState(position = LatLng(location.latitude, location.longitude)),
+            title = "Your Car",
+            icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ROSE),
+            onClick = {
+              viewModel.requestParkedLocationBottomSheet()
+              true
+            }
+          )
+        }
       }
 
       selectedSpot?.let {
@@ -142,6 +159,25 @@ fun MapScreen(modifier: Modifier = Modifier, viewModel: MapViewModel = metroView
             onParkHere = {
               viewModel.parkHere(it)
               selectedSpot = null
+            },
+          )
+        }
+      }
+
+      if (state.shouldShowParkedLocationBottomSheet) {
+        ModalBottomSheet(
+          onDismissRequest = { viewModel.dismissParkedLocationBottomSheet() },
+          sheetState = sheetState,
+          containerColor = MaterialTheme.colorScheme.background,
+        ) {
+          ParkedSpotDetailContent(
+            spot = state.parkedLocation!!.second,
+            reminders = state.parkedLocation!!.third,
+            onMovedCar = {
+              viewModel.clearParkedLocation()
+            },
+            onEndSession = {
+              viewModel.clearParkedLocation()
             },
           )
         }

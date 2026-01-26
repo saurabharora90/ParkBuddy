@@ -47,10 +47,10 @@ internal fun SpotDetailContent(
     Row(verticalAlignment = Alignment.CenterVertically) {
       Column(modifier = Modifier.weight(1f)) {
         spot.streetName?.let { streetName ->
-          Text(text = streetName, style = MaterialTheme.typography.headlineSmall)
+          Text(text = streetName, style = MaterialTheme.typography.titleLarge)
         }
           ?: spot.neighborhood?.let { neighborhood ->
-            Text(text = neighborhood, style = MaterialTheme.typography.headlineSmall)
+            Text(text = neighborhood, style = MaterialTheme.typography.titleLarge)
           }
 
         Row {
@@ -148,7 +148,7 @@ internal fun SpotDetailContent(
 }
 
 @VisibleForTesting
-private val spot =
+internal val spot =
   ParkingSpot(
     objectId = "1",
     geometry = Geometry(type = "Line", coordinates = listOf(listOf(1.0, 2.0), listOf(3.0, 4.0))),
