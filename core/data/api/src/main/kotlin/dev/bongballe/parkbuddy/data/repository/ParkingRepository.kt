@@ -1,6 +1,7 @@
 package dev.bongballe.parkbuddy.data.repository
 
 import dev.bongballe.parkbuddy.model.ParkingSpot
+import dev.bongballe.parkbuddy.model.ReminderMinutes
 import kotlinx.coroutines.flow.Flow
 
 interface ParkingRepository {
@@ -14,13 +15,13 @@ interface ParkingRepository {
 
   fun getUserRppZone(): Flow<String?>
 
-  fun getReminders(): Flow<List<Int>>
+  fun getReminders(): Flow<List<ReminderMinutes>>
 
   suspend fun setUserRppZone(zone: String?)
 
-  suspend fun addReminder(minutesBefore: Int)
+  suspend fun addReminder(minutesBefore: ReminderMinutes)
 
-  suspend fun removeReminder(minutesBefore: Int)
+  suspend fun removeReminder(minutesBefore: ReminderMinutes)
 
   suspend fun refreshData(): Boolean
 }

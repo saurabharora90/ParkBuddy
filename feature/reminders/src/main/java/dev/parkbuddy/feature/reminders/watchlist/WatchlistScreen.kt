@@ -1,6 +1,7 @@
 package dev.parkbuddy.feature.reminders.watchlist
 
 import androidx.compose.foundation.BorderStroke
+import dev.bongballe.parkbuddy.model.ReminderMinutes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -90,12 +91,12 @@ fun WatchlistContent(
   selectedZone: String?,
   watchedSpotCount: Int,
   watchedSpots: List<ParkingSpot>,
-  reminders: List<Int>,
+  reminders: List<ReminderMinutes>,
   isZonePickerExpanded: Boolean,
   onZonePickerExpandedChange: (Boolean) -> Unit,
   onZoneSelected: (String?) -> Unit,
   onAddReminder: (Int, Int) -> Unit,
-  onRemoveReminder: (Int) -> Unit,
+  onRemoveReminder: (ReminderMinutes) -> Unit,
   modifier: Modifier = Modifier,
 ) {
   var showAddReminderDialog by remember { mutableStateOf(false) }
@@ -155,8 +156,8 @@ fun WatchlistContent(
         if (reminders.isEmpty()) {
           item { Text("No reminders set.", style = MaterialTheme.typography.bodyMedium) }
         } else {
-          items(reminders) { minutes ->
-            ReminderItem(minutes = minutes, onDelete = { onRemoveReminder(minutes) })
+          items(reminders) { reminder ->
+            ReminderItem(minutes = reminder.value, onDelete = { onRemoveReminder(reminder) })
           }
         }
 

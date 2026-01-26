@@ -6,6 +6,7 @@ import dev.bongballe.parkbuddy.data.repository.ParkingRepository
 import dev.bongballe.parkbuddy.data.repository.PreferencesRepository
 import dev.bongballe.parkbuddy.model.ParkedLocation
 import dev.bongballe.parkbuddy.model.ParkingSpot
+import dev.bongballe.parkbuddy.model.ReminderMinutes
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesIntoMap
 import dev.zacsweers.metro.Inject
@@ -34,7 +35,7 @@ class MapViewModel(
   data class State(
     val spots: List<ParkingSpot>,
     val watchedSpots: List<ParkingSpot>,
-    val parkedLocation: Triple<ParkedLocation, ParkingSpot, List<Int>>?,
+    val parkedLocation: Triple<ParkedLocation, ParkingSpot, List<ReminderMinutes>>?,
     val shouldShowParkedLocationBottomSheet: Boolean
   )
 

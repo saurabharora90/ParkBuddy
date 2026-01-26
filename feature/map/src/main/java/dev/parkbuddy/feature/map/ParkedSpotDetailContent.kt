@@ -33,6 +33,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.bongballe.parkbuddy.model.ParkingSpot
+import dev.bongballe.parkbuddy.model.ReminderMinutes
 import dev.bongballe.parkbuddy.theme.ParkBuddyTheme
 import dev.bongballe.parkbuddy.theme.SagePrimary
 import dev.bongballe.parkbuddy.theme.Terracotta
@@ -44,7 +45,7 @@ import kotlin.time.Duration
 @Composable
 internal fun ParkedSpotDetailContent(
   spot: ParkingSpot,
-  reminders: List<Int>,
+  reminders: List<ReminderMinutes>,
   onMovedCar: () -> Unit,
   onEndSession: () -> Unit,
   modifier: Modifier = Modifier,
@@ -181,8 +182,8 @@ internal fun ParkedSpotDetailContent(
           }
         }
 
-        reminders.take(2).forEachIndexed { index, reminderMinutes ->
-          val alertTime = nextCleaning - Duration.parse("${reminderMinutes}m")
+        reminders.take(2).forEachIndexed { index, reminder ->
+          val alertTime = nextCleaning - Duration.parse("${reminder.value}m")
           val timeUntilAlert = alertTime - now
           val hoursUntilAlert = timeUntilAlert.inWholeHours
 
@@ -194,7 +195,7 @@ internal fun ParkedSpotDetailContent(
 
           AlertCard(
             title = "Alert ${index + 1}: Move Reminder",
-            subtitle = "(${reminderMinutes / 60}h before cleaning)",
+            subtitle = "(${reminder.value / 60}h before cleaning)",
             timeLabel = timeLabel,
           )
         }
@@ -302,7 +303,7 @@ private fun ParkedSpotDetailContentPreview() {
   ParkBuddyTheme {
     ParkedSpotDetailContent(
       spot = spot,
-      reminders = listOf(12),
+      reminders = listOf(ReminderMinutes(720)),
       onMovedCar = {},
       onEndSession = {},
     )

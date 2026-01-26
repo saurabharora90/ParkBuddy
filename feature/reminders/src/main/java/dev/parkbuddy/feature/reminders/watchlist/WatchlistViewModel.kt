@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dev.bongballe.parkbuddy.data.repository.ParkingRepository
 import dev.bongballe.parkbuddy.model.ParkingSpot
+import dev.bongballe.parkbuddy.model.ReminderMinutes
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesIntoMap
 import dev.zacsweers.metro.Inject
@@ -62,7 +63,7 @@ class WatchlistViewModel(private val repository: ParkingRepository) : ViewModel(
         initialValue = emptyList(),
       )
 
-  val reminders: StateFlow<List<Int>> =
+  val reminders: StateFlow<List<ReminderMinutes>> =
     repository
       .getReminders()
       .stateIn(
@@ -82,8 +83,8 @@ class WatchlistViewModel(private val repository: ParkingRepository) : ViewModel(
     viewModelScope.launch {
       repository.setUserRppZone(zone)
       if (zone != null && reminders.value.isEmpty()) {
-        repository.addReminder(60)
-        repository.addReminder(24 * 60)
+        repository.addReminder(ReminderMinutes(60))
+        repository.addReminder(ReminderMinutes(24 * 60))
       }
     }
     _isZonePickerExpanded.value = false
@@ -93,12 +94,12 @@ class WatchlistViewModel(private val repository: ParkingRepository) : ViewModel(
     viewModelScope.launch {
       val totalMinutes = hours * 60 + minutes
       if (totalMinutes > 0) {
-        repository.addReminder(totalMinutes)
+        repository.addReminder(ReminderMinutes(totalMinutes))
       }
     }
   }
 
-  fun removeReminder(minutes: Int) {
-    viewModelScope.launch { repository.removeReminder(minutes) }
+  fun removeReminder(reminder: ReminderMinutes) {
+    viewModelScope.launch { repository.removeReminder(reminder) }
   }
 }

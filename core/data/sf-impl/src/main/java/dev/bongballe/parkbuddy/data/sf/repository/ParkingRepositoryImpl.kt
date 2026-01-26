@@ -16,6 +16,7 @@ import dev.bongballe.parkbuddy.data.sf.model.toStreetSide
 import dev.bongballe.parkbuddy.data.sf.network.SfOpenDataApi
 import dev.bongballe.parkbuddy.model.Geometry
 import dev.bongballe.parkbuddy.model.ParkingSpot
+import dev.bongballe.parkbuddy.model.ReminderMinutes
 import dev.bongballe.parkbuddy.model.SweepingSchedule
 import dev.bongballe.parkbuddy.qualifier.WithDispatcherType
 import dev.zacsweers.metro.AppScope
@@ -71,13 +72,14 @@ class ParkingRepositoryImpl(
     return dao.getUserPreferences().map { it?.rppZone }
   }
 
-  override fun getReminders(): Flow<List<Int>> {
+  override fun getReminders(): Flow<List<ReminderMinutes>> {
     return dao.getUserPreferences().map { prefs ->
       prefs
         ?.reminderMinutes
         ?.split(",")
         ?.filter { it.isNotBlank() }
-        ?.mapNotNull { it.toIntOrNull() } ?: emptyList()
+        ?.mapNotNull { it.toIntOrNull() }
+        ?.map { ReminderMinutes(it) } ?: emptyList()
     }
   }
 
@@ -86,7 +88,7 @@ class ParkingRepositoryImpl(
     dao.upsertUserPreferences(existing.copy(rppZone = zone))
   }
 
-  override suspend fun addReminder(minutesBefore: Int) {
+  override suspend fun addReminder(minutesBefore: ReminderMinutes) {
     val existing = getExistingPreferences()
     val currentReminders =
       existing.reminderMinutes
@@ -94,20 +96,20 @@ class ParkingRepositoryImpl(
         .filter { it.isNotBlank() }
         .mapNotNull { it.toIntOrNull() }
         .toMutableSet()
-    currentReminders.add(minutesBefore)
+    currentReminders.add(minutesBefore.value)
     dao.upsertUserPreferences(
       existing.copy(reminderMinutes = currentReminders.sorted().joinToString(","))
     )
   }
 
-  override suspend fun removeReminder(minutesBefore: Int) {
+  override suspend fun removeReminder(minutesBefore: ReminderMinutes) {
     val existing = getExistingPreferences()
     val currentReminders =
       existing.reminderMinutes
         .split(",")
         .filter { it.isNotBlank() }
         .mapNotNull { it.toIntOrNull() }
-        .filter { it != minutesBefore }
+        .filter { it != minutesBefore.value }
     dao.upsertUserPreferences(
       existing.copy(reminderMinutes = currentReminders.sorted().joinToString(","))
     )
