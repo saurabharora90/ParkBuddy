@@ -40,7 +40,7 @@ dependencies {
   implementation(project(":core:bluetooth"))
   implementation(project(":core:data:api"))
   implementation(project(":core:data:impl"))
-  implementation(project(":core:database"))
+  implementation(project(":core:data:sf-impl"))
   implementation(project(":core:model"))
   implementation(project(":core:network"))
   implementation(project(":core:theme"))

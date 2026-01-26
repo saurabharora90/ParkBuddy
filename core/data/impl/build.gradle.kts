@@ -2,7 +2,6 @@ plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.foundry.base)
-    alias(libs.plugins.kotlin.serialization)
 }
 
 android {
@@ -17,13 +16,6 @@ foundry {
 
 dependencies {
     implementation(project(":core:data:api"))
-    implementation(project(":core:database"))
-    implementation(project(":core:model"))
-    implementation(project(":core:network"))
     implementation(project(":core:work-manager"))
     implementation(libs.androidx.datastore.preferences)
-    implementation(libs.okhttp)
-    implementation(libs.retrofit)
-    implementation(libs.retrofit.adapters.result)
-    implementation(libs.retrofit.converter.kotlinx.serialization)
 }

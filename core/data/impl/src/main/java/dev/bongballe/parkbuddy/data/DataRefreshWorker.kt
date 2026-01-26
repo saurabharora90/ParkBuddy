@@ -3,7 +3,7 @@ package dev.bongballe.parkbuddy.data
 import android.content.Context
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
-import dev.bongballe.parkbuddy.data.repository.StreetCleaningRepository
+import dev.bongballe.parkbuddy.data.repository.ParkingRepository
 import dev.parkbuddy.core.workmanager.MetroWorkerFactory
 import dev.parkbuddy.core.workmanager.WorkerKey
 import dev.zacsweers.metro.AppScope
@@ -16,7 +16,7 @@ import dev.zacsweers.metro.binding
 @AssistedInject
 class DataRefreshWorker(
   context: Context,
-  private val repository: StreetCleaningRepository,
+  private val repository: ParkingRepository,
   @Assisted workerParams: WorkerParameters,
 ) : CoroutineWorker(context, workerParams) {
 
