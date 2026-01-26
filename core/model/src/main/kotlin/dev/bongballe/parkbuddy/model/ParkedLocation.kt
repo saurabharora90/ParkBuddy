@@ -1,0 +1,12 @@
+package dev.bongballe.parkbuddy.model
+
+import kotlinx.datetime.Instant
+import kotlinx.serialization.Serializable
+
+@Serializable
+data class ParkedLocation(
+  val spotId: String,
+  val latitude: Double,
+  val longitude: Double,
+  val parkedAt: Instant,
+)

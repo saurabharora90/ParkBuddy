@@ -34,9 +34,14 @@ import kotlin.time.Clock
 import kotlinx.datetime.LocalTime
 
 @Composable
-internal fun SpotDetailContent(spot: ParkingSpot, isWatched: Boolean) {
+internal fun SpotDetailContent(
+  spot: ParkingSpot,
+  isWatched: Boolean,
+  onParkHere: () -> Unit,
+  modifier: Modifier = Modifier,
+) {
   Column(
-    modifier = Modifier.background(MaterialTheme.colorScheme.background).padding(16.dp),
+    modifier = modifier.background(MaterialTheme.colorScheme.background).padding(16.dp),
     verticalArrangement = Arrangement.spacedBy(24.dp),
   ) {
     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -130,13 +135,7 @@ internal fun SpotDetailContent(spot: ParkingSpot, isWatched: Boolean) {
 
     if (isWatched) {
 
-      ParkBuddyButton(
-        label = "Park Here",
-        onClick = {
-          /*TODO*/
-        },
-        modifier = Modifier.fillMaxWidth(),
-      )
+      ParkBuddyButton(label = "Park Here", onClick = onParkHere, modifier = Modifier.fillMaxWidth())
 
       Text(
         text = "This street is in your watched zone",
@@ -183,17 +182,11 @@ private val spot =
 @Preview(showBackground = true)
 @Composable
 private fun WatchedSpotDetailContentPreview() {
-  ParkBuddyTheme { SpotDetailContent(spot = spot, isWatched = true) }
+  ParkBuddyTheme { SpotDetailContent(spot = spot, isWatched = true, onParkHere = {}) }
 }
 
 @Preview(showBackground = true)
 @Composable
 private fun NonWatchedSpotDetailContentPreview() {
-  ParkBuddyTheme { SpotDetailContent(spot = spot, isWatched = false) }
-}
-
-@Preview(showBackground = true)
-@Composable
-private fun ParkedSpotDetailContentPreview() {
-  ParkBuddyTheme { SpotDetailContent(spot = spot, isWatched = true) }
+  ParkBuddyTheme { SpotDetailContent(spot = spot, isWatched = false, onParkHere = {}) }
 }

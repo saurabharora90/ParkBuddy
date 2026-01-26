@@ -130,15 +130,19 @@ fun MapScreen(modifier: Modifier = Modifier, viewModel: MapViewModel = metroView
         }
       }
 
-      if (selectedSpot != null) {
+      selectedSpot?.let {
         ModalBottomSheet(
           onDismissRequest = { selectedSpot = null },
           sheetState = sheetState,
           containerColor = MaterialTheme.colorScheme.background,
         ) {
           SpotDetailContent(
-            spot = selectedSpot!!,
-            isWatched = selectedSpot!!.objectId in watchedSpotIds,
+            spot = it,
+            isWatched = it.objectId in watchedSpotIds,
+            onParkHere = {
+              viewModel.parkHere(it)
+              selectedSpot = null
+            },
           )
         }
       }

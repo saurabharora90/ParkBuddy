@@ -16,6 +16,8 @@ foundry {
 
 dependencies {
     implementation(project(":core:data:api"))
+    implementation(project(":core:model"))
     implementation(project(":core:work-manager"))
     implementation(libs.androidx.datastore.preferences)
+    implementation(libs.kotlinx.serialization.json)
 }
