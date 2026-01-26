@@ -57,7 +57,10 @@ import dev.parkbuddy.core.ui.SquircleIcon
 import dev.zacsweers.metrox.viewmodel.metroViewModel
 
 @Composable
-fun WatchlistScreen(viewModel: WatchlistViewModel = metroViewModel()) {
+fun WatchlistScreen(
+  modifier: Modifier = Modifier,
+  viewModel: WatchlistViewModel = metroViewModel(),
+) {
   val availableZones by viewModel.availableZones.collectAsState()
   val selectedZone by viewModel.selectedZone.collectAsState()
   val watchedSpotCount by viewModel.watchedSpotCount.collectAsState()
@@ -76,6 +79,7 @@ fun WatchlistScreen(viewModel: WatchlistViewModel = metroViewModel()) {
     onZoneSelected = viewModel::selectZone,
     onAddReminder = viewModel::addReminder,
     onRemoveReminder = viewModel::removeReminder,
+    modifier = modifier,
   )
 }
 
@@ -92,6 +96,7 @@ fun WatchlistContent(
   onZoneSelected: (String?) -> Unit,
   onAddReminder: (Int, Int) -> Unit,
   onRemoveReminder: (Int) -> Unit,
+  modifier: Modifier = Modifier,
 ) {
   var showAddReminderDialog by remember { mutableStateOf(false) }
 
@@ -110,6 +115,7 @@ fun WatchlistContent(
       TopAppBar(title = { Text(text = "Your Parking Zone", modifier = Modifier.fillMaxWidth()) })
     },
     containerColor = MaterialTheme.colorScheme.background,
+    modifier = modifier,
   ) { innerPadding ->
     LazyColumn(
       modifier = Modifier.fillMaxSize().padding(innerPadding),

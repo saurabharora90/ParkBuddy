@@ -4,12 +4,10 @@ import android.annotation.SuppressLint
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -24,7 +22,6 @@ import androidx.compose.ui.platform.LocalContext
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.google.android.gms.maps.CameraUpdateFactory
-import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.LatLngBounds
 import com.google.maps.android.compose.GoogleMap
@@ -36,6 +33,7 @@ import dev.bongballe.parkbuddy.model.Geometry
 import dev.bongballe.parkbuddy.model.ParkingSpot
 import dev.bongballe.parkbuddy.theme.GoldenYellow
 import dev.bongballe.parkbuddy.theme.SageGreen
+import dev.zacsweers.metrox.viewmodel.metroViewModel
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -45,7 +43,7 @@ import kotlinx.coroutines.tasks.await
 @SuppressLint("MissingPermission")
 @OptIn(ExperimentalMaterial3Api::class, MapsComposeExperimentalApi::class, FlowPreview::class)
 @Composable
-fun MapScreen(viewModel: MapViewModel, onNavigateToWatchlist: () -> Unit) {
+fun MapScreen(modifier: Modifier = Modifier, viewModel: MapViewModel = metroViewModel()) {
   val spots by viewModel.parkingSpots.collectAsState()
   val watchedSpots by viewModel.watchedSpots.collectAsState()
 
@@ -105,10 +103,7 @@ fun MapScreen(viewModel: MapViewModel, onNavigateToWatchlist: () -> Unit) {
   var selectedSpot by remember { mutableStateOf<ParkingSpot?>(null) }
   val sheetState = rememberModalBottomSheetState()
 
-  Scaffold(
-    modifier = Modifier.fillMaxSize(),
-    floatingActionButton = { Button(onClick = onNavigateToWatchlist) { Text("Watchlist") } },
-  ) { innerPadding ->
+  Scaffold(modifier = modifier.fillMaxSize()) { innerPadding ->
     Box(modifier = Modifier.padding(innerPadding)) {
       GoogleMap(
         modifier = Modifier.fillMaxSize(),
