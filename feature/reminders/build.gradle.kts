@@ -23,6 +23,7 @@ dependencies {
   implementation(project(":core:shared-ui"))
   implementation(project(":core:theme"))
   implementation(project(":core:work-manager"))
+  implementation(libs.accompanist.permissions)
   implementation(libs.androidx.activity.compose)
   implementation(libs.androidx.core.ktx)
   implementation(libs.androidx.lifecycle.runtime.ktx)

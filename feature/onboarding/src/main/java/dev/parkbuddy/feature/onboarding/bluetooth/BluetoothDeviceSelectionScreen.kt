@@ -1,7 +1,5 @@
 package dev.parkbuddy.feature.onboarding.bluetooth
 
-import android.Manifest
-import android.os.Build
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -47,9 +45,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.google.accompanist.permissions.ExperimentalPermissionsApi
-import com.google.accompanist.permissions.isGranted
-import com.google.accompanist.permissions.rememberPermissionState
 import dev.bongballe.parkbuddy.core.bluetooth.BluetoothDeviceUiModel
 import dev.bongballe.parkbuddy.theme.ParkBuddyTheme
 import dev.bongballe.parkbuddy.theme.SageContainer
@@ -60,7 +55,6 @@ import dev.parkbuddy.core.ui.ParkBuddyButton
 import dev.parkbuddy.core.ui.SquircleIcon
 import dev.zacsweers.metrox.viewmodel.metroViewModel
 
-@OptIn(ExperimentalPermissionsApi::class)
 @Composable
 fun BluetoothDeviceSelectionScreen(
   viewModel: BluetoothDeviceSelectionViewModel = metroViewModel(),
@@ -68,30 +62,10 @@ fun BluetoothDeviceSelectionScreen(
 ) {
   val uiState by viewModel.uiState.collectAsState()
 
-  val notificationPermissionState =
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-      rememberPermissionState(Manifest.permission.POST_NOTIFICATIONS) { isGranted ->
-        if (isGranted) {
-          onDeviceSelected()
-        } else {
-          // Proceed anyway, or handle denial. For now, we proceed.
-          onDeviceSelected()
-        }
-      }
-    } else {
-      null
-    }
-
   BluetoothDeviceSelectionScreenContent(
     uiState = uiState,
     onDeviceSelect = viewModel::selectDevice,
-    onContinueClick = {
-      if (notificationPermissionState != null && !notificationPermissionState.status.isGranted) {
-        notificationPermissionState.launchPermissionRequest()
-      } else {
-        onDeviceSelected()
-      }
-    },
+    onContinueClick = onDeviceSelected,
     onSkipClick = {
       viewModel.clearDeviceSelection()
       onDeviceSelected()

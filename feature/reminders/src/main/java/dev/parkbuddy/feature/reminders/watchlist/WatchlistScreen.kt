@@ -1,6 +1,12 @@
 package dev.parkbuddy.feature.reminders.watchlist
 
-import androidx.compose.foundation.BorderStroke
+import android.Manifest
+import android.app.AlarmManager
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import android.provider.Settings
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,34 +17,19 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.EditRoad
-import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.LocationCity
-import androidx.compose.material.icons.filled.NotificationsActive
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -46,12 +37,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.isGranted
+import com.google.accompanist.permissions.rememberPermissionState
 import dev.bongballe.parkbuddy.model.Geometry
 import dev.bongballe.parkbuddy.model.ParkingRegulation
 import dev.bongballe.parkbuddy.model.ParkingSpot
@@ -60,23 +53,80 @@ import dev.bongballe.parkbuddy.model.StreetSide
 import dev.bongballe.parkbuddy.model.SweepingSchedule
 import dev.bongballe.parkbuddy.model.Weekday
 import dev.bongballe.parkbuddy.theme.ParkBuddyTheme
-import dev.bongballe.parkbuddy.theme.Terracotta
 import dev.parkbuddy.core.ui.NestedScaffold
 import dev.parkbuddy.core.ui.SquircleIcon
 import dev.zacsweers.metrox.viewmodel.metroViewModel
 import kotlinx.datetime.LocalTime
 
+@OptIn(ExperimentalPermissionsApi::class)
 @Composable
 fun WatchlistScreen(
   modifier: Modifier = Modifier,
   viewModel: WatchlistViewModel = metroViewModel(),
 ) {
+  val context = LocalContext.current
   val availableZones by viewModel.availableZones.collectAsState()
   val selectedZone by viewModel.selectedZone.collectAsState()
   val watchedSpotCount by viewModel.watchedSpotCount.collectAsState()
   val watchedSpots by viewModel.watchedSpots.collectAsState()
   val reminders by viewModel.reminders.collectAsState()
   val isZonePickerExpanded by viewModel.isZonePickerExpanded.collectAsState()
+
+  var showPermissionRationale by remember { mutableStateOf(false) }
+  var lastKnownZoneWasNull by remember { mutableStateOf(selectedZone == null) }
+
+  val notificationPermissionState =
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+      rememberPermissionState(Manifest.permission.POST_NOTIFICATIONS)
+    } else {
+      null
+    }
+
+  LaunchedEffect(selectedZone) {
+    if (selectedZone != null && lastKnownZoneWasNull) {
+      val needsNotificationPermission =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+          !notificationPermissionState!!.status.isGranted
+        } else {
+          false
+        }
+
+      val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+      val needsAlarmPermission =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+          !alarmManager.canScheduleExactAlarms()
+        } else {
+          false
+        }
+
+      if (needsNotificationPermission || needsAlarmPermission) {
+        showPermissionRationale = true
+      }
+    }
+    lastKnownZoneWasNull = selectedZone == null
+  }
+
+  if (showPermissionRationale) {
+    PermissionRationaleDialog(
+      onConfirm = {
+        showPermissionRationale = false
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+          notificationPermissionState?.launchPermissionRequest()
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+          val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+          if (!alarmManager.canScheduleExactAlarms()) {
+            val intent =
+              Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
+                data = Uri.fromParts("package", context.packageName, null)
+              }
+            context.startActivity(intent)
+          }
+        }
+      },
+      onDismiss = { showPermissionRationale = false },
+    )
+  }
 
   WatchlistContent(
     availableZones = availableZones,
@@ -95,7 +145,7 @@ fun WatchlistScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun WatchlistContent(
+internal fun WatchlistContent(
   availableZones: List<String>,
   selectedZone: String?,
   watchedSpotCount: Int,
@@ -219,244 +269,6 @@ fun WatchlistContent(
               )
             }
           }
-        }
-      }
-    }
-  }
-}
-
-@Composable
-private fun ZoneSelectorCard(
-  availableZones: List<String>,
-  selectedZone: String?,
-  watchedSpotCount: Int,
-  isExpanded: Boolean,
-  onExpandedChange: (Boolean) -> Unit,
-  onZoneSelected: (String?) -> Unit,
-) {
-  Card(
-    modifier = Modifier.fillMaxWidth(),
-    shape = MaterialTheme.shapes.large,
-    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
-  ) {
-    Column(modifier = Modifier.padding(16.dp)) {
-      Text(
-        text = "Parking Permit Zone",
-        style = MaterialTheme.typography.labelMedium,
-        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
-      )
-
-      Spacer(modifier = Modifier.height(8.dp))
-
-      Box {
-        Button(
-          onClick = { onExpandedChange(!isExpanded) },
-          modifier = Modifier.fillMaxWidth(),
-          shape = RoundedCornerShape(12.dp),
-        ) {
-          Text(
-            text = selectedZone?.let { "Zone $it" } ?: "Select a zone",
-            modifier = Modifier.weight(1f),
-            textAlign = TextAlign.Start,
-          )
-          Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Select zone")
-        }
-
-        DropdownMenu(expanded = isExpanded, onDismissRequest = { onExpandedChange(false) }) {
-          DropdownMenuItem(
-            text = { Text("None (Clear selection)") },
-            onClick = { onZoneSelected(null) },
-          )
-          availableZones.forEach { zone ->
-            DropdownMenuItem(text = { Text("Zone $zone") }, onClick = { onZoneSelected(zone) })
-          }
-        }
-      }
-
-      if (selectedZone != null) {
-        Spacer(modifier = Modifier.height(12.dp))
-        Text(
-          text = "$watchedSpotCount streets auto-watched",
-          style = MaterialTheme.typography.bodyMedium,
-          color = MaterialTheme.colorScheme.onPrimaryContainer,
-        )
-      }
-    }
-  }
-}
-
-@Composable
-fun ReminderItem(minutes: Int, onDelete: () -> Unit) {
-  var isShowingConfirmationPrompt by remember { mutableStateOf(false) }
-
-  val hours = minutes / 60
-  val mins = minutes % 60
-  val timeString =
-    if (mins == 0) "$hours hr before"
-    else if (hours == 0) "$mins min before" else "$hours hr $mins min before"
-
-  Card(
-    modifier = Modifier.fillMaxWidth(),
-    shape = MaterialTheme.shapes.large,
-    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-    border =
-      BorderStroke(width = 1.dp, color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.5f)),
-  ) {
-    Row(
-      modifier = Modifier.padding(16.dp).fillMaxWidth(),
-      horizontalArrangement = Arrangement.SpaceBetween,
-      verticalAlignment = Alignment.CenterVertically,
-    ) {
-      SquircleIcon(
-        icon = Icons.Default.NotificationsActive,
-        contentDescription = null,
-        size = 48.dp,
-        shape = RoundedCornerShape(16.dp),
-        iconTint = Color.White,
-        backgroundTint = MaterialTheme.colorScheme.primary,
-      )
-      Spacer(modifier = Modifier.width(16.dp))
-      Text(
-        text = timeString,
-        style = MaterialTheme.typography.bodyLarge,
-        modifier = Modifier.weight(1f),
-      )
-      IconButton(onClick = { isShowingConfirmationPrompt = true }) {
-        Icon(
-          imageVector = Icons.Default.Delete,
-          contentDescription = "Delete Reminder",
-          tint = Terracotta,
-        )
-      }
-    }
-  }
-
-  if (isShowingConfirmationPrompt) {
-    AlertDialog(
-      onDismissRequest = { isShowingConfirmationPrompt = false },
-      title = { Text(text = "Remove this reminder?") },
-      text = {
-        Text(
-          "Are you sure you want to remove this reminder for future? Existing reminder for an ongoing parking (if any) will not be altered"
-        )
-      },
-      confirmButton = {
-        TextButton(
-          onClick = {
-            isShowingConfirmationPrompt = false
-            onDelete()
-          }
-        ) {
-          Text("Yes")
-        }
-      },
-      dismissButton = {
-        TextButton(
-          onClick = { isShowingConfirmationPrompt = false },
-          colors = ButtonDefaults.textButtonColors(contentColor = Terracotta),
-        ) {
-          Text("No")
-        }
-      },
-    )
-  }
-}
-
-@Composable
-fun AddReminderDialog(onDismiss: () -> Unit, onConfirm: (Int, Int) -> Unit) {
-  var hours by remember { mutableStateOf("") }
-  var minutes by remember { mutableStateOf("") }
-
-  AlertDialog(
-    onDismissRequest = onDismiss,
-    title = { Text("Add Reminder") },
-    text = {
-      Column {
-        Text("Notify me before cleaning:")
-        Spacer(modifier = Modifier.height(16.dp))
-        Row(verticalAlignment = Alignment.CenterVertically) {
-          OutlinedTextField(
-            value = hours,
-            onValueChange = { if (it.all { char -> char.isDigit() }) hours = it },
-            label = { Text("Hours") },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            modifier = Modifier.weight(1f),
-          )
-          Spacer(modifier = Modifier.width(8.dp))
-          OutlinedTextField(
-            value = minutes,
-            onValueChange = { if (it.all { char -> char.isDigit() }) minutes = it },
-            label = { Text("Minutes") },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            modifier = Modifier.weight(1f),
-          )
-        }
-      }
-    },
-    confirmButton = {
-      TextButton(
-        onClick = {
-          val h = hours.toIntOrNull() ?: 0
-          val m = minutes.toIntOrNull() ?: 0
-          if (h > 0 || m > 0) {
-            onConfirm(h, m)
-          }
-        }
-      ) {
-        Text("Add")
-      }
-    },
-    dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
-  )
-}
-
-@Composable
-fun WatchedStreetItem(spot: ParkingSpot) {
-  Card(
-    modifier = Modifier.fillMaxWidth(),
-    shape = MaterialTheme.shapes.medium,
-    colors = CardDefaults.cardColors(containerColor = Color.White),
-  ) {
-    Row(
-      modifier = Modifier.padding(16.dp).fillMaxWidth(),
-      horizontalArrangement = Arrangement.spacedBy(16.dp),
-      verticalAlignment = Alignment.CenterVertically,
-    ) {
-      SquircleIcon(icon = Icons.Default.EditRoad, contentDescription = null, size = 48.dp)
-      Column(modifier = Modifier.weight(1f)) {
-        val title = spot.streetName ?: spot.neighborhood
-        title?.let {
-          Text(
-            text = it,
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onSurface,
-          )
-        }
-
-        Row {
-          spot.blockLimits?.let { limits ->
-            Text(
-              text = limits,
-              style = MaterialTheme.typography.bodySmall,
-              color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-          }
-
-          spot.sweepingSide?.let { sweepingSide ->
-            Text(
-              text = " (${sweepingSide.name})",
-              style = MaterialTheme.typography.bodySmall,
-              color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-          }
-        }
-
-        if (spot.sweepingSchedules.isNotEmpty()) {
-          Text(
-            text = spot.sweepingSchedules.joinToString(" | ") { it.formatSchedule() },
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-          )
         }
       }
     }
