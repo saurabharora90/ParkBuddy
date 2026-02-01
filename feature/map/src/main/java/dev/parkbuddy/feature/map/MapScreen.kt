@@ -108,75 +108,73 @@ fun MapScreen(modifier: Modifier = Modifier, viewModel: MapViewModel = metroView
   var selectedSpot by remember { mutableStateOf<ParkingSpot?>(null) }
   val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-  Scaffold(modifier = modifier.fillMaxSize()) { innerPadding ->
-    Box(modifier = Modifier.padding(innerPadding)) {
-      GoogleMap(
-        modifier = Modifier.fillMaxSize(),
-        cameraPositionState = cameraPositionState,
-        properties =
-          MapProperties(
-            isMyLocationEnabled = true,
-            latLngBoundsForCameraTarget = sfBounds,
-            minZoomPreference = 15f,
-            maxZoomPreference = 18f,
-          ),
+  Box(modifier = modifier.fillMaxSize()) {
+    GoogleMap(
+      modifier = Modifier.fillMaxSize(),
+      cameraPositionState = cameraPositionState,
+      properties =
+        MapProperties(
+          isMyLocationEnabled = true,
+          latLngBoundsForCameraTarget = sfBounds,
+          minZoomPreference = 15f,
+          maxZoomPreference = 18f,
+        ),
+    ) {
+      visibleSpots.forEach { (spot, points) ->
+        if (points.isNotEmpty()) {
+          val isWatched = spot.objectId in watchedSpotIds
+          Polyline(
+            points = points,
+            color = if (isWatched) SageGreen else GoldenYellow,
+            width = if (isWatched) 12f else 8f,
+            clickable = true,
+            onClick = { selectedSpot = spot },
+          )
+        }
+      }
+
+      parkedLocation?.let { (location, _) ->
+        Marker(
+          state = MarkerState(position = LatLng(location.latitude, location.longitude)),
+          title = "Your Car",
+          icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ROSE),
+          onClick = {
+            viewModel.requestParkedLocationBottomSheet()
+            true
+          },
+        )
+      }
+    }
+
+    selectedSpot?.let {
+      ModalBottomSheet(
+        onDismissRequest = { selectedSpot = null },
+        sheetState = sheetState,
+        containerColor = MaterialTheme.colorScheme.background,
       ) {
-        visibleSpots.forEach { (spot, points) ->
-          if (points.isNotEmpty()) {
-            val isWatched = spot.objectId in watchedSpotIds
-            Polyline(
-              points = points,
-              color = if (isWatched) SageGreen else GoldenYellow,
-              width = if (isWatched) 12f else 8f,
-              clickable = true,
-              onClick = { selectedSpot = spot },
-            )
-          }
-        }
-
-        parkedLocation?.let { (location, _) ->
-          Marker(
-            state = MarkerState(position = LatLng(location.latitude, location.longitude)),
-            title = "Your Car",
-            icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ROSE),
-            onClick = {
-              viewModel.requestParkedLocationBottomSheet()
-              true
-            },
-          )
-        }
+        SpotDetailContent(
+          spot = it,
+          isWatched = it.objectId in watchedSpotIds,
+          onParkHere = {
+            viewModel.parkHere(it)
+            selectedSpot = null
+          },
+        )
       }
+    }
 
-      selectedSpot?.let {
-        ModalBottomSheet(
-          onDismissRequest = { selectedSpot = null },
-          sheetState = sheetState,
-          containerColor = MaterialTheme.colorScheme.background,
-        ) {
-          SpotDetailContent(
-            spot = it,
-            isWatched = it.objectId in watchedSpotIds,
-            onParkHere = {
-              viewModel.parkHere(it)
-              selectedSpot = null
-            },
-          )
-        }
-      }
-
-      if (state.shouldShowParkedLocationBottomSheet) {
-        ModalBottomSheet(
-          onDismissRequest = { viewModel.dismissParkedLocationBottomSheet() },
-          sheetState = sheetState,
-          containerColor = MaterialTheme.colorScheme.background,
-        ) {
-          ParkedSpotDetailContent(
-            spot = state.parkedLocation!!.second,
-            reminders = state.parkedLocation!!.third,
-            onMovedCar = { viewModel.clearParkedLocation() },
-            onEndSession = { viewModel.clearParkedLocation() },
-          )
-        }
+    if (state.shouldShowParkedLocationBottomSheet) {
+      ModalBottomSheet(
+        onDismissRequest = { viewModel.dismissParkedLocationBottomSheet() },
+        sheetState = sheetState,
+        containerColor = MaterialTheme.colorScheme.background,
+      ) {
+        ParkedSpotDetailContent(
+          spot = state.parkedLocation!!.second,
+          reminders = state.parkedLocation!!.third,
+          onMovedCar = { viewModel.clearParkedLocation() },
+          onEndSession = { viewModel.clearParkedLocation() },
+        )
       }
     }
   }

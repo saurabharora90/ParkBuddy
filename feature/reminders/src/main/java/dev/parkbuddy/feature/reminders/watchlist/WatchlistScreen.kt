@@ -34,7 +34,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -50,12 +49,21 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import dev.bongballe.parkbuddy.model.Geometry
+import dev.bongballe.parkbuddy.model.ParkingRegulation
 import dev.bongballe.parkbuddy.model.ParkingSpot
 import dev.bongballe.parkbuddy.model.ReminderMinutes
+import dev.bongballe.parkbuddy.model.StreetSide
+import dev.bongballe.parkbuddy.model.SweepingSchedule
+import dev.bongballe.parkbuddy.model.Weekday
+import dev.bongballe.parkbuddy.theme.ParkBuddyTheme
 import dev.bongballe.parkbuddy.theme.Terracotta
+import dev.parkbuddy.core.ui.NestedScaffold
 import dev.parkbuddy.core.ui.SquircleIcon
 import dev.zacsweers.metrox.viewmodel.metroViewModel
+import kotlinx.datetime.LocalTime
 
 @Composable
 fun WatchlistScreen(
@@ -111,7 +119,7 @@ fun WatchlistContent(
     )
   }
 
-  Scaffold(
+  NestedScaffold(
     topBar = {
       TopAppBar(title = { Text(text = "Your Parking Zone", modifier = Modifier.fillMaxWidth()) })
     },
@@ -419,5 +427,74 @@ fun WatchedStreetItem(spot: ParkingSpot) {
         }
       }
     }
+  }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun WatchlistContentPreview() {
+  val sampleSpot =
+    ParkingSpot(
+      objectId = "1",
+      geometry = Geometry(type = "Line", coordinates = listOf(listOf(1.0, 2.0), listOf(3.0, 4.0))),
+      streetName = "Market Street",
+      blockLimits = "1st Ave - 2nd Ave",
+      neighborhood = "Downtown",
+      regulation = ParkingRegulation.TIME_LIMITED,
+      rppArea = "A",
+      timeLimitHours = 2,
+      enforcementDays = "Mon-Fri",
+      enforcementStart = LocalTime(8, 0),
+      enforcementEnd = LocalTime(18, 0),
+      sweepingCnn = "12345",
+      sweepingSide = StreetSide.LEFT,
+      sweepingSchedules =
+        listOf(
+          SweepingSchedule(
+            weekday = Weekday.Mon,
+            fromHour = 8,
+            toHour = 10,
+            week1 = true,
+            week2 = true,
+            week3 = true,
+            week4 = true,
+            week5 = true,
+            holidays = false,
+          )
+        ),
+    )
+
+  ParkBuddyTheme {
+    WatchlistContent(
+      availableZones = listOf("A", "B", "C"),
+      selectedZone = "A",
+      watchedSpotCount = 5,
+      watchedSpots = listOf(sampleSpot),
+      reminders = listOf(ReminderMinutes(60)),
+      isZonePickerExpanded = false,
+      onZonePickerExpandedChange = {},
+      onZoneSelected = {},
+      onAddReminder = { _, _ -> },
+      onRemoveReminder = {},
+    )
+  }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun WatchlistContentEmptyPreview() {
+  ParkBuddyTheme {
+    WatchlistContent(
+      availableZones = listOf("A", "B", "C"),
+      selectedZone = null,
+      watchedSpotCount = 0,
+      watchedSpots = emptyList(),
+      reminders = emptyList(),
+      isZonePickerExpanded = false,
+      onZonePickerExpandedChange = {},
+      onZoneSelected = {},
+      onAddReminder = { _, _ -> },
+      onRemoveReminder = {},
+    )
   }
 }

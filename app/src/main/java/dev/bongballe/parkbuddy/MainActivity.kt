@@ -144,7 +144,7 @@ private fun MainScreen(modifier: Modifier = Modifier) {
       }
     },
   ) { paddingValues ->
-    val modifier = Modifier.padding(paddingValues)
+    val modifier = Modifier.padding(paddingValues).consumeWindowInsets(paddingValues)
     when (selectedItem) {
       0 -> MapScreen(modifier)
       1 -> WatchlistScreen(modifier)
