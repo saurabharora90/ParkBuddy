@@ -23,6 +23,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -96,6 +97,8 @@ class MainActivity(
               else -> Main
             }
 
+          // hoisted to maintain position when moving around settings
+          var mainPageSelectedTab by rememberSaveable { mutableIntStateOf(0) }
           val backStack = remember(initialRoute) { mutableStateListOf(initialRoute) }
           NavDisplay(
             backStack = backStack,
@@ -115,7 +118,13 @@ class MainActivity(
                     }
                   )
                 }
-                entry<Main> { MainScreen(backStack) }
+                entry<Main> {
+                  MainScreen(
+                    backStack = backStack,
+                    selectedItem = mainPageSelectedTab,
+                    onTabSelected = { mainPageSelectedTab = it },
+                  )
+                }
                 entry<RouteBluetoothDeviceSelection> {
                   BluetoothDeviceSelectionScreen(
                     onDeviceSelected = {
@@ -133,8 +142,12 @@ class MainActivity(
 }
 
 @Composable
-private fun MainScreen(backStack: MutableList<Any>, modifier: Modifier = Modifier) {
-  var selectedItem by remember { mutableIntStateOf(0) }
+private fun MainScreen(
+  backStack: MutableList<Any>,
+  selectedItem: Int,
+  modifier: Modifier = Modifier,
+  onTabSelected: (Int) -> Unit,
+) {
   Scaffold(
     modifier = modifier,
     bottomBar = {
@@ -143,21 +156,21 @@ private fun MainScreen(backStack: MutableList<Any>, modifier: Modifier = Modifie
           icon = { Icon(imageVector = Icons.Default.Map, contentDescription = null) },
           label = { Text("MAP") },
           selected = selectedItem == 0,
-          onClick = { selectedItem = 0 },
+          onClick = { onTabSelected(0) },
         )
 
         NavigationBarItem(
           icon = { Icon(imageVector = Icons.Default.Visibility, contentDescription = null) },
           label = { Text("WATCHED") },
           selected = selectedItem == 1,
-          onClick = { selectedItem = 1 },
+          onClick = { onTabSelected(1) },
         )
 
         NavigationBarItem(
           icon = { Icon(imageVector = Icons.Default.Person, contentDescription = null) },
           label = { Text("ACCOUNT") },
           selected = selectedItem == 2,
-          onClick = { selectedItem = 2 },
+          onClick = { onTabSelected(2) },
         )
       }
     },
@@ -167,12 +180,7 @@ private fun MainScreen(backStack: MutableList<Any>, modifier: Modifier = Modifie
         0 -> MapScreen()
         1 -> WatchlistScreen()
         2 ->
-          SettingsScreen(
-            onNavigateToBluetooth = {
-              backStack.clear()
-              backStack.add(RouteBluetoothDeviceSelection)
-            }
-          )
+          SettingsScreen(onNavigateToBluetooth = { backStack.add(RouteBluetoothDeviceSelection) })
       }
     }
   }
