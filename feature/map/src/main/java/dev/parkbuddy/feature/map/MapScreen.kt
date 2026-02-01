@@ -3,9 +3,13 @@ package dev.parkbuddy.feature.map
 import android.annotation.SuppressLint
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -35,6 +39,7 @@ import dev.bongballe.parkbuddy.model.Geometry
 import dev.bongballe.parkbuddy.model.ParkingSpot
 import dev.bongballe.parkbuddy.theme.GoldenYellow
 import dev.bongballe.parkbuddy.theme.SageGreen
+import dev.bongballe.parkbuddy.theme.Terracotta
 import dev.zacsweers.metrox.viewmodel.metroViewModel
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.debounce
@@ -78,7 +83,9 @@ fun MapScreen(modifier: Modifier = Modifier, viewModel: MapViewModel = metroView
           LatLng(37.7749, -122.4194) // Fallback to SF center
         }
 
-      this@rememberCameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(startPosition, 16f))
+      this@rememberCameraPositionState.animate(
+        CameraUpdateFactory.newLatLngZoom(startPosition, 16f)
+      )
     }
   }
 
@@ -166,6 +173,9 @@ fun MapScreen(modifier: Modifier = Modifier, viewModel: MapViewModel = metroView
       }
     }
 
+    var isShowingConfirmCarMovedPrompt by remember { mutableStateOf(false) }
+    var isShowingClearParkedLocationPrompt by remember { mutableStateOf(false) }
+
     if (state.shouldShowParkedLocationBottomSheet) {
       ModalBottomSheet(
         onDismissRequest = { viewModel.dismissParkedLocationBottomSheet() },
@@ -175,10 +185,70 @@ fun MapScreen(modifier: Modifier = Modifier, viewModel: MapViewModel = metroView
         ParkedSpotDetailContent(
           spot = state.parkedLocation!!.second,
           reminders = state.parkedLocation!!.third,
-          onMovedCar = { viewModel.clearParkedLocation() },
-          onEndSession = { viewModel.clearParkedLocation() },
+          onMovedCar = { isShowingConfirmCarMovedPrompt = true },
+          onEndSession = { isShowingClearParkedLocationPrompt = true },
         )
       }
+    }
+
+    if (isShowingConfirmCarMovedPrompt) {
+      AlertDialog(
+        onDismissRequest = { isShowingConfirmCarMovedPrompt = false },
+        title = { Text(text = "Are you sure?") },
+        text = {
+          Text(
+            "Marking your card as moved will clear your parked location and cancel the reminders"
+          )
+        },
+        confirmButton = {
+          TextButton(
+            onClick = {
+              isShowingConfirmCarMovedPrompt = false
+              viewModel.clearParkedLocation()
+            }
+          ) {
+            Text("Yes")
+          }
+        },
+        dismissButton = {
+          TextButton(
+            onClick = { isShowingConfirmCarMovedPrompt = false },
+            colors = ButtonDefaults.textButtonColors(contentColor = Terracotta),
+          ) {
+            Text("No")
+          }
+        },
+      )
+    }
+
+    if (isShowingClearParkedLocationPrompt) {
+      AlertDialog(
+        onDismissRequest = { isShowingClearParkedLocationPrompt = false },
+        title = { Text(text = "Are you sure?") },
+        text = {
+          Text(
+            "We are sorry for detecting the wrong location. Proceeding will clear this as parked location and cancel the reminders"
+          )
+        },
+        confirmButton = {
+          TextButton(
+            onClick = {
+              isShowingClearParkedLocationPrompt = false
+              viewModel.clearParkedLocation()
+            }
+          ) {
+            Text("Yes")
+          }
+        },
+        dismissButton = {
+          TextButton(
+            onClick = { isShowingClearParkedLocationPrompt = false },
+            colors = ButtonDefaults.textButtonColors(contentColor = Terracotta),
+          ) {
+            Text("No")
+          }
+        },
+      )
     }
   }
 }

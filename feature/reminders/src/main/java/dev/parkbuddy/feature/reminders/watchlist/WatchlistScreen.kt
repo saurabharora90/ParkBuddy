@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.LocationCity
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
@@ -286,6 +287,8 @@ private fun ZoneSelectorCard(
 
 @Composable
 fun ReminderItem(minutes: Int, onDelete: () -> Unit) {
+  var isShowingConfirmationPrompt by remember { mutableStateOf(false) }
+
   val hours = minutes / 60
   val mins = minutes % 60
   val timeString =
@@ -318,7 +321,7 @@ fun ReminderItem(minutes: Int, onDelete: () -> Unit) {
         style = MaterialTheme.typography.bodyLarge,
         modifier = Modifier.weight(1f),
       )
-      IconButton(onClick = onDelete) {
+      IconButton(onClick = { isShowingConfirmationPrompt = true }) {
         Icon(
           imageVector = Icons.Default.Delete,
           contentDescription = "Delete Reminder",
@@ -326,6 +329,36 @@ fun ReminderItem(minutes: Int, onDelete: () -> Unit) {
         )
       }
     }
+  }
+
+  if (isShowingConfirmationPrompt) {
+    AlertDialog(
+      onDismissRequest = { isShowingConfirmationPrompt = false },
+      title = { Text(text = "Remove this reminder?") },
+      text = {
+        Text(
+          "Are you sure you want to remove this reminder for future? Existing reminder for an ongoing parking (if any) will not be altered"
+        )
+      },
+      confirmButton = {
+        TextButton(
+          onClick = {
+            isShowingConfirmationPrompt = false
+            onDelete()
+          }
+        ) {
+          Text("Yes")
+        }
+      },
+      dismissButton = {
+        TextButton(
+          onClick = { isShowingConfirmationPrompt = false },
+          colors = ButtonDefaults.textButtonColors(contentColor = Terracotta),
+        ) {
+          Text("No")
+        }
+      },
+    )
   }
 }
 
