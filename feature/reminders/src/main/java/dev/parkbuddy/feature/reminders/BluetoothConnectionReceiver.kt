@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import dev.bongballe.parkbuddy.DispatcherType
+import dev.bongballe.parkbuddy.analytics.AnalyticsTracker
 import dev.bongballe.parkbuddy.data.repository.ParkingRepository
 import dev.bongballe.parkbuddy.data.repository.PreferencesRepository
 import dev.bongballe.parkbuddy.data.repository.ReminderNotificationManager
@@ -30,6 +31,7 @@ class BluetoothConnectionReceiver(
   private val parkingRepository: ParkingRepository,
   private val reminderRepository: ReminderRepository,
   private val notificationManager: ReminderNotificationManager,
+  private val analyticsTracker: AnalyticsTracker,
   @WithScope(AppScope::class) private val coroutineScope: CoroutineScope,
   @WithDispatcherType(DispatcherType.IO) private val ioDispatcher: CoroutineDispatcher,
 ) : BroadcastReceiver() {
@@ -60,9 +62,12 @@ class BluetoothConnectionReceiver(
                   preferencesRepository,
                   reminderRepository,
                   notificationManager,
+                  analyticsTracker,
                 )
               parkingManager.processParkingEvent()
             }
+          } catch (e: Exception) {
+            analyticsTracker.logNonFatal(e, "Error in BluetoothConnectionReceiver")
           } finally {
             pendingResult.finish()
           }

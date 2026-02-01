@@ -2,6 +2,7 @@ package dev.parkbuddy.feature.onboarding.bluetooth
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dev.bongballe.parkbuddy.analytics.AnalyticsTracker
 import dev.bongballe.parkbuddy.core.bluetooth.BluetoothController
 import dev.bongballe.parkbuddy.core.bluetooth.BluetoothDeviceUiModel
 import dev.bongballe.parkbuddy.data.repository.PreferencesRepository
@@ -21,6 +22,7 @@ import kotlinx.coroutines.launch
 class BluetoothDeviceSelectionViewModel(
   private val preferencesRepository: PreferencesRepository,
   private val bluetoothController: BluetoothController,
+  private val analyticsTracker: AnalyticsTracker,
 ) : ViewModel() {
 
   private val devices by lazy { bluetoothController.getPairedDevices() }
@@ -43,6 +45,7 @@ class BluetoothDeviceSelectionViewModel(
   }
 
   fun clearDeviceSelection() {
+    analyticsTracker.logEvent("bluetooth_device_selection_skipped")
     viewModelScope.launch { preferencesRepository.setBluetoothDeviceAddress(null) }
   }
 }

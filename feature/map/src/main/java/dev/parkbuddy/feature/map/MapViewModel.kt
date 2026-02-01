@@ -2,6 +2,7 @@ package dev.parkbuddy.feature.map
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dev.bongballe.parkbuddy.analytics.AnalyticsTracker
 import dev.bongballe.parkbuddy.data.repository.ParkingRepository
 import dev.bongballe.parkbuddy.data.repository.PreferencesRepository
 import dev.bongballe.parkbuddy.data.repository.ReminderRepository
@@ -32,6 +33,7 @@ class MapViewModel(
   private val repository: ParkingRepository,
   private val preferencesRepository: PreferencesRepository,
   private val reminderRepository: ReminderRepository,
+  private val analyticsTracker: AnalyticsTracker,
 ) : ViewModel() {
 
   data class State(
@@ -93,6 +95,7 @@ class MapViewModel(
   }
 
   fun parkHere(spot: ParkingSpot) {
+    analyticsTracker.logEvent("manual_park_click")
     viewModelScope.launch {
       val coordinates = spot.geometry.coordinates
       if (coordinates.isEmpty()) return@launch
@@ -122,9 +125,15 @@ class MapViewModel(
   }
 
   fun clearParkedLocation() {
+    analyticsTracker.logEvent("clear_parked_location")
     viewModelScope.launch {
       preferencesRepository.clearParkedLocation()
       reminderRepository.clearAllReminders()
     }
+  }
+
+  fun reportWrongLocation() {
+    analyticsTracker.logEvent("report_wrong_location")
+    clearParkedLocation()
   }
 }

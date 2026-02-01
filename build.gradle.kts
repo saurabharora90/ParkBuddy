@@ -6,6 +6,8 @@ plugins {
   alias(libs.plugins.foundry.root) apply true
   alias(libs.plugins.foundry.base) apply true
   alias(libs.plugins.foundry.apk.versioning) apply true
+  alias(libs.plugins.google.services) apply false
+  alias(libs.plugins.firebase.crashlytics) apply false
   alias(libs.plugins.kotlin.android) apply false
   alias(libs.plugins.kotlin.compose) apply false
   alias(libs.plugins.kotlin.serialization) apply false

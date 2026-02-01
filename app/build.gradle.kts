@@ -4,6 +4,8 @@ plugins {
   alias(libs.plugins.foundry.apk.versioning)
   alias(libs.plugins.kotlin.android)
   alias(libs.plugins.kotlin.serialization)
+  alias(libs.plugins.google.services)
+  alias(libs.plugins.firebase.crashlytics)
 }
 
 android {
@@ -39,6 +41,7 @@ foundry {
 
 dependencies {
   implementation(platform(libs.compose.bom))
+  implementation(platform(libs.firebase.bom))
   implementation(project(":core:base"))
   implementation(project(":core:bluetooth"))
   implementation(project(":core:data:api"))
@@ -63,6 +66,8 @@ dependencies {
   implementation(libs.bundles.compose.debug)
   implementation(libs.compose.material.icons)
   implementation(libs.compose.material.icons.extended)
+  implementation(libs.firebase.analytics)
+  implementation(libs.firebase.crashlytics)
   implementation(libs.kotlinx.coroutines.android)
   implementation(libs.metrox.android)
   implementation(libs.metrox.viewmodel)

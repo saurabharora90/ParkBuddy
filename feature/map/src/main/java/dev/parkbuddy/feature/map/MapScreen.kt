@@ -234,7 +234,7 @@ fun MapScreen(modifier: Modifier = Modifier, viewModel: MapViewModel = metroView
           TextButton(
             onClick = {
               isShowingClearParkedLocationPrompt = false
-              viewModel.clearParkedLocation()
+              viewModel.reportWrongLocation()
             }
           ) {
             Text("Yes")

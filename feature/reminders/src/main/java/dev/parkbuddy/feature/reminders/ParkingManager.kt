@@ -8,6 +8,7 @@ import androidx.core.app.ActivityCompat
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.google.android.gms.tasks.CancellationTokenSource
+import dev.bongballe.parkbuddy.analytics.AnalyticsTracker
 import dev.bongballe.parkbuddy.data.repository.ParkingRepository
 import dev.bongballe.parkbuddy.data.repository.PreferencesRepository
 import dev.bongballe.parkbuddy.data.repository.ReminderNotificationManager
@@ -26,6 +27,7 @@ class ParkingManager(
   private val preferencesRepository: PreferencesRepository,
   private val reminderRepository: ReminderRepository,
   private val notificationManager: ReminderNotificationManager,
+  private val analyticsTracker: AnalyticsTracker,
 ) {
 
   suspend fun processParkingEvent() {
@@ -33,6 +35,7 @@ class ParkingManager(
       ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) !=
         PackageManager.PERMISSION_GRANTED
     ) {
+      analyticsTracker.logEvent("parking_event_no_permission")
       return
     }
 
@@ -45,17 +48,25 @@ class ParkingManager(
           locationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, cts.token).await()
         }
       } catch (e: Exception) {
+        analyticsTracker.logNonFatal(e, "Location timeout in ParkingManager")
         null
       }
 
     if (location == null) {
+      analyticsTracker.logEvent("parking_event_location_null")
       notificationManager.sendLocationFailureNotification()
       return
     }
 
-    val userZone = repository.getUserRppZone().first() ?: return
+    val userZone = repository.getUserRppZone().first()
+    if (userZone == null) {
+      analyticsTracker.logEvent("parking_event_no_zone")
+      return
+    }
+
     val watchedSpots = repository.getSpotsByZone(userZone).first()
     if (watchedSpots.isEmpty()) {
+      analyticsTracker.logEvent("parking_event_empty_watchlist", mapOf("zone" to userZone))
       notificationManager.sendParkingMatchFailureNotification()
       return
     }
@@ -63,6 +74,7 @@ class ParkingManager(
     val matchingSpot = findMatchingSpot(location, watchedSpots)
 
     if (matchingSpot != null) {
+      analyticsTracker.logEvent("parking_event_success")
       val parkedLocation =
         ParkedLocation(
           spotId = matchingSpot.objectId,
@@ -73,6 +85,7 @@ class ParkingManager(
       preferencesRepository.setParkedLocation(parkedLocation)
       reminderRepository.scheduleReminders(matchingSpot)
     } else {
+      analyticsTracker.logEvent("parking_event_no_match")
       notificationManager.sendParkingMatchFailureNotification()
     }
   }

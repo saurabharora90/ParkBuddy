@@ -2,6 +2,7 @@ package dev.bongballe.parkbuddy.data.sf.repository
 
 import android.util.Log
 import dev.bongballe.parkbuddy.DispatcherType
+import dev.bongballe.parkbuddy.analytics.AnalyticsTracker
 import dev.bongballe.parkbuddy.data.repository.ParkingRepository
 import dev.bongballe.parkbuddy.data.sf.CoordinateMatcher
 import dev.bongballe.parkbuddy.data.sf.database.ParkingDao
@@ -39,6 +40,7 @@ import kotlinx.serialization.json.jsonPrimitive
 class ParkingRepositoryImpl(
   private val dao: ParkingDao,
   private val api: SfOpenDataApi,
+  private val analyticsTracker: AnalyticsTracker,
   @WithDispatcherType(DispatcherType.IO) private val ioDispatcher: CoroutineDispatcher,
 ) : ParkingRepository {
 
@@ -86,6 +88,7 @@ class ParkingRepositoryImpl(
   override suspend fun setUserRppZone(zone: String?) {
     val existing = getExistingPreferences()
     dao.upsertUserPreferences(existing.copy(rppZone = zone))
+    analyticsTracker.setCustomKey("rpp_zone", zone ?: "none")
   }
 
   override suspend fun addReminder(minutesBefore: ReminderMinutes) {
@@ -224,11 +227,14 @@ class ParkingRepositoryImpl(
     while (true) {
       val result = api.getParkingRegulations(limit = limit, offset = offset)
       if (result.isFailure) {
-        Log.e(
-          TAG,
-          "fetchAllParkingRegulations: API call failed at offset $offset",
-          result.exceptionOrNull(),
-        )
+        val exception = result.exceptionOrNull()
+        Log.e(TAG, "fetchAllParkingRegulations: API call failed at offset $offset", exception)
+        exception?.let {
+          analyticsTracker.logNonFatal(
+            it,
+            "API failure: fetchAllParkingRegulations at offset $offset",
+          )
+        }
         break
       }
 
@@ -250,7 +256,13 @@ class ParkingRepositoryImpl(
 
     while (true) {
       val result = api.getStreetCleaningData(limit = limit, offset = offset)
-      if (result.isFailure) break
+      if (result.isFailure) {
+        val exception = result.exceptionOrNull()
+        exception?.let {
+          analyticsTracker.logNonFatal(it, "API failure: fetchAllSweepingData at offset $offset")
+        }
+        break
+      }
 
       val batch = result.getOrNull() ?: emptyList()
       if (batch.isEmpty()) break
