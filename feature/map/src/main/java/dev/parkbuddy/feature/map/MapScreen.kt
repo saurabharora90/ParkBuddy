@@ -3,11 +3,9 @@ package dev.parkbuddy.feature.map
 import android.annotation.SuppressLint
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -15,6 +13,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
@@ -41,6 +40,7 @@ import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
 @SuppressLint("MissingPermission")
@@ -59,24 +59,27 @@ fun MapScreen(modifier: Modifier = Modifier, viewModel: MapViewModel = metroView
     remember(spots) { spots.map { spot -> spot to parseLocationData(spot.geometry) } }
 
   val sfBounds = LatLngBounds(LatLng(37.703397, -122.519967), LatLng(37.832396, -122.354979))
-  val cameraPositionState = rememberCameraPositionState()
-
   val context = LocalContext.current
-  LaunchedEffect(Unit) {
+  val coroutineScope = rememberCoroutineScope()
+  val cameraPositionState = rememberCameraPositionState {
     val locationClient = LocationServices.getFusedLocationProviderClient(context)
-    val location =
-      try {
-        locationClient.getCurrentLocation(Priority.PRIORITY_BALANCED_POWER_ACCURACY, null).await()
-      } catch (_: Exception) {
-        null
-      }
-    val startPosition =
-      if (location != null && sfBounds.contains(LatLng(location.latitude, location.longitude))) {
-        LatLng(location.latitude, location.longitude)
-      } else {
-        LatLng(37.7749, -122.4194) // Fallback to SF center
-      }
-    cameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(startPosition, 16f))
+    coroutineScope.launch {
+      val location =
+        try {
+          locationClient.getCurrentLocation(Priority.PRIORITY_BALANCED_POWER_ACCURACY, null).await()
+        } catch (_: Exception) {
+          null
+        }
+
+      val startPosition =
+        if (location != null && sfBounds.contains(LatLng(location.latitude, location.longitude))) {
+          LatLng(location.latitude, location.longitude)
+        } else {
+          LatLng(37.7749, -122.4194) // Fallback to SF center
+        }
+
+      this@rememberCameraPositionState.animate(CameraUpdateFactory.newLatLngZoom(startPosition, 16f))
+    }
   }
 
   // Use state + LaunchedEffect with debounce instead of derivedStateOf
