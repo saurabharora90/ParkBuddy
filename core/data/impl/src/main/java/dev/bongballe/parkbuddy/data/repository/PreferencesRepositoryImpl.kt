@@ -29,6 +29,7 @@ class PreferencesRepositoryImpl(private val context: Context, private val json: 
     val INITIAL_SYNC_DONE = booleanPreferencesKey("initial_sync_done")
     val BLUETOOTH_DEVICE_ADDRESS = stringPreferencesKey("bluetooth_device_address")
     val PARKED_LOCATION = stringPreferencesKey("parked_location")
+    val AUTO_TRACKING_ENABLED = booleanPreferencesKey("auto_tracking_enabled")
   }
 
   override val isInitialSyncDone: Flow<Boolean> =
@@ -63,5 +64,12 @@ class PreferencesRepositoryImpl(private val context: Context, private val json: 
 
   override suspend fun clearParkedLocation() {
     context.dataStore.edit { preferences -> preferences.remove(Keys.PARKED_LOCATION) }
+  }
+
+  override val isAutoTrackingEnabled: Flow<Boolean> =
+    context.dataStore.data.map { preferences -> preferences[Keys.AUTO_TRACKING_ENABLED] ?: true }
+
+  override suspend fun setAutoTrackingEnabled(enabled: Boolean) {
+    context.dataStore.edit { preferences -> preferences[Keys.AUTO_TRACKING_ENABLED] = enabled }
   }
 }

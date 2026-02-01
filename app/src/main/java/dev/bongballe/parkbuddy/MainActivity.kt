@@ -5,6 +5,8 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Map
@@ -36,6 +38,7 @@ import dev.parkbuddy.feature.map.MapScreen
 import dev.parkbuddy.feature.onboarding.bluetooth.BluetoothDeviceSelectionScreen
 import dev.parkbuddy.feature.onboarding.permission.RequestPermissionScreen
 import dev.parkbuddy.feature.reminders.watchlist.WatchlistScreen
+import dev.parkbuddy.feature.settings.SettingsScreen
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesIntoMap
 import dev.zacsweers.metro.Inject
@@ -94,16 +97,16 @@ class MainActivity(
                     onPermissionsGranted = {
                       backStack.clear()
                       backStack.add(RouteBluetoothDeviceSelection)
-                    }
+                    },
                   )
                 }
-                entry<Main> { MainScreen() }
+                entry<Main> { MainScreen(backStack) }
                 entry<RouteBluetoothDeviceSelection> {
                   BluetoothDeviceSelectionScreen(
                     onDeviceSelected = {
                       backStack.clear()
                       backStack.add(Main)
-                    }
+                    },
                   )
                 }
               },
@@ -115,7 +118,7 @@ class MainActivity(
 }
 
 @Composable
-private fun MainScreen(modifier: Modifier = Modifier) {
+private fun MainScreen(backStack: MutableList<Any>, modifier: Modifier = Modifier) {
   var selectedItem by remember { mutableIntStateOf(0) }
   Scaffold(
     modifier = modifier,
@@ -137,18 +140,27 @@ private fun MainScreen(modifier: Modifier = Modifier) {
 
         NavigationBarItem(
           icon = { Icon(imageVector = Icons.Default.Person, contentDescription = null) },
-          label = { Text("PROFILE") },
+          label = { Text("ACCOUNT") },
           selected = selectedItem == 2,
           onClick = { selectedItem = 2 },
         )
       }
     },
   ) { paddingValues ->
-    val modifier = Modifier.padding(paddingValues).consumeWindowInsets(paddingValues)
-    when (selectedItem) {
-      0 -> MapScreen(modifier)
-      1 -> WatchlistScreen(modifier)
-      2 -> MapScreen(modifier)
+    Box(modifier = Modifier
+      .padding(paddingValues)
+      .consumeWindowInsets(paddingValues)) {
+      when (selectedItem) {
+        0 -> MapScreen()
+        1 -> WatchlistScreen()
+        2 ->
+          SettingsScreen(
+            onNavigateToBluetooth = {
+              backStack.clear()
+              backStack.add(RouteBluetoothDeviceSelection)
+            },
+          )
+      }
     }
   }
 }

@@ -13,4 +13,7 @@ interface PreferencesRepository {
   val parkedLocation: Flow<ParkedLocation?>
   suspend fun setParkedLocation(location: ParkedLocation)
   suspend fun clearParkedLocation()
+
+  val isAutoTrackingEnabled: Flow<Boolean>
+  suspend fun setAutoTrackingEnabled(enabled: Boolean)
 }
