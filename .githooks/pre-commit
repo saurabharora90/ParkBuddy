@@ -1,0 +1,80 @@
+#!/bin/bash
+
+# Pre-commit hook using checksum approach (inspired by Foundry) with Spotless.
+# Avoids stash-related bugs by refusing to auto-stage files with unstaged hunks.
+
+set -e
+
+if [[ "$FOUNDRY_COMMIT_HOOK_OPT_OUT" == "true" ]]; then
+    echo 'Warning: Skipping pre-commit hook because FOUNDRY_COMMIT_HOOK_OPT_OUT is true'
+    exit 0
+fi
+
+# Skip during rebase
+ls "$(git rev-parse --git-dir)" | grep -q rebase && exit 0
+
+# Skip during merge
+git rev-parse -q --verify MERGE_HEAD > /dev/null && exit 0
+
+RED='\033[0;31m'
+NC='\033[0m'
+
+# Checksum function for partially-staged files (files with both staged and unstaged changes)
+partially_staged_chksum() {
+    staged=$(git diff --cached --name-only --diff-filter=ACMR "-G.*" | grep -Ei "\.kt(s)?$" | sort || true)
+    unstaged=$(git diff --name-only --diff-filter=ACM | grep -Ei "\.kt(s)?$" | sort || true)
+    if [[ -z "$staged" || -z "$unstaged" ]]; then
+        return
+    fi
+    comm -12 <(echo "$staged") <(echo "$unstaged") | xargs cksum 2>/dev/null || true
+}
+
+original_chksum=$(partially_staged_chksum)
+original_files=$(echo "$original_chksum" | awk '{print $NF}' | sort -u || true)
+
+# Get staged Kotlin files
+kotlin_files=$(git diff --cached --name-only --diff-filter=ACMR "-G.*" | grep -Ei "\.kt(s)?$" || true)
+
+if [[ -z "$kotlin_files" ]]; then
+    exit 0
+fi
+
+echo "--- Pre-commit: Running Spotless ---"
+
+# Build regex pattern for spotlessFiles (escape special regex chars and prefix with .*/)
+pattern=$(echo "$kotlin_files" | sed 's/[.[\*^$()+?{|]/\\&/g' | sed 's|^|.*/|' | paste -sd '|' -)
+./gradlew spotlessApply -PspotlessFiles="$pattern" --quiet
+
+# Run sortDependencies for .kts files
+kts_files=$(echo "$kotlin_files" | grep -E "\.kts$" || true)
+if [[ -n "$kts_files" ]]; then
+    echo "Running sortDependencies..."
+    ./gradlew sortDependencies --quiet
+fi
+
+# Re-stage fully-staged files only (skip partially-staged ones)
+while IFS= read -r file; do
+    if [[ -f "$file" ]]; then
+        # Check if this file is NOT in the partially-staged list
+        if ! echo "$original_files" | grep -qxF "$file"; then
+            git add "$file"
+        fi
+    fi
+done <<< "$kotlin_files"
+
+# Check if any partially-staged files were modified by comparing checksums
+new_chksum=$(partially_staged_chksum)
+
+if [[ "$original_chksum" != "$new_chksum" ]]; then
+    # Find which files changed
+    modified_files=$(comm -3 <(echo "$original_chksum" | sort) <(echo "$new_chksum" | sort) | awk '{print $NF}' | sort -u || true)
+    if [[ -n "$modified_files" ]]; then
+        printf "%bCould not auto-stage: some files had unstaged changes:%b\n" "$RED" "$NC"
+        echo "$modified_files"
+        echo "Spotless formatted these files but they have unstaged hunks."
+        echo "Manually stage the fixes and try again."
+        exit 2
+    fi
+fi
+
+echo "--- Pre-commit: Success ---"
