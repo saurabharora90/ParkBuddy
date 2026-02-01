@@ -30,7 +30,13 @@ dependencies {
   implementation(libs.bundles.compose.debug)
   implementation(libs.compose.material.icons)
   implementation(libs.compose.material.icons.extended)
+  implementation(libs.kotlinx.coroutines.play.services)
+  implementation(libs.kotlinx.datetime)
   implementation(libs.metrox.android)
   implementation(libs.metrox.viewmodel)
   implementation(libs.metrox.viewmodel.compose)
+  implementation(libs.play.services.location)
+
+  testImplementation(libs.junit)
+  testImplementation(libs.truth)
 }

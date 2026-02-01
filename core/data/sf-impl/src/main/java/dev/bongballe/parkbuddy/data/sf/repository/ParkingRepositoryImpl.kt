@@ -180,8 +180,8 @@ class ParkingRepositoryImpl(
           // Add ALL schedules for this side of the street
           if (sweepingMatch != null) {
             for (schedule in sweepingMatch.schedules) {
-              val fromHour = schedule.fromhour.toIntOrNull() ?: 0
-              val toHour = schedule.tohour.toIntOrNull() ?: 0
+              val fromHour = (schedule.fromhour.toIntOrNull() ?: 0) % 24
+              val toHour = (schedule.tohour.toIntOrNull() ?: 0) % 24
 
               schedulesList.add(
                 SweepingScheduleEntity(

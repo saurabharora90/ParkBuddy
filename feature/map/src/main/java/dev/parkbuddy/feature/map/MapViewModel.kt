@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dev.bongballe.parkbuddy.data.repository.ParkingRepository
 import dev.bongballe.parkbuddy.data.repository.PreferencesRepository
+import dev.bongballe.parkbuddy.data.repository.ReminderRepository
 import dev.bongballe.parkbuddy.model.ParkedLocation
 import dev.bongballe.parkbuddy.model.ParkingSpot
 import dev.bongballe.parkbuddy.model.ReminderMinutes
@@ -30,6 +31,7 @@ import kotlinx.coroutines.launch
 class MapViewModel(
   private val repository: ParkingRepository,
   private val preferencesRepository: PreferencesRepository,
+  private val reminderRepository: ReminderRepository,
 ) : ViewModel() {
 
   data class State(
@@ -63,8 +65,8 @@ class MapViewModel(
             watchedSpots = watchedSpots,
             parkedLocation =
               parkedLocation?.let {
-                val spot = parkingSpots.first { it.objectId == parkedLocation.spotId }
-                Triple(parkedLocation, spot, reminder.sortedDescending())
+                val spot = parkingSpots.firstOrNull { it.objectId == parkedLocation.spotId }
+                spot?.let { Triple(parkedLocation, it, reminder.sortedDescending()) }
               },
             shouldShowParkedLocationBottomSheet = shouldShowParkedLocationBottomSheet,
           )
@@ -107,6 +109,7 @@ class MapViewModel(
         )
 
       preferencesRepository.setParkedLocation(parkedLocation)
+      reminderRepository.scheduleReminders(spot)
     }
   }
 
@@ -119,6 +122,9 @@ class MapViewModel(
   }
 
   fun clearParkedLocation() {
-    viewModelScope.launch { preferencesRepository.clearParkedLocation() }
+    viewModelScope.launch {
+      preferencesRepository.clearParkedLocation()
+      reminderRepository.clearAllReminders()
+    }
   }
 }
