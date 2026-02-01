@@ -99,6 +99,7 @@ kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "ko
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 foundry-root = { id = "com.slack.foundry.root", version.ref = "slackFoundry" }
 foundry-base = { id = "com.slack.foundry.base", version.ref = "slackFoundry" }
+foundry-apk-versioning = { id = "com.slack.foundry.apk-versioning", version.ref = "slackFoundry" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 metro = { id = "dev.zacsweers.metro", version.ref = "metro" }
 roborazzi = { id = "io.github.takahirom.roborazzi", version.ref = "roborazzi" }

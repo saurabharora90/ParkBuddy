@@ -58,12 +58,10 @@ fun SettingsScreen(
   modifier: Modifier = Modifier,
   viewModel: SettingsViewModel = metroViewModel(),
 ) {
-  val isAutoTrackingEnabled by viewModel.isAutoTrackingEnabled.collectAsState()
-  val bluetoothDeviceName by viewModel.bluetoothDeviceName.collectAsState()
+  val uiState by viewModel.uiState.collectAsState()
 
   SettingsContent(
-    isAutoTrackingEnabled = isAutoTrackingEnabled,
-    bluetoothDeviceName = bluetoothDeviceName,
+    uiState = uiState,
     onAutoTrackingToggle = viewModel::setAutoTrackingEnabled,
     onNavigateToBluetooth = onNavigateToBluetooth,
     onBuyMeACoffee = viewModel::buyMeACoffee,
@@ -73,8 +71,7 @@ fun SettingsScreen(
 
 @Composable
 private fun SettingsContent(
-  isAutoTrackingEnabled: Boolean,
-  bluetoothDeviceName: String?,
+  uiState: SettingsUiState,
   onAutoTrackingToggle: (Boolean) -> Unit,
   onNavigateToBluetooth: () -> Unit,
   onBuyMeACoffee: () -> Unit,
@@ -111,7 +108,7 @@ private fun SettingsContent(
             modifier = Modifier.padding(16.dp),
             trailingContent = {
               Switch(
-                checked = isAutoTrackingEnabled,
+                checked = uiState.isAutoTrackingEnabled,
                 onCheckedChange = onAutoTrackingToggle,
                 colors =
                   SwitchDefaults.colors(
@@ -120,7 +117,7 @@ private fun SettingsContent(
                   ),
               )
             },
-            onClick = { onAutoTrackingToggle(!isAutoTrackingEnabled) },
+            onClick = { onAutoTrackingToggle(!uiState.isAutoTrackingEnabled) },
           )
 
           Divider(modifier = Modifier.padding(horizontal = 16.dp))
@@ -130,7 +127,7 @@ private fun SettingsContent(
             iconBackgroundColor = Color.White,
             iconTint = SagePrimary,
             title = "Connected Car",
-            subtitle = bluetoothDeviceName ?: "My Main Vehicle",
+            subtitle = uiState.bluetoothDeviceName ?: "My Main Vehicle",
             subtitleColor = SagePrimary,
             onClick = onNavigateToBluetooth,
             modifier = Modifier.padding(16.dp),
@@ -180,7 +177,7 @@ private fun SettingsContent(
 
       Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
         Text(
-          text = "PARKBUDDY V1.0",
+          text = "ParkBuddy ${uiState.appVersion}",
           style = MaterialTheme.typography.labelSmall,
           color = MaterialTheme.colorScheme.onSurfaceVariant,
           letterSpacing = 1.sp,
@@ -262,8 +259,12 @@ private fun Divider(modifier: Modifier = Modifier) {
 private fun SettingsContentPreview() {
   ParkBuddyTheme {
     SettingsContent(
-      isAutoTrackingEnabled = true,
-      bluetoothDeviceName = "My Car",
+      uiState =
+        SettingsUiState(
+          isAutoTrackingEnabled = true,
+          bluetoothDeviceName = "My Car",
+          appVersion = "V1.0",
+        ),
       onAutoTrackingToggle = {},
       onNavigateToBluetooth = {},
       onBuyMeACoffee = {},

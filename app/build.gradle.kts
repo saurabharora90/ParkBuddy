@@ -1,6 +1,7 @@
 plugins {
   alias(libs.plugins.android.application)
   alias(libs.plugins.foundry.base)
+  alias(libs.plugins.foundry.apk.versioning)
   alias(libs.plugins.kotlin.android)
   alias(libs.plugins.kotlin.serialization)
 }
@@ -10,18 +11,20 @@ android {
 
   defaultConfig {
     applicationId = "dev.bongballe.parkbuddy"
-    versionCode = 1
-    versionName = "1.0"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+  }
+
+  buildFeatures {
+    buildConfig = true
   }
 
   buildTypes {
     release {
       isMinifyEnabled = false
       proguardFiles(
-          getDefaultProguardFile("proguard-android-optimize.txt"),
-          "proguard-rules.pro",
+        getDefaultProguardFile("proguard-android-optimize.txt"),
+        "proguard-rules.pro",
       )
     }
   }
