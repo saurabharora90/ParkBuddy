@@ -9,10 +9,10 @@ import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesIntoMap
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metrox.viewmodel.ViewModelKey
-import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 @ContributesIntoMap(AppScope::class)
@@ -23,16 +23,22 @@ class BluetoothDeviceSelectionViewModel(
   private val bluetoothController: BluetoothController,
 ) : ViewModel() {
 
-  private val _uiState = MutableStateFlow(BluetoothSelectionUiState())
-  val uiState: StateFlow<BluetoothSelectionUiState> = _uiState.asStateFlow()
-
-  fun loadPairedDevices() {
-    val devices = bluetoothController.getPairedDevices()
-    _uiState.update { it.copy(devices = devices) }
-  }
+  private val devices by lazy { bluetoothController.getPairedDevices() }
+  val uiState: StateFlow<BluetoothSelectionUiState> =
+    preferencesRepository.bluetoothDeviceAddress
+      .map { deviceAddress ->
+        BluetoothSelectionUiState(
+          devices = devices,
+          selectedDevice = devices.find { it.address == deviceAddress },
+        )
+      }
+      .stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = BluetoothSelectionUiState(),
+      )
 
   fun selectDevice(device: BluetoothDeviceUiModel) {
-    _uiState.update { it.copy(selectedDevice = device) }
     viewModelScope.launch { preferencesRepository.setBluetoothDeviceAddress(device.address) }
   }
 }
