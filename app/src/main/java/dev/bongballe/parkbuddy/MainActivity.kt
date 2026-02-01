@@ -35,6 +35,7 @@ import dev.bongballe.parkbuddy.data.repository.ParkingRepository
 import dev.bongballe.parkbuddy.data.repository.PreferencesRepository
 import dev.bongballe.parkbuddy.theme.ParkBuddyTheme
 import dev.parkbuddy.feature.map.MapScreen
+import dev.parkbuddy.feature.onboarding.PermissionChecker
 import dev.parkbuddy.feature.onboarding.bluetooth.BluetoothDeviceSelectionScreen
 import dev.parkbuddy.feature.onboarding.permission.RequestPermissionScreen
 import dev.parkbuddy.feature.reminders.watchlist.WatchlistScreen
@@ -48,6 +49,7 @@ import dev.zacsweers.metrox.viewmodel.LocalMetroViewModelFactory
 import dev.zacsweers.metrox.viewmodel.MetroViewModelFactory
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 
 data object RouteRequestPermission
 
@@ -81,7 +83,20 @@ class MainActivity(
     setContent {
       CompositionLocalProvider(LocalMetroViewModelFactory provides viewModelFactory) {
         ParkBuddyTheme {
-          val backStack = remember { mutableStateListOf<Any>(RouteRequestPermission) }
+          val bluetoothDeviceAddress = runBlocking {
+            preferencesRepository.bluetoothDeviceAddress.first()
+          }
+
+          val initialRoute =
+            when {
+              !PermissionChecker.areAllPermissionsGranted(this@MainActivity) ->
+                RouteRequestPermission
+
+              bluetoothDeviceAddress == null -> RouteBluetoothDeviceSelection
+              else -> Main
+            }
+
+          val backStack = remember(initialRoute) { mutableStateListOf(initialRoute) }
           NavDisplay(
             backStack = backStack,
             onBack = { backStack.removeLastOrNull() },
@@ -97,7 +112,7 @@ class MainActivity(
                     onPermissionsGranted = {
                       backStack.clear()
                       backStack.add(RouteBluetoothDeviceSelection)
-                    },
+                    }
                   )
                 }
                 entry<Main> { MainScreen(backStack) }
@@ -106,7 +121,7 @@ class MainActivity(
                     onDeviceSelected = {
                       backStack.clear()
                       backStack.add(Main)
-                    },
+                    }
                   )
                 }
               },
@@ -147,9 +162,7 @@ private fun MainScreen(backStack: MutableList<Any>, modifier: Modifier = Modifie
       }
     },
   ) { paddingValues ->
-    Box(modifier = Modifier
-      .padding(paddingValues)
-      .consumeWindowInsets(paddingValues)) {
+    Box(modifier = Modifier.padding(paddingValues).consumeWindowInsets(paddingValues)) {
       when (selectedItem) {
         0 -> MapScreen()
         1 -> WatchlistScreen()
@@ -158,7 +171,7 @@ private fun MainScreen(backStack: MutableList<Any>, modifier: Modifier = Modifie
             onNavigateToBluetooth = {
               backStack.clear()
               backStack.add(RouteBluetoothDeviceSelection)
-            },
+            }
           )
       }
     }
