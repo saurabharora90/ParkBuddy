@@ -28,7 +28,6 @@ import androidx.compose.material.icons.filled.LocalParking
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -36,7 +35,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -65,6 +63,7 @@ import dev.bongballe.parkbuddy.theme.ParkBuddyTheme
 import dev.bongballe.parkbuddy.theme.SageGreen
 import dev.bongballe.parkbuddy.theme.SagePrimary
 import dev.parkbuddy.core.ui.ParkBuddyButton
+import dev.parkbuddy.core.ui.PermissionRationaleDialog
 import dev.parkbuddy.core.ui.SquircleIcon
 
 @OptIn(ExperimentalPermissionsApi::class)
@@ -163,14 +162,21 @@ fun RequestPermissionScreen(
     viewModel.updateBackgroundLocationState(backgroundLocationGranted)
   }
 
+  if (showRationale) {
+    PermissionRationaleDialog(
+      title = "Permissions Required",
+      text =
+        "To provide zero-touch parking alerts, ParkBuddy needs to access your location even when the app is closed or not in use.\n\n Your location data is only used locally to check for cleaning rules and is never shared.",
+      onConfirm = {
+        showRationale = false
+        backgroundLocationPermissionState?.launchPermissionRequest()
+      },
+      onDismiss = { showRationale = false },
+    )
+  }
+
   RequestPermissionScreenContent(
     uiState = uiState,
-    showRationale = showRationale,
-    onDismissRationale = { showRationale = false },
-    onConfirmRationale = {
-      showRationale = false
-      backgroundLocationPermissionState?.launchPermissionRequest()
-    },
     onContinueClick = {
       when {
         !uiState.isFineLocationGranted || !uiState.isBluetoothGranted -> {
@@ -188,32 +194,7 @@ fun RequestPermissionScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun RequestPermissionScreenContent(
-  uiState: OnboardingUiState,
-  showRationale: Boolean,
-  onDismissRationale: () -> Unit,
-  onConfirmRationale: () -> Unit,
-  onContinueClick: () -> Unit,
-) {
-  if (showRationale) {
-    AlertDialog(
-      onDismissRequest = onDismissRationale,
-      title = { Text(text = "Permissions Required") },
-      text = {
-        Text(
-          "To provide zero-touch parking alerts, ParkBuddy needs to access your location " +
-            "even when the app is closed or not in use.\n\n Your location data is only used " +
-            "locally to check for cleaning rules and is never shared."
-        )
-      },
-      confirmButton = { TextButton(onClick = onConfirmRationale) { Text("OK") } },
-      dismissButton = { TextButton(onClick = onDismissRationale) { Text("Cancel") } },
-      containerColor = Color.White,
-      titleContentColor = MaterialTheme.colorScheme.onSurface,
-      textContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-    )
-  }
-
+fun RequestPermissionScreenContent(uiState: OnboardingUiState, onContinueClick: () -> Unit) {
   Scaffold(
     topBar = {
       TopAppBar(
@@ -391,13 +372,7 @@ private fun PermissionCard(
 @Composable
 private fun RequestPermissionScreenPreview() {
   ParkBuddyTheme {
-    RequestPermissionScreenContent(
-      uiState = OnboardingUiState(),
-      showRationale = false,
-      onContinueClick = {},
-      onDismissRationale = {},
-      onConfirmRationale = {},
-    )
+    RequestPermissionScreenContent(uiState = OnboardingUiState(), onContinueClick = {})
   }
 }
 
@@ -412,10 +387,7 @@ private fun RequestPermissionScreenGrantedPreview() {
           isBackgroundLocationGranted = true,
           isBluetoothGranted = true,
         ),
-      showRationale = false,
       onContinueClick = {},
-      onDismissRationale = {},
-      onConfirmRationale = {},
     )
   }
 }

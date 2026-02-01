@@ -54,6 +54,7 @@ import dev.bongballe.parkbuddy.model.SweepingSchedule
 import dev.bongballe.parkbuddy.model.Weekday
 import dev.bongballe.parkbuddy.theme.ParkBuddyTheme
 import dev.parkbuddy.core.ui.NestedScaffold
+import dev.parkbuddy.core.ui.PermissionRationaleDialog
 import dev.parkbuddy.core.ui.SquircleIcon
 import dev.zacsweers.metrox.viewmodel.metroViewModel
 import kotlinx.datetime.LocalTime
@@ -108,6 +109,11 @@ fun WatchlistScreen(
 
   if (showPermissionRationale) {
     PermissionRationaleDialog(
+      title = "Enable Notifications & Alarms",
+      text =
+        "To provide timely street cleaning reminders, ParkBuddy needs permission to send you notifications and schedule precise alarms. This ensures you never miss a cleaning window and avoid potential tickets.",
+      confirmButtonText = "Enable",
+      dismissButtonText = "Not Now",
       onConfirm = {
         showPermissionRationale = false
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
