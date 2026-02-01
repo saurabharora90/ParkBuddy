@@ -42,8 +42,14 @@ class PreferencesRepositoryImpl(private val context: Context, private val json: 
   override val bluetoothDeviceAddress: Flow<String?> =
     context.dataStore.data.map { preferences -> preferences[Keys.BLUETOOTH_DEVICE_ADDRESS] }
 
-  override suspend fun setBluetoothDeviceAddress(address: String) {
-    context.dataStore.edit { preferences -> preferences[Keys.BLUETOOTH_DEVICE_ADDRESS] = address }
+  override suspend fun setBluetoothDeviceAddress(address: String?) {
+    context.dataStore.edit { preferences ->
+      if (address != null) {
+        preferences[Keys.BLUETOOTH_DEVICE_ADDRESS] = address
+      } else {
+        preferences.remove(Keys.BLUETOOTH_DEVICE_ADDRESS)
+      }
+    }
   }
 
   override val parkedLocation: Flow<ParkedLocation?> =

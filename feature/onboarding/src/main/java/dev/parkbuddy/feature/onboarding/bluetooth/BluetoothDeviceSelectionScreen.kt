@@ -23,6 +23,8 @@ import androidx.compose.material.icons.filled.BluetoothConnected
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -30,10 +32,14 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -49,6 +55,7 @@ import dev.bongballe.parkbuddy.theme.ParkBuddyTheme
 import dev.bongballe.parkbuddy.theme.SageContainer
 import dev.bongballe.parkbuddy.theme.SageGreen
 import dev.bongballe.parkbuddy.theme.SagePrimary
+import dev.bongballe.parkbuddy.theme.Terracotta
 import dev.parkbuddy.core.ui.ParkBuddyButton
 import dev.parkbuddy.core.ui.SquircleIcon
 import dev.zacsweers.metrox.viewmodel.metroViewModel
@@ -85,6 +92,10 @@ fun BluetoothDeviceSelectionScreen(
         onDeviceSelected()
       }
     },
+    onSkipClick = {
+      viewModel.clearDeviceSelection()
+      onDeviceSelected()
+    },
   )
 }
 
@@ -94,11 +105,43 @@ fun BluetoothDeviceSelectionScreenContent(
   uiState: BluetoothSelectionUiState,
   onDeviceSelect: (BluetoothDeviceUiModel) -> Unit,
   onContinueClick: () -> Unit,
+  onSkipClick: () -> Unit,
 ) {
+  var showSkipDialog by remember { mutableStateOf(false) }
+
+  if (showSkipDialog) {
+    AlertDialog(
+      onDismissRequest = { showSkipDialog = false },
+      title = { Text("Skip Automatic Detection?") },
+      text = {
+        Text(
+          "Without a connected Bluetooth device, Park Buddy can't automatically detect when you park. You'll need to manually mark your location each time."
+        )
+      },
+      confirmButton = {
+        TextButton(
+          onClick = {
+            showSkipDialog = false
+            onSkipClick()
+          },
+          colors = ButtonDefaults.textButtonColors(contentColor = Terracotta),
+        ) {
+          Text("Skip Anyway")
+        }
+      },
+      dismissButton = { TextButton(onClick = { showSkipDialog = false }) { Text("Cancel") } },
+    )
+  }
+
   Scaffold(
     topBar = {
       TopAppBar(
-        title = { Text(text = "Select Your Car", style = MaterialTheme.typography.titleLarge) }
+        title = { Text(text = "Select Your Car", style = MaterialTheme.typography.titleLarge) },
+        actions = {
+          TextButton(onClick = { showSkipDialog = true }) {
+            Text("Skip", color = MaterialTheme.colorScheme.primary)
+          }
+        },
       )
     },
     containerColor = MaterialTheme.colorScheme.background,
@@ -246,6 +289,7 @@ private fun BluetoothDeviceSelectionPreview() {
         ),
       onDeviceSelect = {},
       onContinueClick = {},
+      onSkipClick = {},
     )
   }
 }

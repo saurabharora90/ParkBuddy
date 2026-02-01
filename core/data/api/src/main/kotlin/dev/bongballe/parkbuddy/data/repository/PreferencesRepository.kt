@@ -8,7 +8,7 @@ interface PreferencesRepository {
   suspend fun setInitialSyncDone(isDone: Boolean)
 
   val bluetoothDeviceAddress: Flow<String?>
-  suspend fun setBluetoothDeviceAddress(address: String)
+  suspend fun setBluetoothDeviceAddress(address: String?)
 
   val parkedLocation: Flow<ParkedLocation?>
   suspend fun setParkedLocation(location: ParkedLocation)

@@ -41,6 +41,10 @@ class BluetoothDeviceSelectionViewModel(
   fun selectDevice(device: BluetoothDeviceUiModel) {
     viewModelScope.launch { preferencesRepository.setBluetoothDeviceAddress(device.address) }
   }
+
+  fun clearDeviceSelection() {
+    viewModelScope.launch { preferencesRepository.setBluetoothDeviceAddress(null) }
+  }
 }
 
 data class BluetoothSelectionUiState(
