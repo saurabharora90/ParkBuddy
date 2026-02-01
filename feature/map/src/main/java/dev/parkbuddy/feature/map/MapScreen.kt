@@ -37,9 +37,9 @@ import com.google.maps.android.compose.Polyline
 import com.google.maps.android.compose.rememberCameraPositionState
 import dev.bongballe.parkbuddy.model.Geometry
 import dev.bongballe.parkbuddy.model.ParkingSpot
-import dev.bongballe.parkbuddy.theme.GoldenYellow
 import dev.bongballe.parkbuddy.theme.SageGreen
 import dev.bongballe.parkbuddy.theme.Terracotta
+import dev.bongballe.parkbuddy.theme.WildIris
 import dev.zacsweers.metrox.viewmodel.metroViewModel
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.debounce
@@ -135,7 +135,7 @@ fun MapScreen(modifier: Modifier = Modifier, viewModel: MapViewModel = metroView
           val isWatched = spot.objectId in watchedSpotIds
           Polyline(
             points = points,
-            color = if (isWatched) SageGreen else GoldenYellow,
+            color = if (isWatched) SageGreen else WildIris,
             width = if (isWatched) 12f else 8f,
             clickable = true,
             onClick = { selectedSpot = spot },
