@@ -50,6 +50,16 @@ class BluetoothConnectionReceiver(
             val isAutoTrackingEnabled =
               preferencesRepository.isAutoTrackingEnabled.firstOrNull() ?: true
 
+            if (savedAddress == disconnectedDevice.address && isAutoTrackingEnabled) {
+              val parkingManager =
+                ParkingManager(
+                  context,
+                  parkingRepository,
+                  preferencesRepository,
+                  reminderRepository,
+                )
+              parkingManager.processParkingEvent()
+            }
           } finally {
             pendingResult.finish()
           }
