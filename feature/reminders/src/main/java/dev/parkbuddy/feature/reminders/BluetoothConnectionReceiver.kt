@@ -8,6 +8,7 @@ import android.os.Build
 import dev.bongballe.parkbuddy.DispatcherType
 import dev.bongballe.parkbuddy.data.repository.ParkingRepository
 import dev.bongballe.parkbuddy.data.repository.PreferencesRepository
+import dev.bongballe.parkbuddy.data.repository.ReminderNotificationManager
 import dev.bongballe.parkbuddy.data.repository.ReminderRepository
 import dev.bongballe.parkbuddy.qualifier.WithDispatcherType
 import dev.bongballe.parkbuddy.qualifier.WithScope
@@ -28,6 +29,7 @@ class BluetoothConnectionReceiver(
   private val preferencesRepository: PreferencesRepository,
   private val parkingRepository: ParkingRepository,
   private val reminderRepository: ReminderRepository,
+  private val notificationManager: ReminderNotificationManager,
   @WithScope(AppScope::class) private val coroutineScope: CoroutineScope,
   @WithDispatcherType(DispatcherType.IO) private val ioDispatcher: CoroutineDispatcher,
 ) : BroadcastReceiver() {
@@ -57,6 +59,7 @@ class BluetoothConnectionReceiver(
                   parkingRepository,
                   preferencesRepository,
                   reminderRepository,
+                  notificationManager,
                 )
               parkingManager.processParkingEvent()
             }

@@ -10,6 +10,7 @@ import com.google.android.gms.location.Priority
 import com.google.android.gms.tasks.CancellationTokenSource
 import dev.bongballe.parkbuddy.data.repository.ParkingRepository
 import dev.bongballe.parkbuddy.data.repository.PreferencesRepository
+import dev.bongballe.parkbuddy.data.repository.ReminderNotificationManager
 import dev.bongballe.parkbuddy.data.repository.ReminderRepository
 import dev.bongballe.parkbuddy.data.repository.utils.LocationUtils
 import dev.bongballe.parkbuddy.model.ParkedLocation
@@ -24,6 +25,7 @@ class ParkingManager(
   private val repository: ParkingRepository,
   private val preferencesRepository: PreferencesRepository,
   private val reminderRepository: ReminderRepository,
+  private val notificationManager: ReminderNotificationManager,
 ) {
 
   suspend fun processParkingEvent() {
@@ -46,11 +48,17 @@ class ParkingManager(
         null
       }
 
-    if (location == null) return
+    if (location == null) {
+      notificationManager.sendLocationFailureNotification()
+      return
+    }
 
     val userZone = repository.getUserRppZone().first() ?: return
     val watchedSpots = repository.getSpotsByZone(userZone).first()
-    if (watchedSpots.isEmpty()) return
+    if (watchedSpots.isEmpty()) {
+      notificationManager.sendParkingMatchFailureNotification()
+      return
+    }
 
     val matchingSpot = findMatchingSpot(location, watchedSpots)
 
@@ -64,6 +72,8 @@ class ParkingManager(
         )
       preferencesRepository.setParkedLocation(parkedLocation)
       reminderRepository.scheduleReminders(matchingSpot)
+    } else {
+      notificationManager.sendParkingMatchFailureNotification()
     }
   }
 

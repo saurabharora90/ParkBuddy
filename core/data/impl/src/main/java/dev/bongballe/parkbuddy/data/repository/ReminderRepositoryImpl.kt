@@ -1,17 +1,10 @@
 package dev.bongballe.parkbuddy.data.repository
 
-import android.Manifest
 import android.app.AlarmManager
-import android.app.NotificationChannel
-import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.os.Build
-import androidx.core.app.ActivityCompat
-import androidx.core.app.NotificationCompat
-import androidx.core.app.NotificationManagerCompat
 import dev.bongballe.parkbuddy.model.ParkingSpot
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesBinding
@@ -30,10 +23,10 @@ import kotlinx.datetime.toLocalDateTime
 class ReminderRepositoryImpl(
   private val context: Context,
   private val parkingRepository: ParkingRepository,
+  private val notificationManager: ReminderNotificationManager,
 ) : ReminderRepository {
 
   private val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-  private val notificationManager = NotificationManagerCompat.from(context)
 
   override suspend fun scheduleReminders(spot: ParkingSpot) {
     clearAllReminders()
@@ -50,8 +43,8 @@ class ReminderRepositoryImpl(
     if (nextCleaningTime != null) {
       reminders
         .sortedBy { it.value }
-        .forEach { reminder ->
-          val reminderTime = nextCleaningTime - reminder.value.minutes
+        .forEach {
+          val reminderTime = nextCleaningTime - it.value.minutes
           if (reminderTime > now) {
             setAlarm(reminderTime, streetName)
             val localTime = reminderTime.toLocalDateTime(TimeZone.currentSystemDefault())
@@ -76,7 +69,7 @@ class ReminderRepositoryImpl(
   }
 
   override suspend fun clearAllReminders() {
-    notificationManager.cancel(1001)
+    notificationManager.cancelAll()
   }
 
   private fun setAlarm(time: Instant, spotName: String) {
@@ -125,11 +118,6 @@ class ReminderRepositoryImpl(
     nextCleaning: Instant?,
     remindersSet: List<String>,
   ) {
-    val channelId = "parking_reminders"
-    val channel =
-      NotificationChannel(channelId, "Parking Reminders", NotificationManager.IMPORTANCE_HIGH)
-    notificationManager.createNotificationChannel(channel)
-
     val nextCleaningText =
       nextCleaning?.let {
         val schedule =
@@ -146,23 +134,10 @@ class ReminderRepositoryImpl(
 
     val bigText = "Next cleaning: $nextCleaningText\n\n$reminderLines"
 
-    val notification =
-      NotificationCompat.Builder(context, channelId)
-        .setSmallIcon(android.R.drawable.ic_menu_mylocation)
-        .setContentTitle("Parked on $locationName")
-        .setContentText("Next cleaning: $nextCleaningText")
-        .setStyle(NotificationCompat.BigTextStyle().bigText(bigText))
-        .setPriority(NotificationCompat.PRIORITY_HIGH)
-        .setAutoCancel(true)
-        .build()
-
-    try {
-      if (
-        ActivityCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) ==
-          PackageManager.PERMISSION_GRANTED
-      ) {
-        notificationManager.notify(1001, notification)
-      }
-    } catch (ignore: SecurityException) {}
+    notificationManager.showSpotFoundNotification(
+      locationName = locationName,
+      nextCleaningText = nextCleaningText,
+      bigText = bigText,
+    )
   }
 }
