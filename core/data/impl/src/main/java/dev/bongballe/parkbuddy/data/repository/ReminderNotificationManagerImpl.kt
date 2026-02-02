@@ -50,7 +50,7 @@ class ReminderNotificationManagerImpl(private val context: Context) : ReminderNo
     createNotificationChannel()
     val notification =
       NotificationCompat.Builder(context, CHANNEL_ID)
-        .setSmallIcon(android.R.drawable.ic_menu_mylocation)
+        .setSmallIcon(dev.bongballe.parkbuddy.theme.R.drawable.ic_parkbuddy_logo)
         .setContentTitle("Parked on $locationName")
         .setContentText("Next cleaning: $nextCleaningText")
         .setStyle(NotificationCompat.BigTextStyle().bigText(bigText))
@@ -66,7 +66,7 @@ class ReminderNotificationManagerImpl(private val context: Context) : ReminderNo
     createNotificationChannel()
     val notification =
       NotificationCompat.Builder(context, CHANNEL_ID)
-        .setSmallIcon(android.R.drawable.ic_dialog_alert)
+        .setSmallIcon(dev.bongballe.parkbuddy.theme.R.drawable.ic_parkbuddy_logo)
         .setContentTitle("Failed to get parking location")
         .setContentText("Could not determine your location after disconnecting from Bluetooth.")
         .setPriority(NotificationCompat.PRIORITY_HIGH)
@@ -81,7 +81,7 @@ class ReminderNotificationManagerImpl(private val context: Context) : ReminderNo
     createNotificationChannel()
     val notification =
       NotificationCompat.Builder(context, CHANNEL_ID)
-        .setSmallIcon(android.R.drawable.ic_dialog_alert)
+        .setSmallIcon(dev.bongballe.parkbuddy.theme.R.drawable.ic_parkbuddy_logo)
         .setContentTitle("Parked in Unknown Location")
         .setContentText("We couldn't match your location to a known parking spot.")
         .setPriority(NotificationCompat.PRIORITY_HIGH)

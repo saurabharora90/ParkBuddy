@@ -1,10 +1,53 @@
-<?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M54,24c-11.05,0 -20,8.95 -20,20v8H28v12h6v12c0,2.21 1.79,4 4,4h4c2.21,0 4,-1.79 4,-4v-2h16v2c0,2.21 1.79,4 4,4h4c2.21,0 4,-1.79 4,-4v-12h6V52h-6v-8C74,32.95 65.05,24 54,24zM68,52H40v-8c0,-7.73 6.27,-14 14,-14s14,6.27 14,14V52z" />
+    <group
+        android:translateX="23"
+        android:translateY="23"
+        android:scaleX="0.121"
+        android:scaleY="0.121">
+        <!-- The Location Pin -->
+        <path
+            android:fillColor="#4A6741"
+            android:pathData="M256,60C174.26,60 108,126.26 108,208C108,319 256,452 256,452C256,452 404,319 404,208C404,126.26 337.74,60 256,60Z" />
+        
+        <!-- Recognizable Front-Facing Car -->
+        <!-- Car Body & Roof -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M330,215C330,195 315,180 295,180H217C197,180 182,195 182,215V230H330V215Z" />
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M350,230H162C155,230 150,235 150,242V265C150,275 158,282 168,282H344C354,282 362,275 362,265V242C362,235 357,230 350,230Z" />
+        
+        <!-- Mirrors -->
+        <path android:fillColor="#FFFFFF" android:pathData="M150,235H135V245H150V235Z" />
+        <path android:fillColor="#FFFFFF" android:pathData="M362,235H377V245H362V235Z" />
+        
+        <!-- Tires -->
+        <path android:fillColor="#2A3020" android:pathData="M170,282H200V290H170V282Z" />
+        <path android:fillColor="#2A3020" android:pathData="M312,282H342V290H312V282Z" />
+
+        <!-- Bluetooth Handshake Badge -->
+        <path
+            android:strokeColor="#4A6741"
+            android:strokeWidth="8"
+            android:pathData="M256,240 L256,272 M256,240 L275,252 L240,268 M256,272 L275,260 L240,244"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+
+        <!-- Signal Handshake Waves -->
+        <path
+            android:strokeColor="#FFFFFF"
+            android:strokeWidth="6"
+            android:pathData="M385,210C395,220 400,235 400,250"
+            android:strokeLineCap="round" />
+        <path
+            android:strokeColor="#FFFFFF"
+            android:strokeWidth="6"
+            android:pathData="M127,210C117,220 112,235 112,250"
+            android:strokeLineCap="round" />
+    </group>
 </vector>

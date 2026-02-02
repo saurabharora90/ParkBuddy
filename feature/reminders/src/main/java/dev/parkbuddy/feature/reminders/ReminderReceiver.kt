@@ -59,7 +59,7 @@ class ReminderReceiver : BroadcastReceiver() {
 
     val notification =
       NotificationCompat.Builder(context, channelId)
-        .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
+        .setSmallIcon(dev.bongballe.parkbuddy.theme.R.drawable.ic_parkbuddy_logo)
         .setContentTitle(title)
         .setContentText(message)
         .setPriority(NotificationCompat.PRIORITY_HIGH)
