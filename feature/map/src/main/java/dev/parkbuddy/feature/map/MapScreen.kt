@@ -227,7 +227,8 @@ fun MapScreen(modifier: Modifier = Modifier, viewModel: MapViewModel = metroView
         title = { Text(text = "Are you sure?") },
         text = {
           Text(
-            "We are sorry for detecting the wrong location. Proceeding will clear this as parked location and cancel the reminders"
+            "We are sorry for detecting the wrong location. " +
+              "Proceeding will clear this as parked location and cancel the reminders"
           )
         },
         confirmButton = {

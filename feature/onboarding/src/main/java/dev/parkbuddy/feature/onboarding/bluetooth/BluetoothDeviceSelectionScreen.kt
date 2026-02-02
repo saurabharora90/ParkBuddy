@@ -89,7 +89,8 @@ fun BluetoothDeviceSelectionScreenContent(
       title = { Text("Skip Automatic Detection?") },
       text = {
         Text(
-          "Without a connected Bluetooth device, Park Buddy can't automatically detect when you park. You'll need to manually mark your location each time."
+          "Without a connected Bluetooth device, Park Buddy can't automatically detect " +
+            "when you park. You'll need to manually mark your location each time."
         )
       },
       confirmButton = {

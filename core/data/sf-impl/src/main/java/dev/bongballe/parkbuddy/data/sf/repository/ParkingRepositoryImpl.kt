@@ -30,6 +30,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import kotlinx.datetime.LocalTime
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -219,6 +220,7 @@ class ParkingRepositoryImpl(
     return true
   }
 
+  @Suppress("LoopWithTooManyJumpStatements")
   private suspend fun fetchAllParkingRegulations(): List<ParkingRegulationResponse> {
     val allRegulations = mutableListOf<ParkingRegulationResponse>()
     var offset = 0
@@ -249,6 +251,7 @@ class ParkingRepositoryImpl(
     return allRegulations
   }
 
+  @Suppress("LoopWithTooManyJumpStatements")
   private suspend fun fetchAllSweepingData(): List<StreetCleaningResponse> {
     val allSweeping = mutableListOf<StreetCleaningResponse>()
     var offset = 0
@@ -279,34 +282,30 @@ class ParkingRepositoryImpl(
     return regulation.isParkable
   }
 
-  private fun parseGeometry(shape: kotlinx.serialization.json.JsonElement?): Geometry? {
+  private fun parseGeometry(shape: JsonElement?): Geometry? {
     if (shape == null) return null
-    return try {
-      val obj = shape.jsonObject
-      val type = obj["type"]?.jsonPrimitive?.content ?: return null
-      val coordsArray = obj["coordinates"]?.jsonArray ?: return null
+    val obj = shape.jsonObject
+    val type = obj["type"]?.jsonPrimitive?.content ?: return null
+    val coordsArray = obj["coordinates"]?.jsonArray ?: return null
 
-      val coordinates =
-        when (type) {
-          "MultiLineString" -> {
-            coordsArray.flatMap { lineArray ->
-              lineArray.jsonArray.map { point ->
-                point.jsonArray.map { it.jsonPrimitive.content.toDouble() }
-              }
+    val coordinates =
+      when (type) {
+        "MultiLineString" -> {
+          coordsArray.flatMap { lineArray ->
+            lineArray.jsonArray.map { point ->
+              point.jsonArray.map { it.jsonPrimitive.content.toDouble() }
             }
           }
-
-          "LineString" -> {
-            coordsArray.map { point -> point.jsonArray.map { it.jsonPrimitive.content.toDouble() } }
-          }
-
-          else -> return null
         }
 
-      Geometry(type = "LineString", coordinates = coordinates)
-    } catch (e: Exception) {
-      null
-    }
+        "LineString" -> {
+          coordsArray.map { point -> point.jsonArray.map { it.jsonPrimitive.content.toDouble() } }
+        }
+
+        else -> return null
+      }
+
+    return Geometry(type = "LineString", coordinates = coordinates)
   }
 
   private fun parseTimeLimit(hrLimit: String?): Int? {

@@ -151,18 +151,14 @@ class CoordinateMatcher(sweepingData: List<StreetCleaningResponse>) {
 
   private fun parseGeometry(geometryJson: JsonElement?): Geometry? {
     if (geometryJson == null) return null
-    return try {
-      val obj = geometryJson.jsonObject
-      val type = obj["type"]?.jsonPrimitive?.content ?: return null
-      val coordsArray = obj["coordinates"]?.jsonArray ?: return null
+    val obj = geometryJson.jsonObject
+    val type = obj["type"]?.jsonPrimitive?.content ?: return null
+    val coordsArray = obj["coordinates"]?.jsonArray ?: return null
 
-      val coordinates =
-        coordsArray.map { point -> point.jsonArray.map { it.jsonPrimitive.content.toDouble() } }
+    val coordinates =
+      coordsArray.map { point -> point.jsonArray.map { it.jsonPrimitive.content.toDouble() } }
 
-      Geometry(type = type, coordinates = coordinates)
-    } catch (e: Exception) {
-      null
-    }
+    return Geometry(type = type, coordinates = coordinates)
   }
 
   companion object {
