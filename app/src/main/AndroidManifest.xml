@@ -15,11 +15,10 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.ParkBuddy">
 
-        <!-- Placeholder for Google Maps API Key.
-             In a real app, this should be injected via buildConfigField or manifestPlaceholders -->
+        <!-- Google Maps API Key injected via secrets-gradle-plugin from local.properties or environment variables -->
         <meta-data
             android:name="com.google.android.geo.API_KEY"
-            android:value="YOUR_API_KEY_HERE" />
+            android:value="${MAPS_API_KEY}" />
 
         <activity
             android:name=".MainActivity"
