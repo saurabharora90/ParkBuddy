@@ -28,6 +28,7 @@ playServicesLocation = "21.3.0"
 okhttp = "5.3.2"
 datastorePreferences = "1.2.0"
 mapsCompose = "7.0.0"
+secrets-gradle-plugin = "2.0.1"
 lottie = "6.7.1"
 metro = "0.9.4"
 nav3Core = "1.0.0"
@@ -113,6 +114,7 @@ firebase-crashlytics = { id = "com.google.firebase.crashlytics", version.ref = "
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 metro = { id = "dev.zacsweers.metro", version.ref = "metro" }
 roborazzi = { id = "io.github.takahirom.roborazzi", version.ref = "roborazzi" }
+secrets-gradle-plugin = { id = "com.google.android.libraries.mapsplatform.secrets-gradle-plugin", version.ref = "secrets-gradle-plugin" }
 sort-dependencies = { id = "com.squareup.sort-dependencies", version.ref = "sortDependencies" }
 spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }
 

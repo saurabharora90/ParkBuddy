@@ -14,6 +14,7 @@ plugins {
   alias(libs.plugins.ksp) apply false
   alias(libs.plugins.metro) apply false
   alias(libs.plugins.roborazzi) apply false
+  alias(libs.plugins.secrets.gradle.plugin) apply false
   alias(libs.plugins.sort.dependencies) apply true
   alias(libs.plugins.spotless) apply true
 }
