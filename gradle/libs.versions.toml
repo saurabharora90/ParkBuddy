@@ -28,6 +28,7 @@ playServicesLocation = "21.3.0"
 okhttp = "5.3.2"
 datastorePreferences = "1.2.0"
 mapsCompose = "7.0.0"
+lottie = "6.7.1"
 metro = "0.9.4"
 nav3Core = "1.0.0"
 slackFoundry = "0.33.1"
@@ -79,6 +80,7 @@ kotlinx-serialization-core = { module = "org.jetbrains.kotlinx:kotlinx-serializa
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
 google-coreLibraryDesugaring = { group = "com.android.tools", name = "desugar_jdk_libs", version.ref = "google-coreLibraryDesugaring" } #read by Foundry
 junit = { group = "junit", name = "junit", version.ref = "junit" }
+lottie-compose = { group = "com.airbnb.android", name = "lottie-compose", version.ref = "lottie" }
 maps-compose = { group = "com.google.maps.android", name = "maps-compose", version.ref = "mapsCompose" }
 metrox-android = { group = "dev.zacsweers.metro", name = "metrox-android", version.ref = "metro" }
 metrox-viewmodel = { group = "dev.zacsweers.metro", name = "metrox-viewmodel", version.ref = "metro" }

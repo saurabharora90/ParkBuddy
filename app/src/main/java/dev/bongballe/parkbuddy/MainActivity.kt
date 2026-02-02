@@ -6,13 +6,19 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
@@ -25,13 +31,21 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.lifecycle.lifecycleScope
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
+import com.airbnb.lottie.compose.LottieAnimation
+import com.airbnb.lottie.compose.LottieCompositionSpec
+import com.airbnb.lottie.compose.LottieConstants
+import com.airbnb.lottie.compose.rememberLottieComposition
 import dev.bongballe.parkbuddy.data.repository.ParkingRepository
 import dev.bongballe.parkbuddy.data.repository.PreferencesRepository
 import dev.bongballe.parkbuddy.theme.ParkBuddyTheme
@@ -48,8 +62,8 @@ import dev.zacsweers.metro.binding
 import dev.zacsweers.metrox.android.ActivityKey
 import dev.zacsweers.metrox.viewmodel.LocalMetroViewModelFactory
 import dev.zacsweers.metrox.viewmodel.MetroViewModelFactory
+import dev.zacsweers.metrox.viewmodel.metroViewModel
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 
 data object RouteRequestPermission
@@ -70,24 +84,16 @@ class MainActivity(
     super.onCreate(savedInstanceState)
     enableEdgeToEdge()
 
-    lifecycleScope.launch {
-      // Check if data needs refresh - either first sync or database was wiped
-      val needsSync =
-        !preferencesRepository.isInitialSyncDone.first() ||
-          repository.getAllSpots().first().isEmpty()
-      if (needsSync) {
-        val didRefreshSucceed = repository.refreshData()
-        if (didRefreshSucceed) preferencesRepository.setInitialSyncDone(true)
-      }
-    }
-
     setContent {
       CompositionLocalProvider(LocalMetroViewModelFactory provides viewModelFactory) {
+        val vm: MainActivityViewModel = metroViewModel()
+        val state by vm.stateFlow.collectAsStateWithLifecycle()
+
         ParkBuddyTheme {
           val bluetoothDeviceAddress = runBlocking {
             preferencesRepository.bluetoothDeviceAddress.first()
           }
-
+          val userRppZone = runBlocking { repository.getUserRppZone().first() }
           val initialRoute =
             when {
               !PermissionChecker.areAllPermissionsGranted(this@MainActivity) ->
@@ -97,8 +103,10 @@ class MainActivity(
               else -> Main
             }
 
-          // hoisted to maintain position when moving around settings
-          var mainPageSelectedTab by rememberSaveable { mutableIntStateOf(0) }
+          var mainPageSelectedTab by rememberSaveable {
+            mutableIntStateOf(if (userRppZone == null) 1 else 0)
+          }
+
           val backStack = remember(initialRoute) { mutableStateListOf(initialRoute) }
           NavDisplay(
             backStack = backStack,
@@ -119,11 +127,14 @@ class MainActivity(
                   )
                 }
                 entry<Main> {
-                  MainScreen(
-                    backStack = backStack,
-                    selectedItem = mainPageSelectedTab,
-                    onTabSelected = { mainPageSelectedTab = it },
-                  )
+                  if (state != null) {
+                    MainScreen(
+                      isSyncing = state is MainActivityViewModel.State.Loading,
+                      selectedTab = mainPageSelectedTab,
+                      onTabSelected = { mainPageSelectedTab = it },
+                      onNavigateToBluetooth = { backStack.add(RouteBluetoothDeviceSelection) },
+                    )
+                  }
                 }
                 entry<RouteBluetoothDeviceSelection> {
                   BluetoothDeviceSelectionScreen(
@@ -143,45 +154,78 @@ class MainActivity(
 
 @Composable
 private fun MainScreen(
-  backStack: MutableList<Any>,
-  selectedItem: Int,
-  modifier: Modifier = Modifier,
+  isSyncing: Boolean,
+  selectedTab: Int,
   onTabSelected: (Int) -> Unit,
+  onNavigateToBluetooth: () -> Unit,
+  modifier: Modifier = Modifier,
 ) {
-  Scaffold(
-    modifier = modifier,
-    bottomBar = {
-      NavigationBar(containerColor = Color.White) {
-        NavigationBarItem(
-          icon = { Icon(imageVector = Icons.Default.Map, contentDescription = null) },
-          label = { Text("MAP") },
-          selected = selectedItem == 0,
-          onClick = { onTabSelected(0) },
-        )
+  if (isSyncing) {
+    SyncingScreen()
+  } else {
+    Scaffold(
+      modifier = modifier,
+      bottomBar = {
+        NavigationBar(containerColor = Color.White) {
+          NavigationBarItem(
+            icon = { Icon(imageVector = Icons.Default.Map, contentDescription = null) },
+            label = { Text("MAP") },
+            selected = selectedTab == 0,
+            onClick = { onTabSelected(0) },
+          )
 
-        NavigationBarItem(
-          icon = { Icon(imageVector = Icons.Default.Visibility, contentDescription = null) },
-          label = { Text("WATCHED") },
-          selected = selectedItem == 1,
-          onClick = { onTabSelected(1) },
-        )
+          NavigationBarItem(
+            icon = { Icon(imageVector = Icons.Default.Visibility, contentDescription = null) },
+            label = { Text("WATCHED") },
+            selected = selectedTab == 1,
+            onClick = { onTabSelected(1) },
+          )
 
-        NavigationBarItem(
-          icon = { Icon(imageVector = Icons.Default.Person, contentDescription = null) },
-          label = { Text("ACCOUNT") },
-          selected = selectedItem == 2,
-          onClick = { onTabSelected(2) },
-        )
+          NavigationBarItem(
+            icon = { Icon(imageVector = Icons.Default.Person, contentDescription = null) },
+            label = { Text("ACCOUNT") },
+            selected = selectedTab == 2,
+            onClick = { onTabSelected(2) },
+          )
+        }
+      },
+    ) { paddingValues ->
+      Box(modifier = Modifier.padding(paddingValues).consumeWindowInsets(paddingValues)) {
+        when (selectedTab) {
+          0 -> MapScreen()
+          1 -> WatchlistScreen()
+          2 -> SettingsScreen(onNavigateToBluetooth = onNavigateToBluetooth)
+        }
       }
-    },
-  ) { paddingValues ->
-    Box(modifier = Modifier.padding(paddingValues).consumeWindowInsets(paddingValues)) {
-      when (selectedItem) {
-        0 -> MapScreen()
-        1 -> WatchlistScreen()
-        2 ->
-          SettingsScreen(onNavigateToBluetooth = { backStack.add(RouteBluetoothDeviceSelection) })
-      }
+    }
+  }
+}
+
+@Composable
+private fun SyncingScreen() {
+  val composition by rememberLottieComposition(LottieCompositionSpec.RawRes(R.raw.sync_loading))
+
+  Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+      LottieAnimation(
+        composition = composition,
+        iterations = LottieConstants.IterateForever,
+        modifier = Modifier.size(250.dp),
+      )
+      Spacer(modifier = Modifier.height(24.dp))
+      Text(
+        text = "Syncing data for your city...",
+        style = MaterialTheme.typography.headlineSmall,
+        fontWeight = FontWeight.Bold,
+        textAlign = TextAlign.Center,
+      )
+      Spacer(modifier = Modifier.height(8.dp))
+      Text(
+        text = "Hang tight, we're getting everything ready!",
+        style = MaterialTheme.typography.bodyMedium,
+        textAlign = TextAlign.Center,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+      )
     }
   }
 }
