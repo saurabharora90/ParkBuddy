@@ -19,7 +19,6 @@ import dev.bongballe.parkbuddy.model.ParkingSpot
 import kotlin.time.Clock
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.tasks.await
-import kotlinx.coroutines.withTimeout
 
 class ParkingManager(
   private val context: Context,
@@ -43,14 +42,7 @@ class ParkingManager(
     val cts = CancellationTokenSource()
 
     val location =
-      try {
-        withTimeout(10_000L) {
-          locationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, cts.token).await()
-        }
-      } catch (e: Exception) {
-        analyticsTracker.logNonFatal(e, "Location timeout in ParkingManager")
-        null
-      }
+      locationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, cts.token).await()
 
     if (location == null) {
       analyticsTracker.logEvent("parking_event_location_null")

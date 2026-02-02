@@ -14,7 +14,6 @@ import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
-import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 
 @ContributesBinding(AppScope::class)
@@ -55,11 +54,7 @@ class PreferencesRepositoryImpl(private val context: Context, private val json: 
   override val parkedLocation: Flow<ParkedLocation?> =
     context.dataStore.data.map { preferences ->
       preferences[Keys.PARKED_LOCATION]?.let { jsonString ->
-        try {
-          json.decodeFromString<ParkedLocation>(jsonString)
-        } catch (e: SerializationException) {
-          null
-        }
+        json.decodeFromString<ParkedLocation>(jsonString)
       }
     }
 

@@ -4,8 +4,6 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -166,7 +164,9 @@ fun RequestPermissionScreen(
     PermissionRationaleDialog(
       title = "Permissions Required",
       text =
-        "To provide zero-touch parking alerts, ParkBuddy needs to access your location even when the app is closed or not in use.\n\n Your location data is only used locally to check for cleaning rules and is never shared.",
+        "To provide zero-touch parking alerts, ParkBuddy needs to access your location even when " +
+          "the app is closed or not in use.\n\n Your location data is only used locally to check " +
+          "for cleaning rules and is never shared.",
       onConfirm = {
         showRationale = false
         backgroundLocationPermissionState?.launchPermissionRequest()

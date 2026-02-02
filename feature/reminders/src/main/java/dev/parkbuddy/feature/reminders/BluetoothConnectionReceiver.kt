@@ -66,8 +66,6 @@ class BluetoothConnectionReceiver(
                 )
               parkingManager.processParkingEvent()
             }
-          } catch (e: Exception) {
-            analyticsTracker.logNonFatal(e, "Error in BluetoothConnectionReceiver")
           } finally {
             pendingResult.finish()
           }

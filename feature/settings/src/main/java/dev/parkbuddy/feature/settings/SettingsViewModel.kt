@@ -50,7 +50,9 @@ class SettingsViewModel(
     viewModelScope.launch { preferencesRepository.setAutoTrackingEnabled(enabled) }
   }
 
-  fun buyMeACoffee() {}
+  fun buyMeACoffee() {
+    // implement this before release -> Github sponsors?
+  }
 }
 
 data class SettingsUiState(

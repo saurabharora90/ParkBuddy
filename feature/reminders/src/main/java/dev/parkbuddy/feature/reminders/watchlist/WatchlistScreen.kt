@@ -111,7 +111,9 @@ fun WatchlistScreen(
     PermissionRationaleDialog(
       title = "Enable Notifications & Alarms",
       text =
-        "To provide timely street cleaning reminders, ParkBuddy needs permission to send you notifications and schedule precise alarms. This ensures you never miss a cleaning window and avoid potential tickets.",
+        "To provide timely street cleaning reminders, ParkBuddy needs permission to send " +
+          "you notifications and schedule precise alarms. This ensures you never miss a " +
+          "cleaning window and avoid potential tickets.",
       confirmButtonText = "Enable",
       dismissButtonText = "Not Now",
       onConfirm = {
@@ -267,7 +269,8 @@ internal fun WatchlistContent(
 
               Text(
                 text =
-                  "Choose your residential parking permit zone to automatically watch all streets in your area and receive cleaning reminders.",
+                  "Choose your residential parking permit zone to automatically " +
+                    "watch all streets in your area and receive cleaning reminders.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,

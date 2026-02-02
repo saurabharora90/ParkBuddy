@@ -84,7 +84,8 @@ internal fun ReminderItem(minutes: Int, onDelete: () -> Unit) {
       title = { Text(text = "Remove this reminder?") },
       text = {
         Text(
-          "Are you sure you want to remove this reminder for future? Existing reminder for an ongoing parking (if any) will not be altered"
+          "Are you sure you want to remove this reminder for future? " +
+            "Existing reminder for an ongoing parking (if any) will not be altered"
         )
       },
       confirmButton = {
