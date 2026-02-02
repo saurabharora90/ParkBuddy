@@ -3,6 +3,7 @@ package dev.bongballe.parkbuddy.data.repository
 import android.Manifest
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Context
 import android.content.pm.PackageManager
 import androidx.core.app.ActivityCompat
@@ -27,6 +28,20 @@ class ReminderNotificationManagerImpl(private val context: Context) : ReminderNo
     private const val NOTIFICATION_ID_MATCH_FAILURE = 1003
   }
 
+  private val contentIntent: PendingIntent? by lazy {
+    val intent = context.packageManager.getLaunchIntentForPackage(context.packageName)
+    if (intent != null) {
+      PendingIntent.getActivity(
+        context,
+        0,
+        intent,
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+      )
+    } else {
+      null
+    }
+  }
+
   override fun showSpotFoundNotification(
     locationName: String,
     nextCleaningText: String,
@@ -40,6 +55,7 @@ class ReminderNotificationManagerImpl(private val context: Context) : ReminderNo
         .setContentText("Next cleaning: $nextCleaningText")
         .setStyle(NotificationCompat.BigTextStyle().bigText(bigText))
         .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+        .setContentIntent(contentIntent)
         .setAutoCancel(true)
         .build()
 
@@ -54,6 +70,7 @@ class ReminderNotificationManagerImpl(private val context: Context) : ReminderNo
         .setContentTitle("Failed to get parking location")
         .setContentText("Could not determine your location after disconnecting from Bluetooth.")
         .setPriority(NotificationCompat.PRIORITY_HIGH)
+        .setContentIntent(contentIntent)
         .setAutoCancel(true)
         .build()
 
@@ -68,6 +85,7 @@ class ReminderNotificationManagerImpl(private val context: Context) : ReminderNo
         .setContentTitle("Parked in Unknown Location")
         .setContentText("We couldn't match your location to a known parking spot.")
         .setPriority(NotificationCompat.PRIORITY_HIGH)
+        .setContentIntent(contentIntent)
         .setAutoCancel(true)
         .build()
 

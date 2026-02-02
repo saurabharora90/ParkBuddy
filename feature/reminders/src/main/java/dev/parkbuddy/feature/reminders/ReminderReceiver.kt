@@ -3,6 +3,7 @@ package dev.parkbuddy.feature.reminders
 import android.Manifest
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -43,12 +44,27 @@ class ReminderReceiver : BroadcastReceiver() {
       )
     notificationManager.createNotificationChannel(channel)
 
+    val launchIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)
+    val contentIntent =
+      if (launchIntent != null) {
+        PendingIntent.getActivity(
+          context,
+          0,
+          launchIntent,
+          PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+      } else {
+        null
+      }
+
     val notification =
       NotificationCompat.Builder(context, channelId)
         .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
         .setContentTitle(title)
         .setContentText(message)
         .setPriority(NotificationCompat.PRIORITY_HIGH)
+        .setContentIntent(contentIntent)
+        .setAutoCancel(true)
         .build()
 
     notificationManager.notify(System.currentTimeMillis().toInt(), notification)
