@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
   alias(libs.plugins.android.application)
   alias(libs.plugins.foundry.base)
@@ -6,11 +8,15 @@ plugins {
   alias(libs.plugins.kotlin.serialization)
   alias(libs.plugins.google.services)
   alias(libs.plugins.firebase.crashlytics)
-  alias(libs.plugins.secrets.gradle.plugin)
 }
 
-secrets {
-  defaultPropertiesFileName = "local.defaults.properties"
+fun getLocalProperty(key: String): String {
+  val localProps = rootProject.file("local.properties")
+  if (localProps.exists()) {
+    val value = Properties().apply { load(localProps.inputStream()) }.getProperty(key)
+    if (value != null) return value
+  }
+  return System.getenv(key) ?: ""
 }
 
 android {
@@ -20,6 +26,8 @@ android {
     applicationId = "dev.bongballe.parkbuddy"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+    manifestPlaceholders["MAPS_API_KEY"] = getLocalProperty("MAPS_API_KEY")
   }
 
   buildFeatures {
