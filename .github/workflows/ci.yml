@@ -3,8 +3,6 @@ name: PR Checks
 on:
   pull_request:
     branches: [ main ]
-  pull_request_target:
-    branches: [ main ]
   workflow_dispatch:
 
 jobs:
@@ -13,6 +11,7 @@ jobs:
     env:
       GRADLE_OPTS: "-Dorg.gradle.daemon=true -Dorg.gradle.parallel=true -Dorg.gradle.caching=true"
       MAPS_API_KEY: ${{ secrets.MAPS_API_KEY }}
+      GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
 
     steps:
       - name: Checkout repository
@@ -22,8 +21,6 @@ jobs:
 
       - name: Setup Project
         uses: ./.github/actions/setup-android
-        with:
-          google-services-json: ${{ secrets.GOOGLE_SERVICES_JSON }}
 
       - name: Run checks (spotless, lint, detekt)
         run: ./gradlew spotlessCheck lintDebug ciDetekt
