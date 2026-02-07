@@ -6,11 +6,13 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import dev.bongballe.parkbuddy.model.ParkingSpot
+import dev.bongballe.parkbuddy.model.SweepingSchedule
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesBinding
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 import kotlin.time.Clock
+import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
 import kotlinx.coroutines.flow.first
@@ -34,7 +36,13 @@ class ReminderRepositoryImpl(
     val reminders = parkingRepository.getReminders().first()
     val now = Clock.System.now()
 
-    val nextCleaningTime = spot.sweepingSchedules.mapNotNull { it.nextOccurrence(now) }.minOrNull()
+    val nextCleaning =
+      spot.sweepingSchedules
+        .mapNotNull { schedule -> schedule.nextOccurrence(now)?.let { next -> schedule to next } }
+        .minByOrNull { it.second }
+
+    val nextCleaningTime = nextCleaning?.second
+    val nextCleaningSchedule = nextCleaning?.first
 
     val streetName = spot.streetName ?: spot.neighborhood ?: "Unknown Street"
 
@@ -65,7 +73,13 @@ class ReminderRepositoryImpl(
         }
     }
 
-    showSpotFoundNotification(streetName, spot, nextCleaningTime, remindersSet)
+    showSpotFoundNotification(
+      locationName = streetName,
+      spot = spot,
+      nextCleaning = nextCleaningTime,
+      nextCleaningSchedule = nextCleaningSchedule,
+      remindersSet = remindersSet,
+    )
   }
 
   override suspend fun clearAllReminders() {
@@ -116,14 +130,29 @@ class ReminderRepositoryImpl(
     locationName: String,
     spot: ParkingSpot,
     nextCleaning: Instant?,
+    nextCleaningSchedule: SweepingSchedule?,
     remindersSet: List<String>,
   ) {
+    val now = Clock.System.now()
     val nextCleaningText =
       nextCleaning?.let {
-        val schedule =
-          spot.sweepingSchedules.find { s -> s.nextOccurrence(Clock.System.now()) == it }
-        schedule?.formatSchedule() ?: "Upcoming"
+        val formatted = nextCleaningSchedule?.formatWithDate(it) ?: "Upcoming"
+
+        if ((it - now) < 6.hours) {
+          "TODAY ($formatted)"
+        } else {
+          formatted
+        }
       } ?: "No upcoming cleaning found"
+
+    val urgencyWarning =
+      nextCleaning?.let {
+        if ((it - now) < 6.hours) {
+          "\n\n⚠️ CLEANING IS TODAY! Be extremely careful about parking here."
+        } else {
+          ""
+        }
+      } ?: ""
 
     val reminderLines =
       if (remindersSet.isEmpty()) {
@@ -132,7 +161,7 @@ class ReminderRepositoryImpl(
         "Reminders set for:\n" + remindersSet.joinToString("\n")
       }
 
-    val bigText = "Next cleaning: $nextCleaningText\n\n$reminderLines"
+    val bigText = "Next cleaning: $nextCleaningText$urgencyWarning\n\n$reminderLines"
 
     notificationManager.showSpotFoundNotification(
       locationName = locationName,
