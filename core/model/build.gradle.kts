@@ -1,10 +1,11 @@
 plugins {
-    kotlin("jvm")
-    alias(libs.plugins.kotlin.serialization)
+  kotlin("jvm")
+  alias(libs.plugins.kotlin.serialization)
 }
 
 dependencies {
-    implementation(libs.kotlinx.coroutines.core)
-    implementation(libs.kotlinx.datetime)
-    implementation(libs.kotlinx.serialization.json)
+  api(libs.kotlinx.datetime)
+
+  implementation(libs.kotlinx.coroutines.core)
+  implementation(libs.kotlinx.serialization.json)
 }
