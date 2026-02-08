@@ -1,5 +1,8 @@
 package dev.bongballe.parkbuddy.model
 
+import dev.bongballe.parkbuddy.model.Weekday.Holiday
+import kotlinx.datetime.DayOfWeek
+
 /**
  * Day of week for street sweeping schedules.
  *
@@ -13,5 +16,16 @@ enum class Weekday {
   Fri,
   Sat,
   Sun,
-  Holiday,
+  Holiday;
+
+  fun toDayOfWeek(): DayOfWeek? = when (this) {
+    Weekday.Mon -> DayOfWeek.MONDAY
+    Weekday.Tues -> DayOfWeek.TUESDAY
+    Weekday.Wed -> DayOfWeek.WEDNESDAY
+    Weekday.Thu -> DayOfWeek.THURSDAY
+    Weekday.Fri -> DayOfWeek.FRIDAY
+    Weekday.Sat -> DayOfWeek.SATURDAY
+    Weekday.Sun -> DayOfWeek.SUNDAY
+    Weekday.Holiday -> null
+  }
 }

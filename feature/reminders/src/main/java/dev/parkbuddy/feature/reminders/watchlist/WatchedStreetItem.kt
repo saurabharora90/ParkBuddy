@@ -16,6 +16,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import dev.bongballe.parkbuddy.data.repository.utils.formatSchedule
 import dev.bongballe.parkbuddy.model.ParkingSpot
 import dev.parkbuddy.core.ui.SquircleIcon
 

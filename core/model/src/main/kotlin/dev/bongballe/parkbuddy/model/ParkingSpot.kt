@@ -2,7 +2,6 @@ package dev.bongballe.parkbuddy.model
 
 import kotlin.time.Instant
 import kotlinx.datetime.DateTimeUnit
-import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
@@ -121,44 +120,4 @@ data class SweepingSchedule(
     }
     return ((date.day - firstTargetDay.day) / 7) + 1
   }
-
-  fun formatSchedule(): String {
-    val dayName = weekday.name
-    val fromTime = formatHour(fromHour)
-    val toTime = formatHour(toHour)
-    return "$dayName, $fromTime - $toTime"
-  }
-
-  fun formatWithDate(
-    instant: Instant,
-    zone: TimeZone = TimeZone.currentSystemDefault(),
-  ): String {
-    val localDateTime = instant.toLocalDateTime(zone)
-    val dayOfWeek =
-      localDateTime.dayOfWeek.name.lowercase().replaceFirstChar { it.uppercase() }
-    val monthName =
-      localDateTime.month.name.lowercase().replaceFirstChar { it.uppercase() }.take(3)
-    val dayOfMonth = localDateTime.day
-    val fromTime = formatHour(fromHour)
-    val toTime = formatHour(toHour)
-    return "$dayOfWeek, $monthName $dayOfMonth ($fromTime - $toTime)"
-  }
-
-  private fun formatHour(hour: Int): String = when {
-    hour == 0 -> "12:00 AM"
-    hour < 12 -> "$hour:00 AM"
-    hour == 12 -> "12:00 PM"
-    else -> "${hour - 12}:00 PM"
-  }
-}
-
-private fun Weekday.toDayOfWeek(): DayOfWeek? = when (this) {
-  Weekday.Mon -> DayOfWeek.MONDAY
-  Weekday.Tues -> DayOfWeek.TUESDAY
-  Weekday.Wed -> DayOfWeek.WEDNESDAY
-  Weekday.Thu -> DayOfWeek.THURSDAY
-  Weekday.Fri -> DayOfWeek.FRIDAY
-  Weekday.Sat -> DayOfWeek.SATURDAY
-  Weekday.Sun -> DayOfWeek.SUNDAY
-  Weekday.Holiday -> null
 }
