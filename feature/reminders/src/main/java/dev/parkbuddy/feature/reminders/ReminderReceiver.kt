@@ -38,17 +38,20 @@ class ReminderReceiver(
   override fun onReceive(context: Context, intent: Intent) {
     val streetName = intent.getStringExtra("streetName") ?: "your parked street"
     val spotId = intent.getStringExtra("spotId")
+    val cleaningStartTime = intent.getStringExtra("cleaningStartTime")
 
     val pendingResult = goAsync()
     coroutineScope.launch(ioDispatcher) {
       try {
         val parkedLocation = preferencesRepository.parkedLocation.firstOrNull()
         if (parkedLocation != null && (spotId == null || parkedLocation.spotId == spotId)) {
-          showNotification(
-            context,
-            "Street Cleaning Reminder",
-            "Upcoming cleaning on $streetName! Move your car.",
-          )
+          val message =
+            if (cleaningStartTime != null) {
+              "Street Cleaning starts at $cleaningStartTime on $streetName"
+            } else {
+              "Upcoming cleaning on $streetName!"
+            }
+          showNotification(context, "Move your car!", message)
         }
       } finally {
         pendingResult.finish()
