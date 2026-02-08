@@ -51,10 +51,11 @@ class ReminderRepositoryImpl(
     if (nextCleaningTime != null) {
       reminders
         .sortedBy { it.value }
-        .forEach {
-          val reminderTime = nextCleaningTime - it.value.minutes
+        .take(MAX_REMINDERS)
+        .forEachIndexed { index, reminder ->
+          val reminderTime = nextCleaningTime - reminder.value.minutes
           if (reminderTime > now) {
-            setAlarm(reminderTime, streetName)
+            setAlarm(index, reminderTime, streetName, spot.objectId)
             val localTime = reminderTime.toLocalDateTime(TimeZone.currentSystemDefault())
             val hour = localTime.hour
             val minute = localTime.minute
@@ -84,19 +85,37 @@ class ReminderRepositoryImpl(
 
   override suspend fun clearAllReminders() {
     notificationManager.cancelAll()
+    for (i in 0 until MAX_REMINDERS) {
+      val intent =
+        Intent().apply {
+          setClassName(context.packageName, "dev.parkbuddy.feature.reminders.ReminderReceiver")
+        }
+      val pendingIntent =
+        PendingIntent.getBroadcast(
+          context,
+          ALARM_REQUEST_CODE_BASE + i,
+          intent,
+          PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE,
+        )
+      if (pendingIntent != null) {
+        alarmManager.cancel(pendingIntent)
+        pendingIntent.cancel()
+      }
+    }
   }
 
-  private fun setAlarm(time: Instant, spotName: String) {
+  private fun setAlarm(index: Int, time: Instant, spotName: String, spotId: String) {
     val intent =
       Intent().apply {
         setClassName(context.packageName, "dev.parkbuddy.feature.reminders.ReminderReceiver")
         putExtra("streetName", spotName)
+        putExtra("spotId", spotId)
       }
 
     val pendingIntent =
       PendingIntent.getBroadcast(
         context,
-        spotName.hashCode() + time.hashCode(),
+        ALARM_REQUEST_CODE_BASE + index,
         intent,
         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
       )
@@ -168,5 +187,10 @@ class ReminderRepositoryImpl(
       nextCleaningText = nextCleaningText,
       bigText = bigText,
     )
+  }
+
+  companion object {
+    private const val MAX_REMINDERS = 100
+    private const val ALARM_REQUEST_CODE_BASE = 1000
   }
 }
