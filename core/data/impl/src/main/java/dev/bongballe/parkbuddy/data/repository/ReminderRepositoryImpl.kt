@@ -5,6 +5,8 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import dev.bongballe.parkbuddy.data.repository.utils.DateTimeUtils
+import dev.bongballe.parkbuddy.data.repository.utils.formatWithDate
 import dev.bongballe.parkbuddy.model.ParkingSpot
 import dev.bongballe.parkbuddy.model.SweepingSchedule
 import dev.zacsweers.metro.AppScope
@@ -48,14 +50,15 @@ class ReminderRepositoryImpl(
 
     val remindersSet = mutableListOf<String>()
 
-    if (nextCleaningTime != null) {
+    if (nextCleaningTime != null && nextCleaningSchedule != null) {
+      val cleaningStartTime = DateTimeUtils.formatHour(nextCleaningSchedule.fromHour)
       reminders
         .sortedBy { it.value }
         .take(MAX_REMINDERS)
         .forEachIndexed { index, reminder ->
           val reminderTime = nextCleaningTime - reminder.value.minutes
           if (reminderTime > now) {
-            setAlarm(index, reminderTime, streetName, spot.objectId)
+            setAlarm(index, reminderTime, streetName, spot.objectId, cleaningStartTime)
             val localTime = reminderTime.toLocalDateTime(TimeZone.currentSystemDefault())
             val hour = localTime.hour
             val minute = localTime.minute
@@ -104,12 +107,19 @@ class ReminderRepositoryImpl(
     }
   }
 
-  private fun setAlarm(index: Int, time: Instant, spotName: String, spotId: String) {
+  private fun setAlarm(
+    index: Int,
+    time: Instant,
+    spotName: String,
+    spotId: String,
+    cleaningStartTime: String,
+  ) {
     val intent =
       Intent().apply {
         setClassName(context.packageName, "dev.parkbuddy.feature.reminders.ReminderReceiver")
         putExtra("streetName", spotName)
         putExtra("spotId", spotId)
+        putExtra("cleaningStartTime", cleaningStartTime)
       }
 
     val pendingIntent =
