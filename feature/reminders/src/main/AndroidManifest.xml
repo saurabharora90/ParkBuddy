@@ -1,20 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
     <uses-permission android:name="android.permission.BLUETOOTH" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
-    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
 
     <application>
-        <receiver android:name="dev.parkbuddy.feature.reminders.BluetoothConnectionReceiver"
+        <receiver
+            android:name="dev.parkbuddy.feature.reminders.BluetoothConnectionReceiver"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.bluetooth.device.action.ACL_DISCONNECTED" />
             </intent-filter>
         </receiver>
-        <receiver android:name="dev.parkbuddy.feature.reminders.ReminderReceiver" android:exported="false" />
+        <receiver
+            android:name="dev.parkbuddy.feature.reminders.ReminderReceiver"
+            android:exported="false" />
     </application>
 </manifest>

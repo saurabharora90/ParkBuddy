@@ -16,8 +16,4 @@ import androidx.room.PrimaryKey
  *   configured.
  */
 @Entity(tableName = "user_preferences")
-data class UserPreferencesEntity(
-  @PrimaryKey val id: Int = 1,
-  val rppZone: String?,
-  val reminderMinutes: String,
-)
+data class UserPreferencesEntity(@PrimaryKey val id: Int = 1, val rppZone: String?)

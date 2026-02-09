@@ -17,7 +17,6 @@ import dev.bongballe.parkbuddy.data.sf.model.toStreetSide
 import dev.bongballe.parkbuddy.data.sf.network.SfOpenDataApi
 import dev.bongballe.parkbuddy.model.Geometry
 import dev.bongballe.parkbuddy.model.ParkingSpot
-import dev.bongballe.parkbuddy.model.ReminderMinutes
 import dev.bongballe.parkbuddy.model.SweepingSchedule
 import dev.bongballe.parkbuddy.qualifier.WithDispatcherType
 import dev.zacsweers.metro.AppScope
@@ -67,61 +66,22 @@ class ParkingRepositoryImpl(
     return dao.countSpotsByZone(zone)
   }
 
-  override fun getAllRppZones(): Flow<List<String>> {
+  override fun getAllPermitZones(): Flow<List<String>> {
     return dao.getAllRppZones()
   }
 
-  override fun getUserRppZone(): Flow<String?> {
+  override fun getUserPermitZone(): Flow<String?> {
     return dao.getUserPreferences().map { it?.rppZone }
   }
 
-  override fun getReminders(): Flow<List<ReminderMinutes>> {
-    return dao.getUserPreferences().map { prefs ->
-      prefs
-        ?.reminderMinutes
-        ?.split(",")
-        ?.filter { it.isNotBlank() }
-        ?.mapNotNull { it.toIntOrNull() }
-        ?.map { ReminderMinutes(it) } ?: emptyList()
-    }
-  }
-
-  override suspend fun setUserRppZone(zone: String?) {
+  override suspend fun setUserPermitZone(zone: String?) {
     val existing = getExistingPreferences()
     dao.upsertUserPreferences(existing.copy(rppZone = zone))
     analyticsTracker.setCustomKey("rpp_zone", zone ?: "none")
   }
 
-  override suspend fun addReminder(minutesBefore: ReminderMinutes) {
-    val existing = getExistingPreferences()
-    val currentReminders =
-      existing.reminderMinutes
-        .split(",")
-        .filter { it.isNotBlank() }
-        .mapNotNull { it.toIntOrNull() }
-        .toMutableSet()
-    currentReminders.add(minutesBefore.value)
-    dao.upsertUserPreferences(
-      existing.copy(reminderMinutes = currentReminders.sorted().joinToString(","))
-    )
-  }
-
-  override suspend fun removeReminder(minutesBefore: ReminderMinutes) {
-    val existing = getExistingPreferences()
-    val currentReminders =
-      existing.reminderMinutes
-        .split(",")
-        .filter { it.isNotBlank() }
-        .mapNotNull { it.toIntOrNull() }
-        .filter { it != minutesBefore.value }
-    dao.upsertUserPreferences(
-      existing.copy(reminderMinutes = currentReminders.sorted().joinToString(","))
-    )
-  }
-
   private suspend fun getExistingPreferences(): UserPreferencesEntity {
-    return dao.getUserPreferences().first()
-      ?: UserPreferencesEntity(id = 1, rppZone = null, reminderMinutes = "")
+    return dao.getUserPreferences().first() ?: UserPreferencesEntity(id = 1, rppZone = null)
   }
 
   override suspend fun refreshData(): Boolean {

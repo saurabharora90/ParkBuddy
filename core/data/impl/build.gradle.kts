@@ -20,7 +20,10 @@ dependencies {
   implementation(project(":core:model"))
   implementation(project(":core:theme"))
   implementation(project(":core:work-manager"))
+  implementation(libs.accompanist.permissions)
   implementation(libs.androidx.datastore.preferences)
+  implementation(libs.kotlinx.coroutines.play.services)
   implementation(libs.kotlinx.datetime)
   implementation(libs.kotlinx.serialization.json)
+  implementation(libs.play.services.location)
 }

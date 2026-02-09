@@ -6,11 +6,8 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import dev.bongballe.parkbuddy.DispatcherType
-import dev.bongballe.parkbuddy.analytics.AnalyticsTracker
-import dev.bongballe.parkbuddy.data.repository.ParkingRepository
+import dev.bongballe.parkbuddy.data.repository.ParkingManager
 import dev.bongballe.parkbuddy.data.repository.PreferencesRepository
-import dev.bongballe.parkbuddy.data.repository.ReminderNotificationManager
-import dev.bongballe.parkbuddy.data.repository.ReminderRepository
 import dev.bongballe.parkbuddy.qualifier.WithDispatcherType
 import dev.bongballe.parkbuddy.qualifier.WithScope
 import dev.zacsweers.metro.AppScope
@@ -28,10 +25,7 @@ import kotlinx.coroutines.launch
 @Inject
 class BluetoothConnectionReceiver(
   private val preferencesRepository: PreferencesRepository,
-  private val parkingRepository: ParkingRepository,
-  private val reminderRepository: ReminderRepository,
-  private val notificationManager: ReminderNotificationManager,
-  private val analyticsTracker: AnalyticsTracker,
+  private val parkingManager: ParkingManager,
   @WithScope(AppScope::class) private val coroutineScope: CoroutineScope,
   @WithDispatcherType(DispatcherType.IO) private val ioDispatcher: CoroutineDispatcher,
 ) : BroadcastReceiver() {
@@ -55,15 +49,6 @@ class BluetoothConnectionReceiver(
               preferencesRepository.isAutoTrackingEnabled.firstOrNull() ?: true
 
             if (savedAddress == disconnectedDevice.address && isAutoTrackingEnabled) {
-              val parkingManager =
-                ParkingManager(
-                  context,
-                  parkingRepository,
-                  preferencesRepository,
-                  reminderRepository,
-                  notificationManager,
-                  analyticsTracker,
-                )
               parkingManager.processParkingEvent()
             }
           } finally {

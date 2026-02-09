@@ -3,9 +3,11 @@ package dev.parkbuddy.feature.map
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dev.bongballe.parkbuddy.analytics.AnalyticsTracker
+import dev.bongballe.parkbuddy.data.repository.ParkingManager
 import dev.bongballe.parkbuddy.data.repository.ParkingRepository
 import dev.bongballe.parkbuddy.data.repository.PreferencesRepository
 import dev.bongballe.parkbuddy.data.repository.ReminderRepository
+import dev.bongballe.parkbuddy.model.Location
 import dev.bongballe.parkbuddy.model.ParkedLocation
 import dev.bongballe.parkbuddy.model.ParkingSpot
 import dev.bongballe.parkbuddy.model.ReminderMinutes
@@ -13,7 +15,6 @@ import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesIntoMap
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metrox.viewmodel.ViewModelKey
-import kotlin.time.Clock
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -30,6 +31,7 @@ import kotlinx.coroutines.launch
 @ViewModelKey(MapViewModel::class)
 @Inject
 class MapViewModel(
+  private val parkingManager: ParkingManager,
   private val repository: ParkingRepository,
   private val preferencesRepository: PreferencesRepository,
   private val reminderRepository: ReminderRepository,
@@ -50,11 +52,11 @@ class MapViewModel(
     combine(
         flow = repository.getAllSpots(),
         flow2 =
-          repository.getUserRppZone().flatMapLatest { zone ->
+          repository.getUserPermitZone().flatMapLatest { zone ->
             if (zone == null) flowOf(emptyList()) else repository.getSpotsByZone(zone)
           },
         flow3 = preferencesRepository.parkedLocation,
-        flow4 = repository.getReminders(),
+        flow4 = reminderRepository.getReminders(),
         flow5 = shouldShowParkedLocationBottomSheet,
         transform = {
           parkingSpots,
@@ -102,17 +104,9 @@ class MapViewModel(
 
       val centerLatitude = coordinates.map { it[1] }.average()
       val centerLongitude = coordinates.map { it[0] }.average()
+      val location = Location(centerLatitude, centerLongitude)
 
-      val parkedLocation =
-        ParkedLocation(
-          spotId = spot.objectId,
-          latitude = centerLatitude,
-          longitude = centerLongitude,
-          parkedAt = Clock.System.now(),
-        )
-
-      preferencesRepository.setParkedLocation(parkedLocation)
-      reminderRepository.scheduleReminders(spot)
+      parkingManager.parkHere(spot, location)
     }
   }
 
@@ -126,10 +120,7 @@ class MapViewModel(
 
   fun clearParkedLocation() {
     analyticsTracker.logEvent("clear_parked_location")
-    viewModelScope.launch {
-      preferencesRepository.clearParkedLocation()
-      reminderRepository.clearAllReminders()
-    }
+    viewModelScope.launch { parkingManager.markCarMoved() }
   }
 
   fun reportWrongLocation() {
