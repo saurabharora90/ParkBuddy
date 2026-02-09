@@ -93,7 +93,7 @@ class MainActivity(
           val bluetoothDeviceAddress = runBlocking {
             preferencesRepository.bluetoothDeviceAddress.first()
           }
-          val userRppZone = runBlocking { repository.getUserRppZone().first() }
+          val userRppZone = runBlocking { repository.getUserPermitZone().first() }
           val initialRoute =
             when {
               !PermissionChecker.areAllPermissionsGranted(this@MainActivity) ->

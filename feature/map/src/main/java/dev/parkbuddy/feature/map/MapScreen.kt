@@ -143,9 +143,12 @@ fun MapScreen(modifier: Modifier = Modifier, viewModel: MapViewModel = metroView
         }
       }
 
-      parkedLocation?.let { (location, _) ->
+      parkedLocation?.let { (parkedLocation, _) ->
         Marker(
-          state = MarkerState(position = LatLng(location.latitude, location.longitude)),
+          state =
+            MarkerState(
+              position = LatLng(parkedLocation.location.latitude, parkedLocation.location.longitude)
+            ),
           title = "Your Car",
           icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ROSE),
           onClick = {

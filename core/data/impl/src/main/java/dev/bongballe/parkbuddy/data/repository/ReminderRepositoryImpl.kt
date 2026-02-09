@@ -5,9 +5,12 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import dev.bongballe.parkbuddy.data.repository.utils.DateTimeUtils
 import dev.bongballe.parkbuddy.data.repository.utils.formatWithDate
 import dev.bongballe.parkbuddy.model.ParkingSpot
+import dev.bongballe.parkbuddy.model.ReminderMinutes
 import dev.bongballe.parkbuddy.model.SweepingSchedule
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesBinding
@@ -17,7 +20,9 @@ import kotlin.time.Clock
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 
@@ -26,16 +31,39 @@ import kotlinx.datetime.toLocalDateTime
 @Inject
 class ReminderRepositoryImpl(
   private val context: Context,
-  private val parkingRepository: ParkingRepository,
   private val notificationManager: ReminderNotificationManager,
 ) : ReminderRepository {
 
-  private val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+  private val alarmManager by lazy {
+    context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+  }
+
+  override fun getReminders(): Flow<List<ReminderMinutes>> {
+    return context.dataStore.data
+      .map { pref -> pref[REMINDER_MINUTES]?.mapNotNull { it.toIntOrNull() } ?: emptySet() }
+      .map { it.map { ReminderMinutes(it) } }
+  }
+
+  override suspend fun addReminder(minutesBefore: ReminderMinutes) {
+    val currentReminders = getReminders().first().toMutableSet()
+    currentReminders.add(minutesBefore)
+    context.dataStore.edit {
+      it[REMINDER_MINUTES] = currentReminders.map { it.value.toString() }.toSet()
+    }
+  }
+
+  override suspend fun removeReminder(minutesBefore: ReminderMinutes) {
+    val currentReminders = getReminders().first().toMutableSet()
+    currentReminders.remove(minutesBefore)
+    context.dataStore.edit {
+      it[REMINDER_MINUTES] = currentReminders.map { it.value.toString() }.toSet()
+    }
+  }
 
   override suspend fun scheduleReminders(spot: ParkingSpot) {
     clearAllReminders()
 
-    val reminders = parkingRepository.getReminders().first()
+    val reminders = getReminders().first()
     val now = Clock.System.now()
 
     val nextCleaning =
@@ -79,7 +107,6 @@ class ReminderRepositoryImpl(
 
     showSpotFoundNotification(
       locationName = streetName,
-      spot = spot,
       nextCleaning = nextCleaningTime,
       nextCleaningSchedule = nextCleaningSchedule,
       remindersSet = remindersSet,
@@ -157,7 +184,6 @@ class ReminderRepositoryImpl(
 
   private fun showSpotFoundNotification(
     locationName: String,
-    spot: ParkingSpot,
     nextCleaning: Instant?,
     nextCleaningSchedule: SweepingSchedule?,
     remindersSet: List<String>,
@@ -202,5 +228,7 @@ class ReminderRepositoryImpl(
   companion object {
     private const val MAX_REMINDERS = 100
     private const val ALARM_REQUEST_CODE_BASE = 1000
+
+    val REMINDER_MINUTES = stringSetPreferencesKey("reminder_minutes")
   }
 }

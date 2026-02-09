@@ -1,12 +1,9 @@
 package dev.bongballe.parkbuddy.data.repository
 
 import android.content.Context
-import androidx.datastore.core.DataStore
-import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
-import androidx.datastore.preferences.preferencesDataStore
 import dev.bongballe.parkbuddy.model.ParkedLocation
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesBinding
@@ -21,8 +18,6 @@ import kotlinx.serialization.json.Json
 @Inject
 class PreferencesRepositoryImpl(private val context: Context, private val json: Json) :
   PreferencesRepository {
-
-  val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
 
   private object Keys {
     val INITIAL_SYNC_DONE = booleanPreferencesKey("initial_sync_done")

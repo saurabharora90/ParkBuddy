@@ -3,6 +3,7 @@ package dev.parkbuddy.feature.reminders.watchlist
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dev.bongballe.parkbuddy.data.repository.ParkingRepository
+import dev.bongballe.parkbuddy.data.repository.ReminderRepository
 import dev.bongballe.parkbuddy.model.ParkingSpot
 import dev.bongballe.parkbuddy.model.ReminderMinutes
 import dev.zacsweers.metro.AppScope
@@ -23,11 +24,14 @@ import kotlinx.coroutines.launch
 @ContributesIntoMap(AppScope::class)
 @ViewModelKey(WatchlistViewModel::class)
 @Inject
-class WatchlistViewModel(private val repository: ParkingRepository) : ViewModel() {
+class WatchlistViewModel(
+  private val repository: ParkingRepository,
+  private val reminderRepository: ReminderRepository,
+) : ViewModel() {
 
   val availableZones: StateFlow<List<String>> =
     repository
-      .getAllRppZones()
+      .getAllPermitZones()
       .stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
@@ -36,7 +40,7 @@ class WatchlistViewModel(private val repository: ParkingRepository) : ViewModel(
 
   val selectedZone: StateFlow<String?> =
     repository
-      .getUserRppZone()
+      .getUserPermitZone()
       .stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
@@ -64,7 +68,7 @@ class WatchlistViewModel(private val repository: ParkingRepository) : ViewModel(
       )
 
   val reminders: StateFlow<List<ReminderMinutes>> =
-    repository
+    reminderRepository
       .getReminders()
       .stateIn(
         scope = viewModelScope,
@@ -81,10 +85,10 @@ class WatchlistViewModel(private val repository: ParkingRepository) : ViewModel(
 
   fun selectZone(zone: String?) {
     viewModelScope.launch {
-      repository.setUserRppZone(zone)
+      repository.setUserPermitZone(zone)
       if (zone != null && reminders.value.isEmpty()) {
-        repository.addReminder(ReminderMinutes(60))
-        repository.addReminder(ReminderMinutes(24 * 60))
+        reminderRepository.addReminder(ReminderMinutes(60))
+        reminderRepository.addReminder(ReminderMinutes(24 * 60))
       }
     }
     _isZonePickerExpanded.value = false
@@ -94,12 +98,12 @@ class WatchlistViewModel(private val repository: ParkingRepository) : ViewModel(
     viewModelScope.launch {
       val totalMinutes = hours * 60 + minutes
       if (totalMinutes > 0) {
-        repository.addReminder(ReminderMinutes(totalMinutes))
+        reminderRepository.addReminder(ReminderMinutes(totalMinutes))
       }
     }
   }
 
   fun removeReminder(reminder: ReminderMinutes) {
-    viewModelScope.launch { repository.removeReminder(reminder) }
+    viewModelScope.launch { reminderRepository.removeReminder(reminder) }
   }
 }
