@@ -1,6 +1,6 @@
 package dev.bongballe.parkbuddy.model
 
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 
 /**
  * Represents the current status of parking restrictions for a specific time.

@@ -1,17 +1,19 @@
 package dev.bongballe.parkbuddy.data.repository.utils
 
+import com.sun.org.apache.xalan.internal.lib.ExsltDatetime.dayName
 import dev.bongballe.parkbuddy.data.repository.utils.DateTimeUtils.formatHour
 import dev.bongballe.parkbuddy.model.SweepingSchedule
 import kotlin.time.Instant
+import kotlinx.datetime.LocalTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 
 object DateTimeUtils {
   fun formatHour(hour: Int): String = when {
-    hour == 0 -> "12:00 AM"
-    hour < 12 -> "$hour:00 AM"
-    hour == 12 -> "12:00 PM"
-    else -> "${hour - 12}:00 PM"
+    hour == 0 -> "12 AM"
+    hour < 12 -> "$hour AM"
+    hour == 12 -> "12 PM"
+    else -> "${hour - 12} PM"
   }
 }
 

@@ -1,8 +1,8 @@
 package dev.bongballe.parkbuddy.model
 
+import kotlin.time.Instant
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.DayOfWeek
-import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
@@ -22,11 +22,11 @@ data class EnforcementSchedule(
   fun isWithinWindow(time: Instant, zone: TimeZone = TimeZone.currentSystemDefault()): Boolean {
     val localDateTime = time.toLocalDateTime(zone)
     if (days.isNotEmpty() && localDateTime.dayOfWeek !in days) return false
-    
+
     val currentTime = localDateTime.time
     val start = startTime ?: LocalTime(0, 0)
     val end = endTime ?: LocalTime(23, 59)
-    
+
     return if (start <= end) {
       currentTime in start..end
     } else {
