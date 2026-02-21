@@ -29,10 +29,11 @@ jobs:
         run: ./gradlew assembleDebug
 
       - name: Run unit tests
-        run: ./gradlew test
+        run: ./gradlew globalCiUnitTest
 
       - name: Verify screenshot tests
         run: ./gradlew globalCiVerifyRoborazzi
+        if: always()
 
       - name: Test Summary
         uses: test-summary/action@v2
@@ -40,20 +41,30 @@ jobs:
           paths: "**/build/test-results/**/*.xml"
         if: always()
 
+      - name: Upload Test Reports
+        uses: actions/upload-artifact@v6
+        with:
+          name: unit-test-reports
+          path: "**/build/reports/tests/**"
+        if: always()
+
       - name: Upload Roborazzi reports
         uses: actions/upload-artifact@v6
         with:
           name: roborazzi-reports
           path: "**/build/reports/roborazzi/**"
+        if: always()
 
       - name: Upload Roborazzi failure screenshots
         uses: actions/upload-artifact@v6
         with:
           name: roborazzi-failures
           path: "**/build/outputs/roborazzi/**"
+        if: always()
 
       - name: Upload lint reports (HTML)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: lint-reports
           path: '**/build/reports/lint-results-*.html'
+        if: always()

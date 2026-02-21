@@ -52,6 +52,11 @@ foundry {
   }
 }
 
+// Satisfy Foundry's ciUnitTest dependency
+tasks.register("testReleaseUnitTest") {
+  dependsOn("testDebugUnitTest")
+}
+
 dependencies {
   implementation(platform(libs.compose.bom))
   implementation(platform(libs.firebase.bom))
