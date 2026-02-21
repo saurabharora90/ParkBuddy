@@ -1,11 +1,11 @@
 package dev.bongballe.parkbuddy.data.repository.utils
 
-import dev.bongballe.parkbuddy.model.ParkedLocation
 import dev.bongballe.parkbuddy.model.ParkingRestrictionState
 import dev.bongballe.parkbuddy.model.ParkingSpot
+import kotlin.time.Clock
 import kotlin.time.Duration.Companion.hours
+import kotlin.time.Instant
 import kotlinx.datetime.DateTimeUnit
-import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
 import kotlinx.datetime.TimeZone
@@ -19,7 +19,7 @@ object ParkingRestrictionEvaluator {
     spot: ParkingSpot,
     userPermitZone: String?,
     parkedAt: Instant,
-    currentTime: Instant,
+    currentTime: Instant = Clock.System.now(),
     zone: TimeZone = TimeZone.currentSystemDefault()
   ): ParkingRestrictionState {
     // 1. Determine next cleaning

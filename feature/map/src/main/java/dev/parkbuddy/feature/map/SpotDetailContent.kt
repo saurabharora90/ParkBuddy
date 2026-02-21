@@ -7,19 +7,27 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CleaningServices
+import androidx.compose.material.icons.filled.AccessTime
+import androidx.compose.material.icons.filled.Error
+import androidx.compose.material.icons.filled.SafetyCheck
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import dev.bongballe.parkbuddy.data.repository.utils.DateTimeUtils
 import dev.bongballe.parkbuddy.data.repository.utils.formatSchedule
 import dev.bongballe.parkbuddy.model.Geometry
 import dev.bongballe.parkbuddy.model.ParkingRegulation
@@ -29,8 +37,9 @@ import dev.bongballe.parkbuddy.model.SweepingSchedule
 import dev.bongballe.parkbuddy.model.Weekday
 import dev.bongballe.parkbuddy.theme.ParkBuddyTheme
 import dev.bongballe.parkbuddy.theme.SageGreen
+import dev.bongballe.parkbuddy.theme.SagePrimary
+import dev.bongballe.parkbuddy.theme.Terracotta
 import dev.parkbuddy.core.ui.ParkBuddyButton
-import dev.parkbuddy.core.ui.SquircleIcon
 import kotlin.time.Clock
 import kotlinx.datetime.LocalTime
 
@@ -88,62 +97,121 @@ internal fun SpotDetailContent(
       }
     }
 
-    val now = Clock.System.now()
-    spot.sweepingSchedules.forEach { schedule ->
-      val nextCleaning = schedule.nextOccurrence(now)
-
-      Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.large,
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-      ) {
+    Card(
+      modifier = Modifier.fillMaxWidth(),
+      shape = MaterialTheme.shapes.large,
+      colors = CardDefaults.cardColors(containerColor = Color.White),
+    ) {
+      if (isInPermitZone) {
         Row(
-          modifier = Modifier.padding(16.dp),
           verticalAlignment = Alignment.CenterVertically,
           horizontalArrangement = Arrangement.spacedBy(16.dp),
+          modifier =
+            Modifier.fillMaxWidth().background(SagePrimary.copy(alpha = 0.2f)).padding(16.dp),
         ) {
-          SquircleIcon(
-            icon = Icons.Default.CleaningServices,
-            size = 48.dp,
-            shape = CircleShape,
-            iconTint = MaterialTheme.colorScheme.primary,
-            backgroundTint = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+          Icon(imageVector = Icons.Default.SafetyCheck, contentDescription = null, tint = SageGreen)
+          Text(
+            text = "PERMIT VALID. TIME LIMITS DO NOT APPLY TO YOU",
+            style = MaterialTheme.typography.labelSmall,
+            color = SageGreen,
           )
+        }
+      }
 
-          Column(modifier = Modifier.weight(1f)) {
-            Text(text = "Street Cleaning", style = MaterialTheme.typography.titleMedium)
-            Text(text = schedule.formatSchedule(), style = MaterialTheme.typography.bodyMedium)
-          }
+      Column(
+        modifier = Modifier.padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+      ) {
+        if (!isInPermitZone) {
+          Text(
+            text = "PARKING RULES & SCHEDULES",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+          )
+          spot.timeLimitHours?.let { timeLimitHours ->
+            Row(
+              verticalAlignment = Alignment.CenterVertically,
+              horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+              Icon(
+                imageVector = Icons.Default.AccessTime,
+                contentDescription = null,
+                tint = SageGreen,
+              )
 
-          nextCleaning?.let { nextTime ->
-            val duration = nextTime - now
-            val hoursUntil = duration.inWholeHours
-            val timeUntilText =
-              when {
-                hoursUntil < 1 -> "in ${duration.inWholeMinutes} min"
-                hoursUntil < 24 -> "in $hoursUntil hrs"
-                else -> "in ${hoursUntil / 24} days"
+              val annotatedString = buildAnnotatedString {
+                append("Max $timeLimitHours hrs:")
+                withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
+                  append(
+                    "${
+                      spot.enforcementSchedule.days.joinToString(
+                        prefix = " ",
+                        transform = { it.name.substring(0, 3) },
+                      )
+                    },  ${
+                      spot.enforcementSchedule.startTime?.hour?.let {
+                        DateTimeUtils.formatHour(it)
+                      }
+                    }-${
+                      spot.enforcementSchedule.endTime?.hour?.let {
+                        DateTimeUtils.formatHour(it)
+                      }
+                    }"
+                  )
+                }
               }
-            Text(
-              text = timeUntilText,
-              style = MaterialTheme.typography.bodySmall,
-              color = MaterialTheme.colorScheme.error,
-            )
+
+              Text(text = annotatedString, style = MaterialTheme.typography.bodyMedium)
+            }
           }
         }
+
+        spot.sweepingSchedules.forEach { schedule -> NoParkingInfo(schedule) }
       }
     }
 
-    if (isInPermitZone) {
+    ParkBuddyButton(label = "Park Here", onClick = onParkHere, modifier = Modifier.fillMaxWidth())
+  }
+}
 
-      ParkBuddyButton(label = "Park Here", onClick = onParkHere, modifier = Modifier.fillMaxWidth())
+@Composable
+private fun NoParkingInfo(schedule: SweepingSchedule) {
+  val now = Clock.System.now()
+  val nextCleaning = schedule.nextOccurrence(now)
+  Row(
+    verticalAlignment = Alignment.CenterVertically,
+    horizontalArrangement = Arrangement.spacedBy(16.dp),
+  ) {
+    Icon(imageVector = Icons.Default.Error, contentDescription = null, tint = Terracotta)
 
-      Text(
-        text = "This street is in your permit zone",
-        style = MaterialTheme.typography.labelSmall,
-        color = SageGreen,
-        modifier = Modifier.align(Alignment.CenterHorizontally),
-      )
+    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+      val noParkingTiming = buildAnnotatedString {
+        append("No Parking: ")
+        withStyle(style = SpanStyle(fontWeight = FontWeight.Bold)) {
+          append(schedule.formatSchedule())
+        }
+      }
+      Text(text = noParkingTiming, style = MaterialTheme.typography.bodyMedium)
+
+      Row {
+        Text(
+          text = "STREET CLEANING",
+          style = MaterialTheme.typography.bodyMedium.copy(fontSize = 12.sp),
+          modifier = Modifier.background(Terracotta.copy(alpha = 0.2f)).padding(2.dp),
+        )
+
+        nextCleaning?.let { nextTime ->
+          val duration = nextTime - now
+          val hoursUntil = duration.inWholeHours
+          val timeUntilText =
+            when {
+              hoursUntil < 1 -> "in ${duration.inWholeMinutes} min"
+              hoursUntil < 24 -> "in $hoursUntil hrs"
+              else -> "in ${hoursUntil / 24} days"
+            }
+          Text(text = " • $timeUntilText", style = MaterialTheme.typography.bodyMedium)
+        }
+      }
     }
   }
 }
