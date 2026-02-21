@@ -15,6 +15,7 @@ import dev.bongballe.parkbuddy.data.sf.model.StreetCleaningResponse
 import dev.bongballe.parkbuddy.data.sf.model.toParkingRegulation
 import dev.bongballe.parkbuddy.data.sf.model.toStreetSide
 import dev.bongballe.parkbuddy.data.sf.network.SfOpenDataApi
+import dev.bongballe.parkbuddy.model.EnforcementSchedule
 import dev.bongballe.parkbuddy.model.Geometry
 import dev.bongballe.parkbuddy.model.ParkingSpot
 import dev.bongballe.parkbuddy.model.SweepingSchedule
@@ -28,6 +29,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
+import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalTime
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.jsonArray
@@ -43,6 +45,41 @@ class ParkingRepositoryImpl(
   private val analyticsTracker: AnalyticsTracker,
   @WithDispatcherType(DispatcherType.IO) private val ioDispatcher: CoroutineDispatcher,
 ) : ParkingRepository {
+
+  private fun parseEnforcementDays(daysStr: String?): Set<DayOfWeek> {
+    if (daysStr == null) return DayOfWeek.values().toSet()
+
+    val days = mutableSetOf<DayOfWeek>()
+    val normalized = daysStr.uppercase()
+
+    if (
+      normalized.contains("M-F") ||
+        normalized.contains("MON-FRI") ||
+        normalized.contains("WEEKDAYS")
+    ) {
+      days.addAll(
+        listOf(
+          DayOfWeek.MONDAY,
+          DayOfWeek.TUESDAY,
+          DayOfWeek.WEDNESDAY,
+          DayOfWeek.THURSDAY,
+          DayOfWeek.FRIDAY,
+        )
+      )
+    }
+    if (normalized.contains("SAT")) days.add(DayOfWeek.SATURDAY)
+    if (normalized.contains("SUN")) days.add(DayOfWeek.SUNDAY)
+    if (normalized.contains("MON") && !normalized.contains("MON-FRI")) days.add(DayOfWeek.MONDAY)
+    if (normalized.contains("TUE")) days.add(DayOfWeek.TUESDAY)
+    if (normalized.contains("WED")) days.add(DayOfWeek.WEDNESDAY)
+    if (normalized.contains("THU")) days.add(DayOfWeek.THURSDAY)
+    if (normalized.contains("FRI") && !normalized.contains("MON-FRI")) days.add(DayOfWeek.FRIDAY)
+    if (normalized.contains("DAILY") || normalized.isBlank()) {
+      days.addAll(DayOfWeek.values())
+    }
+
+    return if (days.isEmpty()) DayOfWeek.values().toSet() else days
+  }
 
   companion object {
     private const val TAG = "ParkingRepository"
@@ -299,9 +336,12 @@ class ParkingRepositoryImpl(
       regulation = spot.regulation,
       rppArea = spot.rppArea,
       timeLimitHours = spot.timeLimitHours,
-      enforcementDays = spot.enforcementDays,
-      enforcementStart = spot.enforcementStart?.let { timeToLocalTime(it) },
-      enforcementEnd = spot.enforcementEnd?.let { timeToLocalTime(it) },
+      enforcementSchedule =
+        EnforcementSchedule(
+          days = parseEnforcementDays(spot.enforcementDays),
+          startTime = spot.enforcementStart?.let { timeToLocalTime(it) },
+          endTime = spot.enforcementEnd?.let { timeToLocalTime(it) },
+        ),
       sweepingCnn = spot.sweepingCnn,
       sweepingSide = spot.sweepingSide,
       sweepingSchedules =

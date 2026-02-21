@@ -5,9 +5,13 @@ import android.content.Context
 import androidx.datastore.preferences.core.edit
 import androidx.test.core.app.ApplicationProvider
 import com.google.common.truth.Truth.assertThat
+import dev.bongballe.parkbuddy.model.ParkedLocation
+import dev.bongballe.parkbuddy.model.ParkingType
 import dev.bongballe.parkbuddy.model.ReminderMinutes
 import dev.bongballe.parkbuddy.model.SweepingSchedule
 import dev.bongballe.parkbuddy.model.Weekday
+import dev.bongballe.parkbuddy.testing.FakeParkingRepository
+import dev.bongballe.parkbuddy.testing.FakePreferencesRepository
 import dev.bongballe.parkbuddy.testing.FakeReminderNotificationManager
 import dev.bongballe.parkbuddy.testing.createTestSpot
 import kotlin.time.Clock
@@ -15,8 +19,10 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.DayOfWeek
+import kotlinx.datetime.LocalTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.plus
+import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -28,10 +34,24 @@ import org.robolectric.annotation.Config
 @Config(sdk = [31])
 class ReminderRepositoryImplTest {
 
+  private class FakeClock(var instant: kotlin.time.Instant) : kotlin.time.Clock {
+    override fun now(): kotlin.time.Instant = instant
+  }
+
   private class TestContext {
     val context: Context = ApplicationProvider.getApplicationContext()
     val notificationManager = FakeReminderNotificationManager()
-    val repository = ReminderRepositoryImpl(context, notificationManager)
+    val preferencesRepository = FakePreferencesRepository()
+    val parkingRepository = FakeParkingRepository()
+    val clock = FakeClock(Clock.System.now())
+    val repository =
+      ReminderRepositoryImpl(
+        context,
+        notificationManager,
+        preferencesRepository,
+        parkingRepository,
+        clock,
+      )
 
     init {
       runBlocking { context.dataStore.edit { it.clear() } }
@@ -39,9 +59,91 @@ class ReminderRepositoryImplTest {
   }
 
   @Test
-  fun `scheduleReminders with showNotification true shows notification`() = runTest {
+  fun `scheduleReminders for timed parking sets time limit alarms`() = runTest {
     val context = TestContext()
     val now = Clock.System.now()
+    context.clock.instant = now
+
+    // Set up timed parking
+    val spot = createTestSpot(id = "1").copy(timeLimitHours = 2)
+    val parkedLocation =
+      ParkedLocation(
+        spotId = "1",
+        location = dev.bongballe.parkbuddy.model.Location(0.0, 0.0),
+        parkedAt = now,
+        parkingType = ParkingType.TIMED,
+      )
+    context.preferencesRepository.setParkedLocation(parkedLocation)
+
+    context.repository.scheduleReminders(spot, showNotification = true)
+
+    val alarmManager = context.context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+    val shadowAlarmManager = shadowOf(alarmManager)
+
+    // Should have 2 alarms: one 15-min warning and one final expiry
+    assertThat(shadowAlarmManager.scheduledAlarms).hasSize(2)
+
+    // Verify notification contains expiry info
+    assertThat(context.notificationManager.lastSpotFoundNotification?.second).contains("Move by")
+  }
+
+  @Test
+  fun `scheduleReminders for timed parking after hours sets future alarms`() = runTest {
+    val context = TestContext()
+    // 7 PM on Monday Jan 1st
+    val now =
+      kotlinx.datetime.LocalDateTime(2024, 1, 1, 19, 0).toInstant(TimeZone.currentSystemDefault())
+    context.clock.instant = now
+
+    // Set up timed parking with 8am-6pm enforcement
+    val spot =
+      createTestSpot(
+          id = "1",
+          startTime = kotlinx.datetime.LocalTime(8, 0),
+          endTime = kotlinx.datetime.LocalTime(18, 0),
+        )
+        .copy(timeLimitHours = 2)
+
+    val parkedLocation =
+      ParkedLocation(
+        spotId = "1",
+        location = dev.bongballe.parkbuddy.model.Location(0.0, 0.0),
+        parkedAt = now,
+        parkingType = ParkingType.TIMED,
+      )
+    context.preferencesRepository.setParkedLocation(parkedLocation)
+
+    context.repository.scheduleReminders(spot, showNotification = true)
+
+    val alarmManager = context.context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+    val shadowAlarmManager = shadowOf(alarmManager)
+
+    // Should have 2 alarms scheduled for tomorrow (warning at 9:45 AM, expiry at 10 AM)
+    assertThat(shadowAlarmManager.scheduledAlarms).hasSize(2)
+
+    // Notification should contain pending restriction info
+    assertThat(context.notificationManager.lastSpotFoundNotification?.second)
+      .contains("Limit starts tomorrow")
+  }
+
+  @Test
+  fun `scheduleReminders with showNotification true shows notification`() = runTest {
+    val context = TestContext()
+    // Monday Jan 1st 2024
+    val now =
+      kotlinx.datetime.LocalDateTime(2024, 1, 1, 12, 0).toInstant(TimeZone.currentSystemDefault())
+    context.clock.instant = now
+
+    // Set up parked location
+    val parkedLocation =
+      ParkedLocation(
+        spotId = "1",
+        location = dev.bongballe.parkbuddy.model.Location(0.0, 0.0),
+        parkedAt = now,
+        parkingType = ParkingType.UNRESTRICTED,
+      )
+    context.preferencesRepository.setParkedLocation(parkedLocation)
+
     val localNow = now.toLocalDateTime(TimeZone.currentSystemDefault())
 
     // Create a schedule for tomorrow
@@ -73,6 +175,14 @@ class ReminderRepositoryImplTest {
   fun `scheduleReminders with showNotification false suppresses notification`() = runTest {
     val context = TestContext()
     val spot = createTestSpot(id = "1")
+    val parkedLocation =
+      ParkedLocation(
+        spotId = "1",
+        location = dev.bongballe.parkbuddy.model.Location(0.0, 0.0),
+        parkedAt = context.clock.now(),
+        parkingType = ParkingType.UNRESTRICTED,
+      )
+    context.preferencesRepository.setParkedLocation(parkedLocation)
 
     context.repository.scheduleReminders(spot, showNotification = false)
 
@@ -82,7 +192,20 @@ class ReminderRepositoryImplTest {
   @Test
   fun `scheduleReminders sets alarms`() = runTest {
     val context = TestContext()
-    val now = Clock.System.now()
+    // Monday Jan 1st 2024
+    val now =
+      kotlinx.datetime.LocalDateTime(2024, 1, 1, 12, 0).toInstant(TimeZone.currentSystemDefault())
+    context.clock.instant = now
+
+    val parkedLocation =
+      ParkedLocation(
+        spotId = "1",
+        location = dev.bongballe.parkbuddy.model.Location(0.0, 0.0),
+        parkedAt = now,
+        parkingType = ParkingType.UNRESTRICTED,
+      )
+    context.preferencesRepository.setParkedLocation(parkedLocation)
+
     val localNow = now.toLocalDateTime(TimeZone.currentSystemDefault())
 
     // Create a schedule for tomorrow at 8 AM

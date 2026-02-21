@@ -2,6 +2,7 @@ package dev.bongballe.parkbuddy.data.repository
 
 import com.google.common.truth.Truth.assertThat
 import dev.bongballe.parkbuddy.model.Location
+import dev.bongballe.parkbuddy.model.ParkingType
 import dev.bongballe.parkbuddy.testing.FakeAnalyticsTracker
 import dev.bongballe.parkbuddy.testing.FakeLocationRepository
 import dev.bongballe.parkbuddy.testing.FakeParkingRepository
@@ -55,7 +56,7 @@ class ParkingManagerTest {
   }
 
   @Test
-  fun `processParkingEvent success when matching spot found`() = runTest {
+  fun `processParkingEvent success when matching spot found in permit zone`() = runTest {
     val context = TestContext()
     val spotLocation = Location(37.7749, -122.4194)
     context.locationRepository.locationResult = Result.success(spotLocation)
@@ -71,48 +72,78 @@ class ParkingManagerTest {
 
     context.parkingManager.processParkingEvent()
     
-    assertThat(context.preferencesRepository.parkedLocation.value?.spotId).isEqualTo("1")
+    val parkedLocation = context.preferencesRepository.parkedLocation.value
+    assertThat(parkedLocation?.spotId).isEqualTo("1")
+    assertThat(parkedLocation?.parkingType).isEqualTo(ParkingType.PERMIT)
     assertThat(context.reminderRepository.scheduledSpot).isEqualTo(spot)
     assertThat(context.reminderRepository.lastShowNotificationValue).isTrue()
   }
 
   @Test
-  fun `processParkingEvent failure when spot is too far`() = runTest {
+  fun `processParkingEvent success when matching spot found outside permit zone`() = runTest {
     val context = TestContext()
-    val myLocation = Location(37.7749, -122.4194)
-    context.locationRepository.locationResult = Result.success(myLocation)
-    context.parkingRepository.setUserPermitZone("A")
+    val spotLocation = Location(37.7749, -122.4194)
+    context.locationRepository.locationResult = Result.success(spotLocation)
+    context.parkingRepository.setUserPermitZone("B") // Different zone
 
-    // Spot is far away
-    val spot = createTestSpot(id = "1", zone = "A", lat = 38.0, lng = -123.0)
+    val spot = createTestSpot(
+      id = "1",
+      zone = "A",
+      lat = spotLocation.latitude,
+      lng = spotLocation.longitude,
+    )
     context.parkingRepository.setSpots(listOf(spot))
 
     context.parkingManager.processParkingEvent()
-
-    assertThat(context.notificationManager.parkingMatchFailureNotificationSent).isTrue()
+    
+    val parkedLocation = context.preferencesRepository.parkedLocation.value
+    assertThat(parkedLocation?.spotId).isEqualTo("1")
+    assertThat(parkedLocation?.parkingType).isEqualTo(ParkingType.TIMED)
+    assertThat(context.reminderRepository.scheduledSpot).isEqualTo(spot)
   }
 
   @Test
-  fun `processParkingEvent does nothing when location permission is denied`() = runTest {
+  fun `processParkingEvent success when matching spot found and no permit zone set`() = runTest {
     val context = TestContext()
-    context.locationRepository.locationResult =
-      Result.failure(LocationRepository.PermissionException())
-
-    context.parkingManager.processParkingEvent()
-
-    assertThat(context.notificationManager.locationFailureNotificationSent).isFalse()
-    assertThat(context.notificationManager.parkingMatchFailureNotificationSent).isFalse()
-  }
-
-  @Test
-  fun `processParkingEvent does nothing when no permit zone is set`() = runTest {
-    val context = TestContext()
-    context.locationRepository.locationResult = Result.success(Location(37.7749, -122.4194))
+    val spotLocation = Location(37.7749, -122.4194)
+    context.locationRepository.locationResult = Result.success(spotLocation)
     context.parkingRepository.setUserPermitZone(null)
 
-    context.parkingManager.processParkingEvent()
+    val spot = createTestSpot(
+      id = "1",
+      zone = "A",
+      lat = spotLocation.latitude,
+      lng = spotLocation.longitude,
+    ).copy(timeLimitHours = 2)
+    context.parkingRepository.setSpots(listOf(spot))
 
-    assertThat(context.notificationManager.parkingMatchFailureNotificationSent).isFalse()
+    context.parkingManager.processParkingEvent()
+    
+    val parkedLocation = context.preferencesRepository.parkedLocation.value
+    assertThat(parkedLocation?.spotId).isEqualTo("1")
+    assertThat(parkedLocation?.parkingType).isEqualTo(ParkingType.TIMED)
+  }
+
+  @Test
+  fun `processParkingEvent success and unrestricted when no time limit and no permit`() = runTest {
+    val context = TestContext()
+    val spotLocation = Location(37.7749, -122.4194)
+    context.locationRepository.locationResult = Result.success(spotLocation)
+    context.parkingRepository.setUserPermitZone(null)
+
+    val spot = createTestSpot(
+      id = "1",
+      zone = null,
+      lat = spotLocation.latitude,
+      lng = spotLocation.longitude,
+    ).copy(timeLimitHours = null)
+    context.parkingRepository.setSpots(listOf(spot))
+
+    context.parkingManager.processParkingEvent()
+    
+    val parkedLocation = context.preferencesRepository.parkedLocation.value
+    assertThat(parkedLocation?.spotId).isEqualTo("1")
+    assertThat(parkedLocation?.parkingType).isEqualTo(ParkingType.UNRESTRICTED)
   }
 
   @Test

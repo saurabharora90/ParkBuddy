@@ -297,9 +297,19 @@ private fun PermitZoneContentPreview() {
       regulation = ParkingRegulation.TIME_LIMITED,
       rppArea = "A",
       timeLimitHours = 2,
-      enforcementDays = "Mon-Fri",
-      enforcementStart = LocalTime(8, 0),
-      enforcementEnd = LocalTime(18, 0),
+      enforcementSchedule =
+        dev.bongballe.parkbuddy.model.EnforcementSchedule(
+          days =
+            setOf(
+              kotlinx.datetime.DayOfWeek.MONDAY,
+              kotlinx.datetime.DayOfWeek.TUESDAY,
+              kotlinx.datetime.DayOfWeek.WEDNESDAY,
+              kotlinx.datetime.DayOfWeek.THURSDAY,
+              kotlinx.datetime.DayOfWeek.FRIDAY,
+            ),
+          startTime = LocalTime(8, 0),
+          endTime = LocalTime(18, 0),
+        ),
       sweepingCnn = "12345",
       sweepingSide = StreetSide.LEFT,
       sweepingSchedules =
