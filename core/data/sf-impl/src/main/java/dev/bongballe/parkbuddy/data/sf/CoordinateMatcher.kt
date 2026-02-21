@@ -1,5 +1,6 @@
 package dev.bongballe.parkbuddy.data.sf
 
+import androidx.annotation.VisibleForTesting
 import dev.bongballe.parkbuddy.data.sf.model.StreetCleaningResponse
 import dev.bongballe.parkbuddy.model.Geometry
 import kotlin.math.cos
@@ -100,7 +101,8 @@ class CoordinateMatcher(sweepingData: List<StreetCleaningResponse>) {
 
   // Determine which side of the line the point is on using cross product
   // Returns "L" for left or "R" for right
-  private fun determineSide(point: Pair<Double, Double>, lineGeometry: Geometry): String {
+  @VisibleForTesting
+  internal fun determineSide(point: Pair<Double, Double>, lineGeometry: Geometry): String {
     val coords = lineGeometry.coordinates
     if (coords.size < 2) return "R" // Default to right if we can't determine
 
@@ -156,9 +158,23 @@ class CoordinateMatcher(sweepingData: List<StreetCleaningResponse>) {
     val coordsArray = obj["coordinates"]?.jsonArray ?: return null
 
     val coordinates =
-      coordsArray.map { point -> point.jsonArray.map { it.jsonPrimitive.content.toDouble() } }
+      when (type) {
+        "MultiLineString" -> {
+          coordsArray.flatMap { lineArray ->
+            lineArray.jsonArray.map { point ->
+              point.jsonArray.map { it.jsonPrimitive.content.toDouble() }
+            }
+          }
+        }
 
-    return Geometry(type = type, coordinates = coordinates)
+        "LineString" -> {
+          coordsArray.map { point -> point.jsonArray.map { it.jsonPrimitive.content.toDouble() } }
+        }
+
+        else -> return null
+      }
+
+    return Geometry(type = "LineString", coordinates = coordinates)
   }
 
   companion object {
