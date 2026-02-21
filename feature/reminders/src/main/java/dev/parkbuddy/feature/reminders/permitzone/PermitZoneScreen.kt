@@ -1,4 +1,4 @@
-package dev.parkbuddy.feature.reminders.watchlist
+package dev.parkbuddy.feature.reminders.permitzone
 
 import android.Manifest
 import android.app.AlarmManager
@@ -61,15 +61,15 @@ import kotlinx.datetime.LocalTime
 
 @OptIn(ExperimentalPermissionsApi::class)
 @Composable
-fun WatchlistScreen(
+fun PermitZoneScreen(
   modifier: Modifier = Modifier,
-  viewModel: WatchlistViewModel = metroViewModel(),
+  viewModel: PermitZoneViewModel = metroViewModel(),
 ) {
   val context = LocalContext.current
   val availableZones by viewModel.availableZones.collectAsState()
   val selectedZone by viewModel.selectedZone.collectAsState()
-  val watchedSpotCount by viewModel.watchedSpotCount.collectAsState()
-  val watchedSpots by viewModel.watchedSpots.collectAsState()
+  val permitSpotCount by viewModel.permitSpotCount.collectAsState()
+  val permitSpots by viewModel.permitSpots.collectAsState()
   val reminders by viewModel.reminders.collectAsState()
   val isZonePickerExpanded by viewModel.isZonePickerExpanded.collectAsState()
 
@@ -136,11 +136,11 @@ fun WatchlistScreen(
     )
   }
 
-  WatchlistContent(
+  PermitZoneContent(
     availableZones = availableZones,
     selectedZone = selectedZone,
-    watchedSpotCount = watchedSpotCount,
-    watchedSpots = watchedSpots,
+    permitSpotCount = permitSpotCount,
+    permitSpots = permitSpots,
     reminders = reminders,
     isZonePickerExpanded = isZonePickerExpanded,
     onZonePickerExpandedChange = viewModel::setZonePickerExpanded,
@@ -153,11 +153,11 @@ fun WatchlistScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun WatchlistContent(
+internal fun PermitZoneContent(
   availableZones: List<String>,
   selectedZone: String?,
-  watchedSpotCount: Int,
-  watchedSpots: List<ParkingSpot>,
+  permitSpotCount: Int,
+  permitSpots: List<ParkingSpot>,
   reminders: List<ReminderMinutes>,
   isZonePickerExpanded: Boolean,
   onZonePickerExpandedChange: (Boolean) -> Unit,
@@ -194,7 +194,7 @@ internal fun WatchlistContent(
         ZoneSelectorCard(
           availableZones = availableZones,
           selectedZone = selectedZone,
-          watchedSpotCount = watchedSpotCount,
+          permitSpotCount = permitSpotCount,
           isExpanded = isZonePickerExpanded,
           onExpandedChange = onZonePickerExpandedChange,
           onZoneSelected = onZoneSelected,
@@ -230,14 +230,14 @@ internal fun WatchlistContent(
 
         item {
           Text(
-            "WATCHED STREETS",
+            "PERMIT STREETS",
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             style = MaterialTheme.typography.titleMedium,
             modifier = Modifier.padding(top = 16.dp),
           )
         }
 
-        items(watchedSpots) { spot -> WatchedStreetItem(spot = spot) }
+        items(permitSpots) { spot -> PermitStreetItem(spot = spot) }
       }
 
       if (selectedZone == null) {
@@ -270,7 +270,7 @@ internal fun WatchlistContent(
               Text(
                 text =
                   "Choose your residential parking permit zone to automatically " +
-                    "watch all streets in your area and receive cleaning reminders.",
+                    "manage all streets in your area and receive street cleaning reminders.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
@@ -286,7 +286,7 @@ internal fun WatchlistContent(
 
 @Preview(showBackground = true)
 @Composable
-private fun WatchlistContentPreview() {
+private fun PermitZoneContentPreview() {
   val sampleSpot =
     ParkingSpot(
       objectId = "1",
@@ -319,11 +319,11 @@ private fun WatchlistContentPreview() {
     )
 
   ParkBuddyTheme {
-    WatchlistContent(
+    PermitZoneContent(
       availableZones = listOf("A", "B", "C"),
       selectedZone = "A",
-      watchedSpotCount = 5,
-      watchedSpots = listOf(sampleSpot),
+      permitSpotCount = 5,
+      permitSpots = listOf(sampleSpot),
       reminders = listOf(ReminderMinutes(60)),
       isZonePickerExpanded = false,
       onZonePickerExpandedChange = {},
@@ -336,13 +336,13 @@ private fun WatchlistContentPreview() {
 
 @Preview(showBackground = true)
 @Composable
-private fun WatchlistContentEmptyPreview() {
+private fun PermitZoneContentEmptyPreview() {
   ParkBuddyTheme {
-    WatchlistContent(
+    PermitZoneContent(
       availableZones = listOf("A", "B", "C"),
       selectedZone = null,
-      watchedSpotCount = 0,
-      watchedSpots = emptyList(),
+      permitSpotCount = 0,
+      permitSpots = emptyList(),
       reminders = emptyList(),
       isZonePickerExpanded = false,
       onZonePickerExpandedChange = {},

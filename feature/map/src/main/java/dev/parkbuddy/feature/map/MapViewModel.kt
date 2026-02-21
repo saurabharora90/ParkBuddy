@@ -39,7 +39,7 @@ class MapViewModel(
 
   data class State(
     val spots: List<ParkingSpot>,
-    val watchedSpots: List<ParkingSpot>,
+    val permitSpots: List<ParkingSpot>,
     val parkedLocation: Triple<ParkedLocation, ParkingSpot, List<ReminderMinutes>>?,
     val shouldShowParkedLocationBottomSheet: Boolean,
   )
@@ -59,13 +59,13 @@ class MapViewModel(
         flow5 = shouldShowParkedLocationBottomSheet,
         transform = {
           parkingSpots,
-          watchedSpots,
+          permitSpots,
           parkedLocation,
           reminder,
           shouldShowParkedLocationBottomSheet ->
           State(
             spots = parkingSpots,
-            watchedSpots = watchedSpots,
+            permitSpots = permitSpots,
             parkedLocation =
               parkedLocation?.let {
                 val spot = parkingSpots.firstOrNull { it.objectId == parkedLocation.spotId }
@@ -81,7 +81,7 @@ class MapViewModel(
         initialValue =
           State(
             spots = emptyList(),
-            watchedSpots = emptyList(),
+            permitSpots = emptyList(),
             parkedLocation = null,
             shouldShowParkedLocationBottomSheet = false,
           ),

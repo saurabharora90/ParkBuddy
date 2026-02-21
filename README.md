@@ -6,7 +6,7 @@ ParkBuddy is a smart Android application designed to simplify urban parking. It 
 
 - **Automated Parking Detection:** Automatically records your parking location when your car's Bluetooth disconnects.
 - **RPP Zone Integration:** Syncs with city data to provide up-to-date information on parking restrictions.
-- **Parking Watchlist:** Monitor specific streets and receive notifications before restrictions take effect.
+- **Permit Zone Management:** Monitor your residential permit zone and receive notifications before restrictions take effect.
 - **Interactive Map:** Visualize your parked location and nearby parking zones.
 - **Modern Stack:** Built with Kotlin, Jetpack Compose, and a modular architecture.
 

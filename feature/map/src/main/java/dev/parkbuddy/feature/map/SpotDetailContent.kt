@@ -37,7 +37,7 @@ import kotlinx.datetime.LocalTime
 @Composable
 internal fun SpotDetailContent(
   spot: ParkingSpot,
-  isWatched: Boolean,
+  isInPermitZone: Boolean,
   onParkHere: () -> Unit,
   modifier: Modifier = Modifier,
 ) {
@@ -134,12 +134,12 @@ internal fun SpotDetailContent(
       }
     }
 
-    if (isWatched) {
+    if (isInPermitZone) {
 
       ParkBuddyButton(label = "Park Here", onClick = onParkHere, modifier = Modifier.fillMaxWidth())
 
       Text(
-        text = "This street is in your watched zone",
+        text = "This street is in your permit zone",
         style = MaterialTheme.typography.labelSmall,
         color = SageGreen,
         modifier = Modifier.align(Alignment.CenterHorizontally),
@@ -183,11 +183,11 @@ internal val spot =
 @Preview(showBackground = true)
 @Composable
 private fun WatchedSpotDetailContentPreview() {
-  ParkBuddyTheme { SpotDetailContent(spot = spot, isWatched = true, onParkHere = {}) }
+  ParkBuddyTheme { SpotDetailContent(spot = spot, isInPermitZone = true, onParkHere = {}) }
 }
 
 @Preview(showBackground = true)
 @Composable
 private fun NonWatchedSpotDetailContentPreview() {
-  ParkBuddyTheme { SpotDetailContent(spot = spot, isWatched = false, onParkHere = {}) }
+  ParkBuddyTheme { SpotDetailContent(spot = spot, isInPermitZone = false, onParkHere = {}) }
 }

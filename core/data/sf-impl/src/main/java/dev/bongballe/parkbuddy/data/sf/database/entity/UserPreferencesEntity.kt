@@ -10,7 +10,7 @@ import androidx.room.PrimaryKey
  *
  * @property id Always 1 (single row pattern)
  * @property rppZone User's selected Residential Parking Permit zone (e.g., "N", "A"). When set, all
- *   parking spots in this zone are "watched" for cleaning reminders. Null means no zone selected.
+ *   streets in this zone are managed for cleaning reminders. Null means no zone selected.
  * @property reminderMinutes Comma-separated list of reminder times in minutes before cleaning.
  *   e.g., "60,1440" means remind 1 hour and 24 hours before. Empty string means no reminders
  *   configured.

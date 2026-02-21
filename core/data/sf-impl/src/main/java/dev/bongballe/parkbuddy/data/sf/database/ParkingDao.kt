@@ -21,9 +21,9 @@ import kotlinx.coroutines.flow.Flow
  * 3. Data is stored via [insertSpots] and [insertSchedules]
  * 4. UI observes data via Flow-returning methods
  *
- * ## Watched Streets
- * Streets are "watched" based on user's selected RPP zone ([UserPreferencesEntity.rppZone]). Use
- * [getSpotsByZone] to get all watched spots for reminder scheduling.
+ * ## Permit Streets
+ * Streets are managed based on user's selected RPP zone ([UserPreferencesEntity.rppZone]). Use
+ * [getSpotsByZone] to get all permit spots for reminder scheduling.
  *
  * @see ParkingSpotEntity
  * @see SweepingScheduleEntity
@@ -43,7 +43,7 @@ interface ParkingDao {
   fun getAllSpots(): Flow<List<PopulatedParkingSpot>>
 
   /**
-   * Get parking spots in a specific RPP zone with their sweeping schedules. Used to get "watched"
+   * Get parking spots in a specific RPP zone with their sweeping schedules. Used to get permit
    * streets when user has selected a zone.
    *
    * @param zone RPP zone letter (e.g., "N", "A")
@@ -64,7 +64,7 @@ interface ParkingDao {
   @Query("SELECT * FROM parking_spots WHERE rppArea = :zone")
   fun getSpotEntitiesByZone(zone: String): Flow<List<ParkingSpotEntity>>
 
-  /** Count spots in a zone. Used for "X streets watched" display. */
+  /** Count spots in a zone. Used for "X streets managed" display. */
   @Query("SELECT COUNT(*) FROM parking_spots WHERE rppArea = :zone")
   fun countSpotsByZone(zone: String): Flow<Int>
 

@@ -54,10 +54,10 @@ import kotlinx.coroutines.tasks.await
 fun MapScreen(modifier: Modifier = Modifier, viewModel: MapViewModel = metroViewModel()) {
   val state by viewModel.stateFlow.collectAsState()
   val spots = state.spots
-  val watchedSpots = state.watchedSpots
+  val permitSpots = state.permitSpots
   val parkedLocation = state.parkedLocation
 
-  val watchedSpotIds = remember(watchedSpots) { watchedSpots.map { it.objectId }.toSet() }
+  val permitSpotIds = remember(permitSpots) { permitSpots.map { it.objectId }.toSet() }
 
   // Pre-compute LatLng points for all spots once
   val spotsWithPoints =
@@ -132,11 +132,11 @@ fun MapScreen(modifier: Modifier = Modifier, viewModel: MapViewModel = metroView
     ) {
       visibleSpots.forEach { (spot, points) ->
         if (points.isNotEmpty()) {
-          val isWatched = spot.objectId in watchedSpotIds
+          val isInPermitZone = spot.objectId in permitSpotIds
           Polyline(
             points = points,
-            color = if (isWatched) SageGreen else WildIris,
-            width = if (isWatched) 12f else 8f,
+            color = if (isInPermitZone) SageGreen else WildIris,
+            width = if (isInPermitZone) 12f else 8f,
             clickable = true,
             onClick = { selectedSpot = spot },
           )
@@ -167,7 +167,7 @@ fun MapScreen(modifier: Modifier = Modifier, viewModel: MapViewModel = metroView
       ) {
         SpotDetailContent(
           spot = it,
-          isWatched = it.objectId in watchedSpotIds,
+          isInPermitZone = it.objectId in permitSpotIds,
           onParkHere = {
             viewModel.parkHere(it)
             selectedSpot = null
