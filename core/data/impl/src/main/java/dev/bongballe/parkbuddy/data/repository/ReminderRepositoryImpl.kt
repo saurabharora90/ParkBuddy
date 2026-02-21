@@ -60,7 +60,7 @@ class ReminderRepositoryImpl(
     }
   }
 
-  override suspend fun scheduleReminders(spot: ParkingSpot) {
+  override suspend fun scheduleReminders(spot: ParkingSpot, showNotification: Boolean) {
     clearAllReminders()
 
     val reminders = getReminders().first()
@@ -105,12 +105,13 @@ class ReminderRepositoryImpl(
         }
     }
 
-    showSpotFoundNotification(
-      locationName = streetName,
-      nextCleaning = nextCleaningTime,
-      nextCleaningSchedule = nextCleaningSchedule,
-      remindersSet = remindersSet,
-    )
+    if (showNotification)
+      showSpotFoundNotification(
+        locationName = streetName,
+        nextCleaning = nextCleaningTime,
+        nextCleaningSchedule = nextCleaningSchedule,
+        remindersSet = remindersSet,
+      )
   }
 
   override suspend fun clearAllReminders() {

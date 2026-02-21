@@ -70,9 +70,10 @@ class ParkingManagerTest {
     context.parkingRepository.setSpots(listOf(spot))
 
     context.parkingManager.processParkingEvent()
-
+    
     assertThat(context.preferencesRepository.parkedLocation.value?.spotId).isEqualTo("1")
     assertThat(context.reminderRepository.scheduledSpot).isEqualTo(spot)
+    assertThat(context.reminderRepository.lastShowNotificationValue).isTrue()
   }
 
   @Test
@@ -154,17 +155,18 @@ class ParkingManagerTest {
   }
 
   @Test
-  fun `parkHere with null detectedLocation uses spot center`() = runTest {
+  fun `parkHere uses spot center and suppresses notification`() = runTest {
     val context = TestContext()
     val spot = createTestSpot(id = "1", zone = "A", lat = 37.7749, lng = -122.4194)
 
-    context.parkingManager.parkHere(spot, null)
+    context.parkingManager.parkHere(spot)
 
     val parkedLocation = context.preferencesRepository.parkedLocation.value
     assertThat(parkedLocation?.spotId).isEqualTo("1")
     // The center should be average of (37.7749, -122.4194) and (37.77491, -122.41939) from createTestSpot
     assertThat(parkedLocation?.location?.latitude).isWithin(0.000001).of(37.774905)
     assertThat(parkedLocation?.location?.longitude).isWithin(0.000001).of(-122.419395)
+    assertThat(context.reminderRepository.lastShowNotificationValue).isFalse()
   }
 
   @Test
