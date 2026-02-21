@@ -56,7 +56,7 @@ dependencies {
   implementation(platform(libs.compose.bom))
   implementation(platform(libs.firebase.bom))
   implementation(project(":core:base"))
-  implementation(project(":core:bluetooth"))
+  implementation(project(":core:bluetooth:impl"))
   implementation(project(":core:data:api"))
   implementation(project(":core:data:impl"))
   implementation(project(":core:data:sf-impl"))

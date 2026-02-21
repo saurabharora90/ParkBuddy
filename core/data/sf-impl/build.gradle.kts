@@ -32,5 +32,14 @@ dependencies {
     implementation(libs.retrofit.adapters.result)
     implementation(libs.retrofit.converter.kotlinx.serialization)
 
+    testImplementation(project(":core:testing"))
+    testImplementation(libs.androidx.junit)
+    testImplementation(libs.androidx.test.core)
+    testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.truth)
+    testImplementation(libs.turbine)
+
     ksp(libs.androidx.room.compiler)
 }

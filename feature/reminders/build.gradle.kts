@@ -36,6 +36,10 @@ dependencies {
   implementation(libs.metrox.viewmodel)
   implementation(libs.metrox.viewmodel.compose)
 
+  testImplementation(project(":core:testing"))
   testImplementation(libs.junit)
+  testImplementation(libs.kotlinx.coroutines.test)
+  testImplementation(libs.robolectric)
   testImplementation(libs.truth)
+  testImplementation(libs.turbine)
 }

@@ -1,4 +1,4 @@
-package dev.bongballe.parkbuddy.core.bluetooth
+package dev.bongballe.parkbuddy.core.bluetooth.impl
 
 import android.Manifest
 import android.bluetooth.BluetoothDevice
@@ -6,6 +6,8 @@ import android.bluetooth.BluetoothManager
 import android.content.Context
 import android.content.pm.PackageManager
 import androidx.core.app.ActivityCompat
+import dev.bongballe.parkbuddy.core.bluetooth.BluetoothController
+import dev.bongballe.parkbuddy.core.bluetooth.BluetoothDeviceUiModel
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesBinding
 import dev.zacsweers.metro.Inject

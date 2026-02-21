@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "dev.bongballe.parkbuddy.core.bluetooth"
+    namespace = "dev.bongballe.parkbuddy.core.bluetooth.impl"
 }
 
 foundry {
@@ -15,7 +15,9 @@ foundry {
 }
 
 dependencies {
+    implementation(project(":core:bluetooth:api"))
     implementation(project(":core:data:api"))
+    implementation(project(":core:model"))
     implementation(libs.androidx.core.ktx)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.coroutines.core)

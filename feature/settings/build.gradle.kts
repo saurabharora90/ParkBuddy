@@ -18,7 +18,7 @@ foundry {
 dependencies {
   implementation(platform(libs.compose.bom))
   implementation(project(":core:base"))
-  implementation(project(":core:bluetooth"))
+  implementation(project(":core:bluetooth:api"))
   implementation(project(":core:data:api"))
   implementation(project(":core:model"))
   implementation(project(":core:shared-ui"))
@@ -34,6 +34,10 @@ dependencies {
   implementation(libs.metrox.viewmodel)
   implementation(libs.metrox.viewmodel.compose)
 
+  testImplementation(project(":core:testing"))
   testImplementation(libs.junit)
+  testImplementation(libs.kotlinx.coroutines.test)
+  testImplementation(libs.robolectric)
   testImplementation(libs.truth)
+  testImplementation(libs.turbine)
 }
