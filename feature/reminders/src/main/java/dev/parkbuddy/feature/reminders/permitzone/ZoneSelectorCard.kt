@@ -1,4 +1,4 @@
-package dev.parkbuddy.feature.reminders.watchlist
+package dev.parkbuddy.feature.reminders.permitzone
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,7 +26,7 @@ import androidx.compose.ui.unit.dp
 internal fun ZoneSelectorCard(
   availableZones: List<String>,
   selectedZone: String?,
-  watchedSpotCount: Int,
+  permitSpotCount: Int,
   isExpanded: Boolean,
   onExpandedChange: (Boolean) -> Unit,
   onZoneSelected: (String?) -> Unit,
@@ -73,7 +73,7 @@ internal fun ZoneSelectorCard(
       if (selectedZone != null) {
         Spacer(modifier = Modifier.height(12.dp))
         Text(
-          text = "$watchedSpotCount streets auto-watched",
+          text = "$permitSpotCount streets in your permit zone",
           style = MaterialTheme.typography.bodyMedium,
           color = MaterialTheme.colorScheme.onPrimaryContainer,
         )

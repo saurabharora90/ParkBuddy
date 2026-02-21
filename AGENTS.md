@@ -16,7 +16,7 @@ with San Francisco as the initial implementation.
 * **Parking Detection**:
     * Triggered by **Bluetooth Disconnection** from a user-selected device (Car Audio).
     * Implemented in `BluetoothConnectionReceiver` using `goAsync` for immediate execution.
-    * Fetches high-accuracy location and matches it against the user's **Watchlist** (< 30m
+    * Fetches high-accuracy location and matches it against the user's **Permit Zone** (< 30m
       distance).
 * **Reminders**:
     * Users "watch" streets by selecting an RPP (Residential Parking Permit) zone.
@@ -59,7 +59,7 @@ core/data/
 app/                    # Application entry point, AppGraph DI wiring
 feature/
 ├── map/                # Map view showing parking spots (Google Maps)
-├── reminders/          # Watchlist, reminder settings, ParkingManager
+├── reminders/          # Permit zone management, reminder settings, ParkingManager
 └── onboarding/         # Setup flow (permissions, Bluetooth device selection)
 core/
 ├── model/              # Domain entities (ParkingSpot, SweepingSchedule, Geometry)

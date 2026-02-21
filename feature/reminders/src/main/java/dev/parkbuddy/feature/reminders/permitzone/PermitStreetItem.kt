@@ -1,4 +1,4 @@
-package dev.parkbuddy.feature.reminders.watchlist
+package dev.parkbuddy.feature.reminders.permitzone
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -21,7 +21,7 @@ import dev.bongballe.parkbuddy.model.ParkingSpot
 import dev.parkbuddy.core.ui.SquircleIcon
 
 @Composable
-internal fun WatchedStreetItem(spot: ParkingSpot) {
+internal fun PermitStreetItem(spot: ParkingSpot) {
   Card(
     modifier = Modifier.fillMaxWidth(),
     shape = MaterialTheme.shapes.medium,

@@ -1,4 +1,4 @@
-package dev.parkbuddy.feature.reminders.watchlist
+package dev.parkbuddy.feature.reminders.permitzone
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -22,9 +22,9 @@ import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @ContributesIntoMap(AppScope::class)
-@ViewModelKey(WatchlistViewModel::class)
+@ViewModelKey(PermitZoneViewModel::class)
 @Inject
-class WatchlistViewModel(
+class PermitZoneViewModel(
   private val repository: ParkingRepository,
   private val reminderRepository: ReminderRepository,
 ) : ViewModel() {
@@ -47,7 +47,7 @@ class WatchlistViewModel(
         initialValue = null,
       )
 
-  val watchedSpotCount: StateFlow<Int> =
+  val permitSpotCount: StateFlow<Int> =
     selectedZone
       .flatMapLatest { zone -> if (zone == null) flowOf(0) else repository.countSpotsByZone(zone) }
       .stateIn(
@@ -56,7 +56,7 @@ class WatchlistViewModel(
         initialValue = 0,
       )
 
-  val watchedSpots: StateFlow<List<ParkingSpot>> =
+  val permitSpots: StateFlow<List<ParkingSpot>> =
     selectedZone
       .flatMapLatest { zone ->
         if (zone == null) flowOf(emptyList()) else repository.getSpotsByZone(zone)

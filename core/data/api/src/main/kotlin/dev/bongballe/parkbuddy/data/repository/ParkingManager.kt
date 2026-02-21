@@ -42,14 +42,14 @@ class ParkingManager(
         return
       }
 
-      val watchedSpots = repository.getSpotsByZone(userZone).first()
-      if (watchedSpots.isEmpty()) {
-        analyticsTracker.logEvent("parking_event_empty_watchlist", mapOf("zone" to userZone))
+      val permitSpots = repository.getSpotsByZone(userZone).first()
+      if (permitSpots.isEmpty()) {
+        analyticsTracker.logEvent("parking_event_empty_permit_zone", mapOf("zone" to userZone))
         notificationManager.sendParkingMatchFailureNotification()
         return
       }
 
-      val matchingSpot = findMatchingSpot(location, watchedSpots)
+      val matchingSpot = findMatchingSpot(location, permitSpots)
 
       if (matchingSpot != null) {
         analyticsTracker.logEvent("parking_event_success")

@@ -1,4 +1,4 @@
-package dev.parkbuddy.feature.reminders.watchlist
+package dev.parkbuddy.feature.reminders.permitzone
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement

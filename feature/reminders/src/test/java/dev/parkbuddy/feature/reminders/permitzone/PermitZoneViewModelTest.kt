@@ -1,4 +1,4 @@
-package dev.parkbuddy.feature.reminders.watchlist
+package dev.parkbuddy.feature.reminders.permitzone
 
 import app.cash.turbine.test
 import com.google.common.truth.Truth.assertThat
@@ -19,17 +19,17 @@ import org.robolectric.RobolectricTestRunner
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
-class WatchlistViewModelTest {
+class PermitZoneViewModelTest {
 
   private class TestContext {
     val parkingRepository = FakeParkingRepository()
     val reminderRepository = FakeReminderRepository()
 
     fun createViewModel() =
-      WatchlistViewModel(repository = parkingRepository, reminderRepository = reminderRepository)
+      PermitZoneViewModel(repository = parkingRepository, reminderRepository = reminderRepository)
   }
 
-  private fun runWatchlistTest(
+  private fun runPermitZoneTest(
     dispatcher: TestDispatcher = UnconfinedTestDispatcher(),
     block: suspend TestScope.(TestContext) -> Unit,
   ) =
@@ -44,7 +44,7 @@ class WatchlistViewModelTest {
 
   @Test
   fun `selectZone updates repository and adds default reminders if empty`() =
-    runWatchlistTest { context ->
+    runPermitZoneTest { context ->
       val viewModel = context.createViewModel()
       viewModel.selectZone("A")
 

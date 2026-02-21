@@ -53,7 +53,7 @@ import dev.parkbuddy.feature.map.MapScreen
 import dev.parkbuddy.feature.onboarding.PermissionChecker
 import dev.parkbuddy.feature.onboarding.bluetooth.BluetoothDeviceSelectionScreen
 import dev.parkbuddy.feature.onboarding.permission.RequestPermissionScreen
-import dev.parkbuddy.feature.reminders.watchlist.WatchlistScreen
+import dev.parkbuddy.feature.reminders.permitzone.PermitZoneScreen
 import dev.parkbuddy.feature.settings.SettingsScreen
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesIntoMap
@@ -176,7 +176,7 @@ private fun MainScreen(
 
           NavigationBarItem(
             icon = { Icon(imageVector = Icons.Default.Visibility, contentDescription = null) },
-            label = { Text("WATCHED") },
+            label = { Text("MY ZONE") },
             selected = selectedTab == 1,
             onClick = { onTabSelected(1) },
           )
@@ -193,7 +193,7 @@ private fun MainScreen(
       Box(modifier = Modifier.padding(paddingValues).consumeWindowInsets(paddingValues)) {
         when (selectedTab) {
           0 -> MapScreen()
-          1 -> WatchlistScreen()
+          1 -> PermitZoneScreen()
           2 -> SettingsScreen(onNavigateToBluetooth = onNavigateToBluetooth)
         }
       }
