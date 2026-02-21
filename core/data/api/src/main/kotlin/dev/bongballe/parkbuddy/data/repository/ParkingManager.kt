@@ -23,6 +23,9 @@ class ParkingManager(
 ) {
 
   suspend fun processParkingEvent() {
+    // Remove previous parking information
+    markCarMoved()
+
     val locationResult = locationRepository.getCurrentLocation()
     val location = locationResult.getOrNull()
     if (location == null) {
