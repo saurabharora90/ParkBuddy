@@ -1,23 +1,28 @@
 # Park Buddy - Agent Context
 
-This document provides a high-level overview of the **Park Buddy** project to assist AI agents in understanding the codebase, architecture, and conventions.
+This document provides a high-level overview of the **Park Buddy** project to assist AI agents in
+understanding the codebase, architecture, and conventions.
 
 ## Domain Knowledge & Core Features
 
-**Park Buddy** helps drivers avoid street cleaning tickets. The architecture is **city-agnostic** with San Francisco as the initial implementation.
+**Park Buddy** helps drivers avoid street cleaning tickets. The architecture is **city-agnostic**
+with San Francisco as the initial implementation.
 
-*   **Data Source**: City open data APIs (currently SF Open Data).
-    *   Data includes parking spots (`geometry`), sweeping schedules (`weekday`, `fromHour`, `toHour`), and week flags (`week1`-`week5`, `holidays`).
-    *   Parking regulations are matched to sweeping schedules via coordinate proximity (`CoordinateMatcher`).
-*   **Parking Detection**:
-    *   Triggered by **Bluetooth Disconnection** from a user-selected device (Car Audio).
-    *   Implemented in `BluetoothConnectionReceiver` using `goAsync` for immediate execution.
-    *   Fetches high-accuracy location and matches it against the user's **Watchlist** (< 30m distance).
-*   **Reminders**:
-    *   Users "watch" streets by selecting an RPP (Residential Parking Permit) zone.
-    *   Users configure reminder offsets (e.g., "24 hours before").
-    *   Alarms are scheduled via `AlarmManager` (Exact Alarms) based on the next valid cleaning time.
-    *   **Logic**: Handles 24h time formats, week specificity, and holidays (`HolidayUtils`).
+* **Data Source**: City open data APIs (currently SF Open Data).
+    * Data includes parking spots (`geometry`), sweeping schedules (`weekday`, `fromHour`,
+      `toHour`), and week flags (`week1`-`week5`, `holidays`).
+    * Parking regulations are matched to sweeping schedules via coordinate proximity (
+      `CoordinateMatcher`).
+* **Parking Detection**:
+    * Triggered by **Bluetooth Disconnection** from a user-selected device (Car Audio).
+    * Implemented in `BluetoothConnectionReceiver` using `goAsync` for immediate execution.
+    * Fetches high-accuracy location and matches it against the user's **Watchlist** (< 30m
+      distance).
+* **Reminders**:
+    * Users "watch" streets by selecting an RPP (Residential Parking Permit) zone.
+    * Users configure reminder offsets (e.g., "24 hours before").
+    * Alarms are scheduled via `AlarmManager` (Exact Alarms) based on the next valid cleaning time.
+    * **Logic**: Handles 24h time formats, week specificity, and holidays (`HolidayUtils`).
 
 ## Architecture
 
@@ -35,12 +40,14 @@ core/data/
 ```
 
 **Why this structure?**
+
 - Database schemas are city-specific (SF uses week1-week5 booleans, CNN identifiers)
 - API clients vary by city (SF Open Data vs NYC Open Data vs LA GeoHub)
 - Features depend only on `core:data:api` interfaces, not implementations
 - Adding a new city means creating `core/data/nyc-impl` without touching existing code
 
 **SF-specific code** (`sf-impl`):
+
 - `SfOpenDataApi`: Retrofit client for SF Open Data endpoints
 - `ParkingRepositoryImpl`: Fetches parking regulations + sweeping schedules, matches via coordinates
 - `CoordinateMatcher`: Spatial matching using R-tree index
@@ -69,24 +76,24 @@ core/
 
 ## Tech Stack
 
-| Category | Technology |
-|----------|------------|
-| Language | Kotlin |
-| UI | Jetpack Compose (Material3) |
-| Navigation | AndroidX Navigation 3 |
-| DI | [Metro](https://github.com/zacsweers/metro) |
-| Async | Kotlin Coroutines & Flow |
-| Network | Retrofit, OkHttp, Kotlinx Serialization |
-| Database | Room |
-| Maps | Maps Compose (Google Maps) |
+| Category   | Technology                                  |
+|------------|---------------------------------------------|
+| Language   | Kotlin                                      |
+| UI         | Jetpack Compose (Material3)                 |
+| Navigation | AndroidX Navigation 3                       |
+| DI         | [Metro](https://github.com/zacsweers/metro) |
+| Async      | Kotlin Coroutines & Flow                    |
+| Network    | Retrofit, OkHttp, Kotlinx Serialization     |
+| Database   | Room                                        |
+| Maps       | Maps Compose (Google Maps)                  |
 
 ## Build & Tooling
 
-*   **Build System**: Gradle (Kotlin DSL) with Version Catalogs (`libs.versions.toml`)
-*   **Convention Plugins**: `com.slack.foundry` for build config, `dev.zacsweers.metro` for DI
-*   **Static Analysis**: Detekt, Spotless (formatting)
-*   **Testing**: JUnit 4, Truth, Robolectric, Roborazzi (screenshot testing)
-    *   **NO MOCKS**: Use Fakes or real implementations. Mockito is forbidden.
+* **Build System**: Gradle (Kotlin DSL) with Version Catalogs (`libs.versions.toml`)
+* **Convention Plugins**: `com.slack.foundry` for build config, `dev.zacsweers.metro` for DI
+* **Static Analysis**: Detekt, Spotless (formatting)
+* **Testing**: JUnit 4, Truth, Robolectric, Roborazzi (screenshot testing)
+    * **NO MOCKS**: Use Fakes or real implementations. Mockito is forbidden.
 
 ### Common Commands
 
@@ -97,6 +104,26 @@ core/
 ./gradlew detekt                 # Static analysis
 ```
 
+## Testing Conventions
+
+Rigor in testing is a core requirement. Follow these patterns to ensure tests are reliable,
+idiomatic, and maintainable.
+
+### Core Principles
+
+* **NO MOCKS**: Mockito and other mocking frameworks are forbidden. Use **Fakes** (located in
+  `:core:testing`) or real implementations.
+* **Robolectric for Framework Logic**: For code that interacts with Android components (`Context`,
+  `AlarmManager`, `DataStore`, `PendingIntent`), use **Robolectric**. Avoid abstracting the
+  framework just to make it "testable" without Robolectric.
+* **State Isolation**: Tests must be independent. For persistent components like `DataStore`,
+  explicitly clear state in the setup phase to prevent cross-test leakage.
+
+### Test Structure (TestContext Pattern)
+
+Avoid `lateinit var` for test dependencies. Use a `private class TestContext` to encapsulate setup
+logic. This keeps the test class clean and ensures each test starts with a fresh, isolated state.
+
 ## Key Conventions
 
 ### Dependency Injection (Metro)
@@ -104,6 +131,7 @@ core/
 Use `@DependencyGraph` and Metro's graph generation instead of Hilt/Dagger.
 
 **ViewModels** must be annotated:
+
 ```kotlin
 @ContributesIntoMap(AppScope::class)
 @ViewModelKey(MyViewModel::class)
@@ -113,44 +141,46 @@ class MyViewModel(...) : ViewModel()
 
 ### Compose
 
-*   Always add `@Preview` functions for different states (empty, loading, populated)
-*   Use naming convention `MyComponentPreview_State`
+* Always add `@Preview` functions for different states (empty, loading, populated)
+* Use naming convention `MyComponentPreview_State`
 
 ### Code Style
 
-*   Adhere to Spotless formatting (ktfmt)
-*   Navigation uses the newer Navigation 3 type-safe APIs
+* Adhere to Spotless formatting (ktfmt)
+* Navigation uses the newer Navigation 3 type-safe APIs
 
 ## Creating New Modules
 
 Follow patterns of existing modules (e.g., `:feature:map` or `:core:model`).
 
 **Key rules:**
-1.  Apply `alias(libs.plugins.foundry.base)` - handles compileSdk, kotlinOptions, etc.
-2.  Only provide `android { namespace = "..." }` - nothing else in android block
-3.  Use `foundry { features { ... } }` for Compose/Metro
+
+1. Apply `alias(libs.plugins.foundry.base)` - handles compileSdk, kotlinOptions, etc.
+2. Only provide `android { namespace = "..." }` - nothing else in android block
+3. Use `foundry { features { ... } }` for Compose/Metro
 
 **Example:**
+
 ```kotlin
 plugins {
-  alias(libs.plugins.android.library)
-  alias(libs.plugins.kotlin.android)
-  alias(libs.plugins.foundry.base)
+    alias(libs.plugins.android.library)
+    alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.foundry.base)
 }
 
 android {
-  namespace = "dev.bongballe.parkbuddy.feature.newfeature"
+    namespace = "dev.bongballe.parkbuddy.feature.newfeature"
 }
 
 foundry {
-  features {
-    compose()
-    metro()
-  }
+    features {
+        compose()
+        metro()
+    }
 }
 
 dependencies {
-  implementation(project(":core:data:api"))
-  implementation(project(":core:model"))
+    implementation(project(":core:data:api"))
+    implementation(project(":core:model"))
 }
 ```

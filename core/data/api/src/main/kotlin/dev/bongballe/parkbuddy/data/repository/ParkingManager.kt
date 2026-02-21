@@ -50,7 +50,7 @@ class ParkingManager(
 
       if (matchingSpot != null) {
         analyticsTracker.logEvent("parking_event_success")
-        parkHere(matchingSpot, location)
+        park(spot = matchingSpot, detectedLocation = location, showNotification = true)
       } else {
         analyticsTracker.logEvent("parking_event_no_match")
         notificationManager.sendParkingMatchFailureNotification()
@@ -58,26 +58,29 @@ class ParkingManager(
     }
   }
 
-  suspend fun parkHere(spot: ParkingSpot, detectedLocation: Location?) {
-    val location = if (detectedLocation == null) {
-      val coordinates = spot.geometry.coordinates
-      val centerLatitude = coordinates.map { it[1] }.average()
-      val centerLongitude = coordinates.map { it[0] }.average()
-      Location(centerLatitude, centerLongitude)
-    } else {
-      detectedLocation
-    }
+  suspend fun parkHere(spot: ParkingSpot) {
+    val centerLatitude = spot.geometry.coordinates.map { it[1] }.average()
+    val centerLongitude = spot.geometry.coordinates.map { it[0] }.average()
+    val location = Location(centerLatitude, centerLongitude)
+    park(spot = spot, detectedLocation = location, showNotification = false)
+  }
 
+  private suspend fun park(
+    spot: ParkingSpot,
+    detectedLocation: Location,
+    showNotification: Boolean
+  ) {
     val parkedLocation =
       ParkedLocation(
         spotId = spot.objectId,
-        location = location,
+        location = detectedLocation,
         parkedAt = Clock.System.now(),
       )
 
     preferencesRepository.setParkedLocation(parkedLocation)
-    reminderRepository.scheduleReminders(spot)
+    reminderRepository.scheduleReminders(spot, showNotification)
   }
+
 
   suspend fun markCarMoved() {
     preferencesRepository.clearParkedLocation()

@@ -12,6 +12,6 @@ interface ReminderRepository {
 
   suspend fun removeReminder(minutesBefore: ReminderMinutes)
 
-  suspend fun scheduleReminders(spot: ParkingSpot)
+  suspend fun scheduleReminders(spot: ParkingSpot, showNotification: Boolean)
   suspend fun clearAllReminders()
 }

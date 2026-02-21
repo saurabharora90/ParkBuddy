@@ -20,8 +20,10 @@ class FakeReminderRepository : ReminderRepository {
   }
 
   var scheduledSpot: ParkingSpot? = null
-  override suspend fun scheduleReminders(spot: ParkingSpot) {
+  var lastShowNotificationValue: Boolean? = null
+  override suspend fun scheduleReminders(spot: ParkingSpot, showNotification: Boolean) {
     scheduledSpot = spot
+    lastShowNotificationValue = showNotification
   }
 
   var clearAllRemindersCalled = false

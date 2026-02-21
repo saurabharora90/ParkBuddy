@@ -7,7 +7,6 @@ import dev.bongballe.parkbuddy.data.repository.ParkingManager
 import dev.bongballe.parkbuddy.data.repository.ParkingRepository
 import dev.bongballe.parkbuddy.data.repository.PreferencesRepository
 import dev.bongballe.parkbuddy.data.repository.ReminderRepository
-import dev.bongballe.parkbuddy.model.Location
 import dev.bongballe.parkbuddy.model.ParkedLocation
 import dev.bongballe.parkbuddy.model.ParkingSpot
 import dev.bongballe.parkbuddy.model.ReminderMinutes
@@ -98,16 +97,7 @@ class MapViewModel(
 
   fun parkHere(spot: ParkingSpot) {
     analyticsTracker.logEvent("manual_park_click")
-    viewModelScope.launch {
-      val coordinates = spot.geometry.coordinates
-      if (coordinates.isEmpty()) return@launch
-
-      val centerLatitude = coordinates.map { it[1] }.average()
-      val centerLongitude = coordinates.map { it[0] }.average()
-      val location = Location(centerLatitude, centerLongitude)
-
-      parkingManager.parkHere(spot, location)
-    }
+    viewModelScope.launch { parkingManager.parkHere(spot) }
   }
 
   fun dismissParkedLocationBottomSheet() {

@@ -26,4 +26,12 @@ dependencies {
   implementation(libs.kotlinx.datetime)
   implementation(libs.kotlinx.serialization.json)
   implementation(libs.play.services.location)
+
+  testImplementation(project(":core:testing"))
+  testImplementation(libs.androidx.test.core)
+  testImplementation(libs.junit)
+  testImplementation(libs.kotlinx.coroutines.test)
+  testImplementation(libs.robolectric)
+  testImplementation(libs.truth)
+  testImplementation(libs.turbine)
 }
