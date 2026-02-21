@@ -8,10 +8,10 @@ import android.os.Build
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import dev.bongballe.parkbuddy.data.repository.utils.DateTimeUtils
-import dev.bongballe.parkbuddy.data.repository.utils.formatWithDate
+import dev.bongballe.parkbuddy.data.repository.utils.ParkingRestrictionEvaluator
+import dev.bongballe.parkbuddy.model.ParkingRestrictionState
 import dev.bongballe.parkbuddy.model.ParkingSpot
 import dev.bongballe.parkbuddy.model.ReminderMinutes
-import dev.bongballe.parkbuddy.model.SweepingSchedule
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesBinding
 import dev.zacsweers.metro.Inject
@@ -32,6 +32,9 @@ import kotlinx.datetime.toLocalDateTime
 class ReminderRepositoryImpl(
   private val context: Context,
   private val notificationManager: ReminderNotificationManager,
+  private val preferencesRepository: PreferencesRepository,
+  private val parkingRepository: ParkingRepository,
+  private val clock: Clock = Clock.System,
 ) : ReminderRepository {
 
   private val alarmManager by lazy {
@@ -64,54 +67,97 @@ class ReminderRepositoryImpl(
     clearAllReminders()
 
     val reminders = getReminders().first()
-    val now = Clock.System.now()
+    val parkedLocation = preferencesRepository.parkedLocation.first() ?: return
+    val userZone = parkingRepository.getUserPermitZone().first()
+    val now = clock.now()
 
-    val nextCleaning =
-      spot.sweepingSchedules
-        .mapNotNull { schedule -> schedule.nextOccurrence(now)?.let { next -> schedule to next } }
-        .minByOrNull { it.second }
-
-    val nextCleaningTime = nextCleaning?.second
-    val nextCleaningSchedule = nextCleaning?.first
+    val state =
+      ParkingRestrictionEvaluator.evaluate(
+        spot = spot,
+        userPermitZone = userZone,
+        parkedAt = parkedLocation.parkedAt,
+        currentTime = now,
+      )
 
     val streetName = spot.streetName ?: spot.neighborhood ?: "Unknown Street"
+    val alarmsScheduled = mutableListOf<String>()
+    var alarmIndex = 0
 
-    val remindersSet = mutableListOf<String>()
+    // 1. Schedule Cleaning Reminders (applies to all states)
+    val nextCleaning =
+      when (state) {
+        is ParkingRestrictionState.ActiveTimed -> state.nextCleaning
+        is ParkingRestrictionState.PendingTimed -> state.nextCleaning
+        is ParkingRestrictionState.PermitSafe -> state.nextCleaning
+        is ParkingRestrictionState.Unrestricted -> state.nextCleaning
+      }
 
-    if (nextCleaningTime != null && nextCleaningSchedule != null) {
-      val cleaningStartTime = DateTimeUtils.formatHour(nextCleaningSchedule.fromHour)
-      reminders
-        .sortedBy { it.value }
-        .take(MAX_REMINDERS)
-        .forEachIndexed { index, reminder ->
-          val reminderTime = nextCleaningTime - reminder.value.minutes
-          if (reminderTime > now) {
-            setAlarm(index, reminderTime, streetName, spot.objectId, cleaningStartTime)
-            val localTime = reminderTime.toLocalDateTime(TimeZone.currentSystemDefault())
-            val hour = localTime.hour
-            val minute = localTime.minute
-            val amPm = if (hour < 12) "AM" else "PM"
-            val displayHour =
-              when {
-                hour == 0 -> 12
-                hour > 12 -> hour - 12
-                else -> hour
-              }
-            val displayMinute = minute.toString().padStart(2, '0')
-            val dayName = localTime.dayOfWeek.name.lowercase().replaceFirstChar { it.uppercase() }
+    if (nextCleaning != null) {
+      val schedule = spot.sweepingSchedules.firstOrNull { it.nextOccurrence(now) == nextCleaning }
 
-            remindersSet.add("• $dayName at $displayHour:$displayMinute $amPm")
+      if (schedule != null) {
+        val cleaningStartTime = DateTimeUtils.formatHour(schedule.fromHour)
+        reminders
+          .sortedBy { it.value }
+          .forEach { reminder ->
+            val reminderTime = nextCleaning - reminder.value.minutes
+            if (reminderTime > now && alarmIndex < MAX_REMINDERS) {
+              setAlarm(
+                alarmIndex++,
+                reminderTime,
+                streetName,
+                spot.objectId,
+                "Cleaning starts at $cleaningStartTime",
+              )
+              alarmsScheduled.add(formatReminderDisplay(reminderTime))
+            }
           }
-        }
+      }
     }
 
-    if (showNotification)
+    // 2. Schedule Time Limit Reminders
+    val expiryTime =
+      when (state) {
+        is ParkingRestrictionState.ActiveTimed -> state.expiry
+        is ParkingRestrictionState.PendingTimed -> state.expiry
+        else -> null
+      }
+
+    if (expiryTime != null && expiryTime > now) {
+      val reminderTime = expiryTime - 15.minutes
+      if (reminderTime > now && alarmIndex < MAX_REMINDERS) {
+        setAlarm(alarmIndex++, reminderTime, streetName, spot.objectId, "Time limit expires soon")
+        alarmsScheduled.add("• Time limit: ${formatReminderDisplay(reminderTime)}")
+      }
+
+      if (alarmIndex < MAX_REMINDERS) {
+        setAlarm(alarmIndex++, expiryTime, streetName, spot.objectId, "Time limit EXPIRED")
+      }
+    }
+
+    if (showNotification) {
       showSpotFoundNotification(
         locationName = streetName,
-        nextCleaning = nextCleaningTime,
-        nextCleaningSchedule = nextCleaningSchedule,
-        remindersSet = remindersSet,
+        state = state,
+        remindersSet = alarmsScheduled,
       )
+    }
+  }
+
+  private fun formatReminderDisplay(time: Instant): String {
+    val localTime = time.toLocalDateTime(TimeZone.currentSystemDefault())
+    val hour = localTime.hour
+    val minute = localTime.minute
+    val amPm = if (hour < 12) "AM" else "PM"
+    val displayHour =
+      when {
+        hour == 0 -> 12
+        hour > 12 -> hour - 12
+        else -> hour
+      }
+    val displayMinute = minute.toString().padStart(2, '0')
+    val dayName = localTime.dayOfWeek.name.lowercase().replaceFirstChar { it.uppercase() }
+    return "• $dayName at $displayHour:$displayMinute $amPm"
   }
 
   override suspend fun clearAllReminders() {
@@ -185,45 +231,94 @@ class ReminderRepositoryImpl(
 
   private fun showSpotFoundNotification(
     locationName: String,
-    nextCleaning: Instant?,
-    nextCleaningSchedule: SweepingSchedule?,
+    state: ParkingRestrictionState,
     remindersSet: List<String>,
   ) {
-    val now = Clock.System.now()
-    val nextCleaningText =
-      nextCleaning?.let {
-        val formatted = nextCleaningSchedule?.formatWithDate(it) ?: "Upcoming"
+    val now = clock.now()
+    val zone = TimeZone.currentSystemDefault()
 
-        if ((it - now) < 6.hours) {
-          "TODAY ($formatted)"
-        } else {
-          formatted
-        }
-      } ?: "No upcoming cleaning found"
-
-    val urgencyWarning =
-      nextCleaning?.let {
-        if ((it - now) < 6.hours) {
-          "\n\n⚠️ CLEANING IS TODAY! Be extremely careful about parking here."
-        } else {
-          ""
-        }
-      } ?: ""
-
-    val reminderLines =
-      if (remindersSet.isEmpty()) {
-        "No reminders set (cleaning too soon or no reminders configured)."
-      } else {
-        "Reminders set for:\n" + remindersSet.joinToString("\n")
+    val nextCleaning =
+      when (state) {
+        is ParkingRestrictionState.ActiveTimed -> state.nextCleaning
+        is ParkingRestrictionState.PendingTimed -> state.nextCleaning
+        is ParkingRestrictionState.PermitSafe -> state.nextCleaning
+        is ParkingRestrictionState.Unrestricted -> state.nextCleaning
       }
 
-    val bigText = "Next cleaning: $nextCleaningText$urgencyWarning\n\n$reminderLines"
+    val nextCleaningText =
+      nextCleaning?.let { formattedCleaningText(nextCleaning, now, zone) }
+        ?: "No upcoming cleaning found"
+
+    val expiryTime =
+      when (state) {
+        is ParkingRestrictionState.ActiveTimed -> state.expiry
+        is ParkingRestrictionState.PendingTimed -> state.expiry
+        else -> null
+      }
+
+    val expiryText =
+      expiryTime?.let {
+        val localTime = it.toLocalDateTime(zone)
+        val hour = localTime.hour
+        val minute = localTime.minute.toString().padStart(2, '0')
+        val amPm = if (hour < 12) "AM" else "PM"
+        val displayHour =
+          when {
+            hour == 0 -> 12
+            hour > 12 -> hour - 12
+            else -> hour
+          }
+
+        val prefix =
+          if (state is ParkingRestrictionState.PendingTimed) {
+            val dayName =
+              if (localTime.date == now.toLocalDateTime(zone).date) "today" else "tomorrow"
+            "Limit starts $dayName. Move by"
+          } else {
+            "Move by"
+          }
+
+        "$prefix $displayHour:$minute $amPm"
+      } ?: ""
+
+    val urgencyWarning =
+      nextCleaning?.let { if ((it - now) < 6.hours) "\n\n⚠️ CLEANING IS TODAY!" else "" } ?: ""
+
+    val reminderLines =
+      if (remindersSet.isEmpty()) "No reminders set."
+      else "Reminders set for:\n" + remindersSet.joinToString("\n")
+    val contentText =
+      if (expiryText.isNotBlank()) "Next cleaning: $nextCleaningText | $expiryText"
+      else "Next cleaning: $nextCleaningText"
+    val bigText = "Next cleaning: $nextCleaningText\n$expiryText$urgencyWarning\n\n$reminderLines"
 
     notificationManager.showSpotFoundNotification(
       locationName = locationName,
-      nextCleaningText = nextCleaningText,
+      nextCleaningText = contentText,
       bigText = bigText,
     )
+  }
+
+  private fun formattedCleaningText(nextCleaning: Instant, now: Instant, zone: TimeZone): String {
+    val local = nextCleaning.toLocalDateTime(zone)
+    val day = local.dayOfWeek.name.lowercase().replaceFirstChar { it.uppercase() }.take(3)
+    val month = local.month.name.lowercase().replaceFirstChar { it.uppercase() }.take(3)
+    val date = local.day
+    val hour = local.hour
+    val amPm = if (hour < 12) "AM" else "PM"
+    val displayHour =
+      when {
+        hour == 0 -> 12
+        hour > 12 -> hour - 12
+        else -> hour
+      }
+    val timeText = "$displayHour $amPm"
+
+    return if ((nextCleaning - now) < 6.hours) {
+      "TODAY ($day, $month $date at $timeText)"
+    } else {
+      "$day, $month $date at $timeText"
+    }
   }
 
   companion object {

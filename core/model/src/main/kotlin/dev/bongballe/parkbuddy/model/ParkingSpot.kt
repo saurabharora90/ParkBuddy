@@ -1,7 +1,8 @@
 package dev.bongballe.parkbuddy.model
 
-import kotlin.time.Instant
 import kotlinx.datetime.DateTimeUnit
+import kotlinx.datetime.DayOfWeek
+import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
@@ -9,6 +10,31 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.plus
 import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
+
+/**
+ * Structured enforcement rules for a parking spot.
+ */
+data class EnforcementSchedule(
+  val days: Set<DayOfWeek>,
+  val startTime: LocalTime?,
+  val endTime: LocalTime?
+) {
+  fun isWithinWindow(time: Instant, zone: TimeZone = TimeZone.currentSystemDefault()): Boolean {
+    val localDateTime = time.toLocalDateTime(zone)
+    if (days.isNotEmpty() && localDateTime.dayOfWeek !in days) return false
+    
+    val currentTime = localDateTime.time
+    val start = startTime ?: LocalTime(0, 0)
+    val end = endTime ?: LocalTime(23, 59)
+    
+    return if (start <= end) {
+      currentTime in start..end
+    } else {
+      // Over-night window (e.g., 10 PM to 6 AM)
+      currentTime >= start || currentTime <= end
+    }
+  }
+}
 
 /**
  * Represents a parkable street segment.
@@ -24,15 +50,10 @@ import kotlinx.datetime.toLocalDateTime
  * @property regulation Type of parking allowed (time-limited, permit, etc.)
  * @property rppArea Residential Parking Permit zone identifier, null if not in a permit zone
  * @property timeLimitHours Maximum parking duration in hours, null if unlimited
- * @property enforcementDays Days when parking rules are enforced. Format varies by data source
- *                          (e.g., "M-F", "Mon-Fri", "Weekdays"). Kept as raw string due to
- *                          format inconsistency across different cities/sources.
- * @property enforcementStart Time when enforcement begins
- * @property enforcementEnd Time when enforcement ends
+ * @property enforcementSchedule Structured enforcement rules
  * @property sweepingCnn Street segment identifier used for matching sweeping schedules
  * @property sweepingSide Which side of the street (LEFT/RIGHT) this spot is on
  * @property sweepingSchedules All street cleaning schedules for this side of the street.
- *                            A street may have multiple cleaning times per week.
  */
 data class ParkingSpot(
   val objectId: String,
@@ -43,9 +64,7 @@ data class ParkingSpot(
   val regulation: ParkingRegulation,
   val rppArea: String?,
   val timeLimitHours: Int?,
-  val enforcementDays: String?,
-  val enforcementStart: LocalTime?,
-  val enforcementEnd: LocalTime?,
+  val enforcementSchedule: EnforcementSchedule,
   val sweepingCnn: String?,
   val sweepingSide: StreetSide?,
   val sweepingSchedules: List<SweepingSchedule>,
