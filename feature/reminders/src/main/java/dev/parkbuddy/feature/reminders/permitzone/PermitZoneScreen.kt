@@ -296,9 +296,9 @@ private fun PermitZoneContentPreview() {
       neighborhood = "Downtown",
       regulation = ParkingRegulation.TIME_LIMITED,
       rppArea = "A",
-      timeLimitHours = 2,
-      enforcementSchedule =
-        dev.bongballe.parkbuddy.model.EnforcementSchedule(
+      timedRestriction =
+        dev.bongballe.parkbuddy.model.TimedRestriction(
+          limitHours = 2,
           days =
             setOf(
               kotlinx.datetime.DayOfWeek.MONDAY,

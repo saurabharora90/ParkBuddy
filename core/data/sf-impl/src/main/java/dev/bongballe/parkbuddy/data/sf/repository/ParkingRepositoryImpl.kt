@@ -15,10 +15,10 @@ import dev.bongballe.parkbuddy.data.sf.model.StreetCleaningResponse
 import dev.bongballe.parkbuddy.data.sf.model.toParkingRegulation
 import dev.bongballe.parkbuddy.data.sf.model.toStreetSide
 import dev.bongballe.parkbuddy.data.sf.network.SfOpenDataApi
-import dev.bongballe.parkbuddy.model.EnforcementSchedule
 import dev.bongballe.parkbuddy.model.Geometry
 import dev.bongballe.parkbuddy.model.ParkingSpot
 import dev.bongballe.parkbuddy.model.SweepingSchedule
+import dev.bongballe.parkbuddy.model.TimedRestriction
 import dev.bongballe.parkbuddy.qualifier.WithDispatcherType
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesBinding
@@ -335,13 +335,15 @@ class ParkingRepositoryImpl(
       neighborhood = spot.neighborhood,
       regulation = spot.regulation,
       rppArea = spot.rppArea,
-      timeLimitHours = spot.timeLimitHours,
-      enforcementSchedule =
-        EnforcementSchedule(
-          days = parseEnforcementDays(spot.enforcementDays),
-          startTime = spot.enforcementStart?.let { timeToLocalTime(it) },
-          endTime = spot.enforcementEnd?.let { timeToLocalTime(it) },
-        ),
+      timedRestriction =
+        spot.timeLimitHours?.let { limitHours ->
+          TimedRestriction(
+            limitHours = limitHours,
+            days = parseEnforcementDays(spot.enforcementDays),
+            startTime = spot.enforcementStart?.let { timeToLocalTime(it) },
+            endTime = spot.enforcementEnd?.let { timeToLocalTime(it) },
+          )
+        },
       sweepingCnn = spot.sweepingCnn,
       sweepingSide = spot.sweepingSide,
       sweepingSchedules =

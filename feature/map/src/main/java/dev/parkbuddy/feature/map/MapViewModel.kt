@@ -7,20 +7,26 @@ import dev.bongballe.parkbuddy.data.repository.ParkingManager
 import dev.bongballe.parkbuddy.data.repository.ParkingRepository
 import dev.bongballe.parkbuddy.data.repository.PreferencesRepository
 import dev.bongballe.parkbuddy.data.repository.ReminderRepository
+import dev.bongballe.parkbuddy.data.repository.utils.ParkingRestrictionEvaluator
 import dev.bongballe.parkbuddy.model.ParkedLocation
+import dev.bongballe.parkbuddy.model.ParkingRestrictionState
 import dev.bongballe.parkbuddy.model.ParkingSpot
 import dev.bongballe.parkbuddy.model.ReminderMinutes
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesIntoMap
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metrox.viewmodel.ViewModelKey
+import kotlin.time.Clock
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -37,44 +43,64 @@ class MapViewModel(
   private val analyticsTracker: AnalyticsTracker,
 ) : ViewModel() {
 
+  data class ParkedState(
+    val parkedLocation: ParkedLocation,
+    val spot: ParkingSpot,
+    val restrictionState: ParkingRestrictionState,
+    val reminders: List<ReminderMinutes>,
+  )
+
   data class State(
     val spots: List<ParkingSpot>,
     val permitSpots: List<ParkingSpot>,
-    val parkedLocation: Triple<ParkedLocation, ParkingSpot, List<ReminderMinutes>>?,
+    val parkedState: ParkedState?,
     val shouldShowParkedLocationBottomSheet: Boolean,
   )
 
   private val shouldShowParkedLocationBottomSheet: MutableStateFlow<Boolean> =
     MutableStateFlow(false)
 
+  private val parkedStateFlow: Flow<ParkedState?> =
+    preferencesRepository.parkedLocation.flatMapLatest { parkedLocation ->
+      if (parkedLocation == null) {
+        flowOf(null)
+      } else {
+        combine(
+          repository.getAllSpots(),
+          repository.getUserPermitZone(),
+          reminderRepository.getReminders(),
+          tickerFlow(), // constantly evaluate the current restrictions.
+        ) { spots, userPermitZone, reminders, now ->
+          val spot =
+            spots.firstOrNull { it.objectId == parkedLocation.spotId } ?: return@combine null
+          val restrictionState =
+            ParkingRestrictionEvaluator.evaluate(
+              spot = spot,
+              userPermitZone = userPermitZone,
+              parkedAt = parkedLocation.parkedAt,
+              currentTime = now,
+            )
+          ParkedState(parkedLocation, spot, restrictionState, reminders.sortedDescending())
+        }
+      }
+    }
+
   val stateFlow: StateFlow<State> =
     combine(
-        flow = repository.getAllSpots(),
-        flow2 =
-          repository.getUserPermitZone().flatMapLatest { zone ->
-            if (zone == null) flowOf(emptyList()) else repository.getSpotsByZone(zone)
-          },
-        flow3 = preferencesRepository.parkedLocation,
-        flow4 = reminderRepository.getReminders(),
-        flow5 = shouldShowParkedLocationBottomSheet,
-        transform = {
-          parkingSpots,
-          permitSpots,
-          parkedLocation,
-          reminder,
-          shouldShowParkedLocationBottomSheet ->
-          State(
-            spots = parkingSpots,
-            permitSpots = permitSpots,
-            parkedLocation =
-              parkedLocation?.let {
-                val spot = parkingSpots.firstOrNull { it.objectId == parkedLocation.spotId }
-                spot?.let { Triple(parkedLocation, it, reminder.sortedDescending()) }
-              },
-            shouldShowParkedLocationBottomSheet = shouldShowParkedLocationBottomSheet,
-          )
+        repository.getAllSpots(),
+        repository.getUserPermitZone().flatMapLatest { zone ->
+          if (zone == null) flowOf(emptyList()) else repository.getSpotsByZone(zone)
         },
-      )
+        parkedStateFlow,
+        shouldShowParkedLocationBottomSheet,
+      ) { parkingSpots, permitSpots, parkedState, shouldShowSheet ->
+        State(
+          spots = parkingSpots,
+          permitSpots = permitSpots,
+          parkedState = parkedState,
+          shouldShowParkedLocationBottomSheet = shouldShowSheet,
+        )
+      }
       .stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
@@ -82,7 +108,7 @@ class MapViewModel(
           State(
             spots = emptyList(),
             permitSpots = emptyList(),
-            parkedLocation = null,
+            parkedState = null,
             shouldShowParkedLocationBottomSheet = false,
           ),
       )
@@ -116,5 +142,12 @@ class MapViewModel(
   fun reportWrongLocation() {
     analyticsTracker.logEvent("report_wrong_location")
     clearParkedLocation()
+  }
+}
+
+private fun tickerFlow(periodMs: Long = 30_000L): Flow<kotlin.time.Instant> = flow {
+  while (true) {
+    emit(Clock.System.now())
+    delay(periodMs)
   }
 }

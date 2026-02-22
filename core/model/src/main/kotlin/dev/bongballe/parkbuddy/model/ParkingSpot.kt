@@ -12,9 +12,13 @@ import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
 
 /**
- * Structured enforcement rules for a parking spot.
+ * Time-limited parking restriction with enforcement window.
+ *
+ * Represents the rule: "during [days] from [startTime] to [endTime], you may park for
+ * at most [limitHours] hours." If this is null on a [ParkingSpot], there is no time limit.
  */
-data class EnforcementSchedule(
+data class TimedRestriction(
+  val limitHours: Int,
   val days: Set<DayOfWeek>,
   val startTime: LocalTime?,
   val endTime: LocalTime?
@@ -49,8 +53,7 @@ data class EnforcementSchedule(
  * @property neighborhood Neighborhood or district name
  * @property regulation Type of parking allowed (time-limited, permit, etc.)
  * @property rppArea Residential Parking Permit zone identifier, null if not in a permit zone
- * @property timeLimitHours Maximum parking duration in hours, null if unlimited
- * @property enforcementSchedule Structured enforcement rules
+ * @property timedRestriction Time limit and enforcement window, null if no time limit
  * @property sweepingCnn Street segment identifier used for matching sweeping schedules
  * @property sweepingSide Which side of the street (LEFT/RIGHT) this spot is on
  * @property sweepingSchedules All street cleaning schedules for this side of the street.
@@ -63,12 +66,16 @@ data class ParkingSpot(
   val neighborhood: String?,
   val regulation: ParkingRegulation,
   val rppArea: String?,
-  val timeLimitHours: Int?,
-  val enforcementSchedule: EnforcementSchedule,
+  val timedRestriction: TimedRestriction?,
   val sweepingCnn: String?,
   val sweepingSide: StreetSide?,
   val sweepingSchedules: List<SweepingSchedule>,
-)
+) {
+  fun nextCleaning(
+    now: Instant,
+    zone: TimeZone = TimeZone.currentSystemDefault(),
+  ): Instant? = sweepingSchedules.mapNotNull { it.nextOccurrence(now, zone) }.minOrNull()
+}
 
 /**
  * Represents a street sweeping schedule for a specific day of the week.

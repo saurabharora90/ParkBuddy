@@ -2,7 +2,6 @@ package dev.bongballe.parkbuddy.data.repository
 
 import com.google.common.truth.Truth.assertThat
 import dev.bongballe.parkbuddy.model.Location
-import dev.bongballe.parkbuddy.model.ParkingType
 import dev.bongballe.parkbuddy.testing.FakeAnalyticsTracker
 import dev.bongballe.parkbuddy.testing.FakeLocationRepository
 import dev.bongballe.parkbuddy.testing.FakeParkingRepository
@@ -71,10 +70,9 @@ class ParkingManagerTest {
     context.parkingRepository.setSpots(listOf(spot))
 
     context.parkingManager.processParkingEvent()
-    
+
     val parkedLocation = context.preferencesRepository.parkedLocation.value
     assertThat(parkedLocation?.spotId).isEqualTo("1")
-    assertThat(parkedLocation?.parkingType).isEqualTo(ParkingType.PERMIT)
     assertThat(context.reminderRepository.scheduledSpot).isEqualTo(spot)
     assertThat(context.reminderRepository.lastShowNotificationValue).isTrue()
   }
@@ -95,10 +93,9 @@ class ParkingManagerTest {
     context.parkingRepository.setSpots(listOf(spot))
 
     context.parkingManager.processParkingEvent()
-    
+
     val parkedLocation = context.preferencesRepository.parkedLocation.value
     assertThat(parkedLocation?.spotId).isEqualTo("1")
-    assertThat(parkedLocation?.parkingType).isEqualTo(ParkingType.TIMED)
     assertThat(context.reminderRepository.scheduledSpot).isEqualTo(spot)
   }
 
@@ -114,14 +111,13 @@ class ParkingManagerTest {
       zone = "A",
       lat = spotLocation.latitude,
       lng = spotLocation.longitude,
-    ).copy(timeLimitHours = 2)
+    )
     context.parkingRepository.setSpots(listOf(spot))
 
     context.parkingManager.processParkingEvent()
-    
+
     val parkedLocation = context.preferencesRepository.parkedLocation.value
     assertThat(parkedLocation?.spotId).isEqualTo("1")
-    assertThat(parkedLocation?.parkingType).isEqualTo(ParkingType.TIMED)
   }
 
   @Test
@@ -136,14 +132,14 @@ class ParkingManagerTest {
       zone = null,
       lat = spotLocation.latitude,
       lng = spotLocation.longitude,
-    ).copy(timeLimitHours = null)
+      timedRestriction = null,
+    )
     context.parkingRepository.setSpots(listOf(spot))
 
     context.parkingManager.processParkingEvent()
-    
+
     val parkedLocation = context.preferencesRepository.parkedLocation.value
     assertThat(parkedLocation?.spotId).isEqualTo("1")
-    assertThat(parkedLocation?.parkingType).isEqualTo(ParkingType.UNRESTRICTED)
   }
 
   @Test

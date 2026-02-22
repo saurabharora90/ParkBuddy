@@ -6,9 +6,9 @@ import androidx.datastore.preferences.core.edit
 import androidx.test.core.app.ApplicationProvider
 import com.google.common.truth.Truth.assertThat
 import dev.bongballe.parkbuddy.model.ParkedLocation
-import dev.bongballe.parkbuddy.model.ParkingType
 import dev.bongballe.parkbuddy.model.ReminderMinutes
 import dev.bongballe.parkbuddy.model.SweepingSchedule
+import dev.bongballe.parkbuddy.model.TimedRestriction
 import dev.bongballe.parkbuddy.model.Weekday
 import dev.bongballe.parkbuddy.testing.FakeParkingRepository
 import dev.bongballe.parkbuddy.testing.FakePreferencesRepository
@@ -63,14 +63,13 @@ class ReminderRepositoryImplTest {
     val now = Clock.System.now()
     context.clock.instant = now
 
-    // Set up timed parking
-    val spot = createTestSpot(id = "1").copy(timeLimitHours = 2)
+    // Set up timed parking (default createTestSpot has a 2-hour timedRestriction)
+    val spot = createTestSpot(id = "1")
     val parkedLocation =
       ParkedLocation(
         spotId = "1",
         location = dev.bongballe.parkbuddy.model.Location(0.0, 0.0),
         parkedAt = now,
-        parkingType = ParkingType.TIMED,
       )
     context.preferencesRepository.setParkedLocation(parkedLocation)
 
@@ -97,18 +96,28 @@ class ReminderRepositoryImplTest {
     // Set up timed parking with 8am-6pm enforcement
     val spot =
       createTestSpot(
-          id = "1",
-          startTime = kotlinx.datetime.LocalTime(8, 0),
-          endTime = kotlinx.datetime.LocalTime(18, 0),
-        )
-        .copy(timeLimitHours = 2)
+        id = "1",
+        timedRestriction =
+          TimedRestriction(
+            limitHours = 2,
+            days =
+              setOf(
+                DayOfWeek.MONDAY,
+                DayOfWeek.TUESDAY,
+                DayOfWeek.WEDNESDAY,
+                DayOfWeek.THURSDAY,
+                DayOfWeek.FRIDAY,
+              ),
+            startTime = kotlinx.datetime.LocalTime(8, 0),
+            endTime = kotlinx.datetime.LocalTime(18, 0),
+          ),
+      )
 
     val parkedLocation =
       ParkedLocation(
         spotId = "1",
         location = dev.bongballe.parkbuddy.model.Location(0.0, 0.0),
         parkedAt = now,
-        parkingType = ParkingType.TIMED,
       )
     context.preferencesRepository.setParkedLocation(parkedLocation)
 
@@ -139,7 +148,6 @@ class ReminderRepositoryImplTest {
         spotId = "1",
         location = dev.bongballe.parkbuddy.model.Location(0.0, 0.0),
         parkedAt = now,
-        parkingType = ParkingType.UNRESTRICTED,
       )
     context.preferencesRepository.setParkedLocation(parkedLocation)
 
@@ -179,7 +187,6 @@ class ReminderRepositoryImplTest {
         spotId = "1",
         location = dev.bongballe.parkbuddy.model.Location(0.0, 0.0),
         parkedAt = context.clock.now(),
-        parkingType = ParkingType.UNRESTRICTED,
       )
     context.preferencesRepository.setParkedLocation(parkedLocation)
 
@@ -201,7 +208,6 @@ class ReminderRepositoryImplTest {
         spotId = "1",
         location = dev.bongballe.parkbuddy.model.Location(0.0, 0.0),
         parkedAt = now,
-        parkingType = ParkingType.UNRESTRICTED,
       )
     context.preferencesRepository.setParkedLocation(parkedLocation)
 

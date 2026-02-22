@@ -51,7 +51,11 @@ internal fun SpotDetailContent(
   modifier: Modifier = Modifier,
 ) {
   Column(
-    modifier = modifier.background(MaterialTheme.colorScheme.background).padding(16.dp),
+    modifier =
+      modifier
+        .background(MaterialTheme.colorScheme.background)
+        .padding(bottom = 16.dp)
+        .padding(horizontal = 16.dp),
     verticalArrangement = Arrangement.spacedBy(24.dp),
   ) {
     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -128,7 +132,7 @@ internal fun SpotDetailContent(
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
           )
-          spot.timeLimitHours?.let { timeLimitHours ->
+          spot.timedRestriction?.let { restriction ->
             Row(
               verticalAlignment = Alignment.CenterVertically,
               horizontalArrangement = Arrangement.spacedBy(16.dp),
@@ -140,20 +144,20 @@ internal fun SpotDetailContent(
               )
 
               val annotatedString = buildAnnotatedString {
-                append("Max $timeLimitHours hrs:")
+                append("Max ${restriction.limitHours} hrs:")
                 withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
                   append(
                     "${
-                      spot.enforcementSchedule.days.joinToString(
+                      restriction.days.joinToString(
                         prefix = " ",
                         transform = { it.name.substring(0, 3) },
                       )
                     },  ${
-                      spot.enforcementSchedule.startTime?.hour?.let {
+                      restriction.startTime?.hour?.let {
                         DateTimeUtils.formatHour(it)
                       }
                     }-${
-                      spot.enforcementSchedule.endTime?.hour?.let {
+                      restriction.endTime?.hour?.let {
                         DateTimeUtils.formatHour(it)
                       }
                     }"
@@ -226,9 +230,9 @@ internal val spot =
     neighborhood = "Downtown",
     regulation = ParkingRegulation.TIME_LIMITED,
     rppArea = "A",
-    timeLimitHours = 2,
-    enforcementSchedule =
-      dev.bongballe.parkbuddy.model.EnforcementSchedule(
+    timedRestriction =
+      dev.bongballe.parkbuddy.model.TimedRestriction(
+        limitHours = 2,
         days =
           setOf(
             kotlinx.datetime.DayOfWeek.MONDAY,
