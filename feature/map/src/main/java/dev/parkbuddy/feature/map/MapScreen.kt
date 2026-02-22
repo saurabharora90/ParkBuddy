@@ -55,7 +55,7 @@ fun MapScreen(modifier: Modifier = Modifier, viewModel: MapViewModel = metroView
   val state by viewModel.stateFlow.collectAsState()
   val spots = state.spots
   val permitSpots = state.permitSpots
-  val parkedLocation = state.parkedLocation
+  val parkedState = state.parkedState
 
   val permitSpotIds = remember(permitSpots) { permitSpots.map { it.objectId }.toSet() }
 
@@ -143,11 +143,12 @@ fun MapScreen(modifier: Modifier = Modifier, viewModel: MapViewModel = metroView
         }
       }
 
-      parkedLocation?.let { (parkedLocation, _) ->
+      parkedState?.let { ps ->
         Marker(
           state =
             MarkerState(
-              position = LatLng(parkedLocation.location.latitude, parkedLocation.location.longitude)
+              position =
+                LatLng(ps.parkedLocation.location.latitude, ps.parkedLocation.location.longitude)
             ),
           title = "Your Car",
           icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ROSE),
@@ -179,15 +180,16 @@ fun MapScreen(modifier: Modifier = Modifier, viewModel: MapViewModel = metroView
     var isShowingConfirmCarMovedPrompt by remember { mutableStateOf(false) }
     var isShowingClearParkedLocationPrompt by remember { mutableStateOf(false) }
 
-    if (state.shouldShowParkedLocationBottomSheet) {
+    if (state.shouldShowParkedLocationBottomSheet && parkedState != null) {
       ModalBottomSheet(
         onDismissRequest = { viewModel.dismissParkedLocationBottomSheet() },
         sheetState = sheetState,
         containerColor = MaterialTheme.colorScheme.background,
       ) {
         ParkedSpotDetailContent(
-          spot = state.parkedLocation!!.second,
-          reminders = state.parkedLocation!!.third,
+          spot = parkedState.spot,
+          restrictionState = parkedState.restrictionState,
+          reminders = parkedState.reminders,
           onMovedCar = { isShowingConfirmCarMovedPrompt = true },
           onEndSession = { isShowingClearParkedLocationPrompt = true },
         )

@@ -84,16 +84,10 @@ class ReminderRepositoryImpl(
     var alarmIndex = 0
 
     // 1. Schedule Cleaning Reminders (applies to all states)
-    val nextCleaning =
-      when (state) {
-        is ParkingRestrictionState.ActiveTimed -> state.nextCleaning
-        is ParkingRestrictionState.PendingTimed -> state.nextCleaning
-        is ParkingRestrictionState.PermitSafe -> state.nextCleaning
-        is ParkingRestrictionState.Unrestricted -> state.nextCleaning
-      }
+    val nextCleaning = state.nextCleaning
 
     if (nextCleaning != null) {
-      val schedule = spot.sweepingSchedules.firstOrNull { it.nextOccurrence(now) == nextCleaning }
+      val schedule = spot.sweepingSchedules.sortedBy { it.nextOccurrence(now) }.firstOrNull()
 
       if (schedule != null) {
         val cleaningStartTime = DateTimeUtils.formatHour(schedule.fromHour)
@@ -237,13 +231,7 @@ class ReminderRepositoryImpl(
     val now = clock.now()
     val zone = TimeZone.currentSystemDefault()
 
-    val nextCleaning =
-      when (state) {
-        is ParkingRestrictionState.ActiveTimed -> state.nextCleaning
-        is ParkingRestrictionState.PendingTimed -> state.nextCleaning
-        is ParkingRestrictionState.PermitSafe -> state.nextCleaning
-        is ParkingRestrictionState.Unrestricted -> state.nextCleaning
-      }
+    val nextCleaning = state.nextCleaning
 
     val nextCleaningText =
       nextCleaning?.let { formattedCleaningText(nextCleaning, now, zone) }
