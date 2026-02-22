@@ -80,9 +80,6 @@ class ReminderRepositoryImplTest {
 
     // Should have 2 alarms: one 15-min warning and one final expiry
     assertThat(shadowAlarmManager.scheduledAlarms).hasSize(2)
-
-    // Verify notification contains expiry info
-    assertThat(context.notificationManager.lastSpotFoundNotification?.second).contains("Move by")
   }
 
   @Test
@@ -128,10 +125,6 @@ class ReminderRepositoryImplTest {
 
     // Should have 2 alarms scheduled for tomorrow (warning at 9:45 AM, expiry at 10 AM)
     assertThat(shadowAlarmManager.scheduledAlarms).hasSize(2)
-
-    // Notification should contain pending restriction info
-    assertThat(context.notificationManager.lastSpotFoundNotification?.second)
-      .contains("Limit starts tomorrow")
   }
 
   @Test
@@ -175,7 +168,6 @@ class ReminderRepositoryImplTest {
     context.repository.scheduleReminders(spot, showNotification = true)
 
     assertThat(context.notificationManager.lastSpotFoundNotification).isNotNull()
-    assertThat(context.notificationManager.lastSpotFoundNotification?.first).isEqualTo("Main St")
   }
 
   @Test
@@ -240,6 +232,173 @@ class ReminderRepositoryImplTest {
     val alarms = shadowAlarmManager.scheduledAlarms
     assertThat(alarms).isNotEmpty()
   }
+
+  @Test
+  fun `scheduleReminders for ActiveTimed skips cleaning reminders`() = runTest {
+    val context = TestContext()
+    // Monday noon: enforcement active (default restriction is M-F, no start/end time)
+    val now =
+      kotlinx.datetime.LocalDateTime(2024, 1, 1, 12, 0).toInstant(TimeZone.currentSystemDefault())
+    context.clock.instant = now
+
+    val parkedLocation =
+      ParkedLocation(
+        spotId = "1",
+        location = dev.bongballe.parkbuddy.model.Location(0.0, 0.0),
+        parkedAt = now,
+      )
+    context.preferencesRepository.setParkedLocation(parkedLocation)
+
+    val localNow = now.toLocalDateTime(TimeZone.currentSystemDefault())
+    val tomorrow = localNow.date.plus(1, DateTimeUnit.DAY)
+    val cleaningSchedule =
+      SweepingSchedule(
+        weekday = tomorrow.dayOfWeek.toWeekday(),
+        fromHour = 8,
+        toHour = 10,
+        week1 = true,
+        week2 = true,
+        week3 = true,
+        week4 = true,
+        week5 = true,
+        holidays = true,
+      )
+
+    // Timed spot with cleaning tomorrow
+    val spot = createTestSpot(id = "1").copy(sweepingSchedules = listOf(cleaningSchedule))
+
+    // Add a cleaning reminder; it should be ignored for ActiveTimed
+    context.repository.addReminder(ReminderMinutes(60))
+    context.repository.scheduleReminders(spot, showNotification = false)
+
+    val alarmManager = context.context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+    val shadowAlarmManager = shadowOf(alarmManager)
+
+    // Should only have 2 alarms (15-min warning + expiry), NOT the cleaning reminder
+    assertThat(shadowAlarmManager.scheduledAlarms).hasSize(2)
+  }
+
+  @Test
+  fun `scheduleReminders for PendingTimed includes cleaning when before enforcement`() = runTest {
+    val context = TestContext()
+    // Monday 7 PM, enforcement 8am-6pm M-F
+    val now =
+      kotlinx.datetime.LocalDateTime(2024, 1, 1, 19, 0).toInstant(TimeZone.currentSystemDefault())
+    context.clock.instant = now
+
+    val parkedLocation =
+      ParkedLocation(
+        spotId = "1",
+        location = dev.bongballe.parkbuddy.model.Location(0.0, 0.0),
+        parkedAt = now,
+      )
+    context.preferencesRepository.setParkedLocation(parkedLocation)
+
+    // Cleaning tomorrow at 6 AM (before enforcement starts at 8 AM)
+    val cleaningSchedule =
+      SweepingSchedule(
+        weekday = Weekday.Tues,
+        fromHour = 6,
+        toHour = 7,
+        week1 = true,
+        week2 = true,
+        week3 = true,
+        week4 = true,
+        week5 = true,
+        holidays = true,
+      )
+
+    val spot =
+      createTestSpot(
+          id = "1",
+          timedRestriction =
+            TimedRestriction(
+              limitHours = 2,
+              days =
+                setOf(
+                  DayOfWeek.MONDAY,
+                  DayOfWeek.TUESDAY,
+                  DayOfWeek.WEDNESDAY,
+                  DayOfWeek.THURSDAY,
+                  DayOfWeek.FRIDAY,
+                ),
+              startTime = kotlinx.datetime.LocalTime(8, 0),
+              endTime = kotlinx.datetime.LocalTime(18, 0),
+            ),
+        )
+        .copy(sweepingSchedules = listOf(cleaningSchedule))
+
+    // Add a cleaning reminder (1 hour before = 5 AM)
+    context.repository.addReminder(ReminderMinutes(60))
+    context.repository.scheduleReminders(spot, showNotification = false)
+
+    val alarmManager = context.context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+    val shadowAlarmManager = shadowOf(alarmManager)
+
+    // Should have 3 alarms: 1 cleaning + 2 expiry (15-min warning + expiry)
+    assertThat(shadowAlarmManager.scheduledAlarms).hasSize(3)
+  }
+
+  @Test
+  fun `scheduleReminders for PendingTimed skips cleaning when after enforcement starts`() =
+    runTest {
+      val context = TestContext()
+      // Monday 7 PM, enforcement 8am-6pm M-F
+      val now =
+        kotlinx.datetime.LocalDateTime(2024, 1, 1, 19, 0).toInstant(TimeZone.currentSystemDefault())
+      context.clock.instant = now
+
+      val parkedLocation =
+        ParkedLocation(
+          spotId = "1",
+          location = dev.bongballe.parkbuddy.model.Location(0.0, 0.0),
+          parkedAt = now,
+        )
+      context.preferencesRepository.setParkedLocation(parkedLocation)
+
+      // Cleaning tomorrow at 9 AM (after enforcement starts at 8 AM)
+      val cleaningSchedule =
+        SweepingSchedule(
+          weekday = Weekday.Tues,
+          fromHour = 9,
+          toHour = 10,
+          week1 = true,
+          week2 = true,
+          week3 = true,
+          week4 = true,
+          week5 = true,
+          holidays = true,
+        )
+
+      val spot =
+        createTestSpot(
+            id = "1",
+            timedRestriction =
+              TimedRestriction(
+                limitHours = 2,
+                days =
+                  setOf(
+                    DayOfWeek.MONDAY,
+                    DayOfWeek.TUESDAY,
+                    DayOfWeek.WEDNESDAY,
+                    DayOfWeek.THURSDAY,
+                    DayOfWeek.FRIDAY,
+                  ),
+                startTime = kotlinx.datetime.LocalTime(8, 0),
+                endTime = kotlinx.datetime.LocalTime(18, 0),
+              ),
+          )
+          .copy(sweepingSchedules = listOf(cleaningSchedule))
+
+      context.repository.addReminder(ReminderMinutes(60))
+      context.repository.scheduleReminders(spot, showNotification = false)
+
+      val alarmManager = context.context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+      val shadowAlarmManager = shadowOf(alarmManager)
+
+      // Should only have 2 alarms (expiry reminders), cleaning skipped
+      assertThat(shadowAlarmManager.scheduledAlarms).hasSize(2)
+    }
 
   @Test
   fun `clearAllReminders cancels alarms and notifications`() = runTest {

@@ -42,17 +42,13 @@ class ReminderNotificationManagerImpl(private val context: Context) : ReminderNo
     }
   }
 
-  override fun showSpotFoundNotification(
-    locationName: String,
-    nextCleaningText: String,
-    bigText: String,
-  ) {
+  override fun showSpotFoundNotification(title: String, contentText: String, bigText: String) {
     createNotificationChannel()
     val notification =
       NotificationCompat.Builder(context, CHANNEL_ID)
         .setSmallIcon(dev.bongballe.parkbuddy.theme.R.drawable.ic_parkbuddy_logo)
-        .setContentTitle("Parked on $locationName")
-        .setContentText("Next cleaning: $nextCleaningText")
+        .setContentTitle(title)
+        .setContentText(contentText)
         .setStyle(NotificationCompat.BigTextStyle().bigText(bigText))
         .setPriority(NotificationCompat.PRIORITY_DEFAULT)
         .setContentIntent(contentIntent)

@@ -9,11 +9,11 @@ class FakeReminderNotificationManager : ReminderNotificationManager {
   var cancelAllCalled = false
 
   override fun showSpotFoundNotification(
-    locationName: String,
-    nextCleaningText: String,
+    title: String,
+    contentText: String,
     bigText: String
   ) {
-    lastSpotFoundNotification = Triple(locationName, nextCleaningText, bigText)
+    lastSpotFoundNotification = Triple(title, contentText, bigText)
   }
 
   override fun sendLocationFailureNotification() {
