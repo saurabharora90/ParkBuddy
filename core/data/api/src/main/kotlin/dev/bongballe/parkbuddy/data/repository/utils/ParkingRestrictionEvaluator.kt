@@ -5,6 +5,7 @@ import dev.bongballe.parkbuddy.model.ParkingSpot
 import dev.bongballe.parkbuddy.model.TimedRestriction
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.hours
+import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDateTime
@@ -36,22 +37,56 @@ object ParkingRestrictionEvaluator {
       ?: return ParkingRestrictionState.Unrestricted(nextCleaning)
 
     // 4. Evaluate timed restriction
-    val effectiveStart = calculateEffectiveStart(parkedAt, restriction, zone)
-    val expiry = effectiveStart?.plus(restriction.limitHours.hours)
+    //
+    // Find the enforcement window where the time limit can actually be violated.
+    // If the remaining time in the current window is shorter than the limit,
+    // the user can't exceed it, so skip to the next full window.
+    //
+    //   Example: 2hr limit, enforcement 8am-10pm. Park at 9:45 PM.
+    //   Remaining today = 15 min < 2hr, so skip to tomorrow 8 AM.
+    //   Result: PendingTimed(startsAt=tomorrow 8AM, expiry=tomorrow 10AM)
+    val effectiveStart = findEnforceableWindow(parkedAt, restriction, zone)
+      ?: return ParkingRestrictionState.Unrestricted(nextCleaning)
+    val expiry = effectiveStart.plus(restriction.limitHours.hours)
 
     return when {
-      effectiveStart == null -> ParkingRestrictionState.Unrestricted(nextCleaning)
       effectiveStart > currentTime -> ParkingRestrictionState.PendingTimed(
         startsAt = effectiveStart,
-        expiry = expiry!!,
+        expiry = expiry,
         nextCleaning = nextCleaning,
       )
 
       else -> ParkingRestrictionState.ActiveTimed(
-        expiry = expiry!!,
+        expiry = expiry,
         nextCleaning = nextCleaning,
       )
     }
+  }
+
+  /**
+   * Finds the first enforcement window where the user could actually violate
+   * the time limit. If parked during a window but the remaining time in that
+   * window is less than the limit, it's impossible to exceed it, so we skip
+   * to the next full window.
+   */
+  private fun findEnforceableWindow(
+    parkedAt: Instant,
+    restriction: TimedRestriction,
+    zone: TimeZone
+  ): Instant? {
+    val effectiveStart = calculateEffectiveStart(parkedAt, restriction, zone) ?: return null
+
+    val endTime = restriction.endTime ?: return effectiveStart
+
+    val startDate = effectiveStart.toLocalDateTime(zone).date
+    val enforcementEnd = LocalDateTime(startDate, endTime).toInstant(zone)
+    val remainingInWindow = enforcementEnd - effectiveStart
+
+    if (remainingInWindow >= restriction.limitHours.hours) return effectiveStart
+
+    // Not enough time left in this window. Find the next full window.
+    // Add 1s to move past the inclusive end boundary of isWithinWindow.
+    return calculateEffectiveStart(enforcementEnd + 1.seconds, restriction, zone)
   }
 
   private fun calculateEffectiveStart(
