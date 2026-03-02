@@ -8,6 +8,12 @@ import kotlin.time.Instant
 sealed class ParkingRestrictionState {
   abstract val nextCleaning: Instant?
 
+  /** Street cleaning is currently in progress */
+  data class CleaningActive(
+    val cleaningEnd: Instant,
+    override val nextCleaning: Instant?
+  ) : ParkingRestrictionState()
+
   /** No restrictions apply (except maybe street cleaning) */
   data class Unrestricted(override val nextCleaning: Instant?) : ParkingRestrictionState()
 

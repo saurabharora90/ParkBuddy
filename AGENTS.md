@@ -5,23 +5,26 @@ understanding the codebase, architecture, and conventions.
 
 ## Domain Knowledge & Core Features
 
-**Park Buddy** helps drivers avoid street cleaning tickets. The architecture is **city-agnostic**
-with San Francisco as the initial implementation.
+**Park Buddy** helps drivers avoid street cleaning tickets and parking fines. The architecture
+is **city-agnostic** with San Francisco as the initial implementation.
 
 * **Data Source**: City open data APIs (currently SF Open Data).
     * Data includes parking spots (`geometry`), sweeping schedules (`weekday`, `fromHour`,
       `toHour`), and week flags (`week1`-`week5`, `holidays`).
+    * Parking regulations also include **Timed Restrictions** (e.g., "2-hour limit M-F 8am-6pm").
     * Parking regulations are matched to sweeping schedules via coordinate proximity (
       `CoordinateMatcher`).
 * **Parking Detection**:
     * Triggered by **Bluetooth Disconnection** from a user-selected device (Car Audio).
     * Implemented in `BluetoothConnectionReceiver` using `goAsync` for immediate execution.
-    * Fetches high-accuracy location and matches it against the user's **Permit Zone** (< 30m
+    * Fetches high-accuracy location and matches it against the nearest **Parking Spot**.
       distance).
 * **Reminders**:
-    * Users "watch" streets by selecting an RPP (Residential Parking Permit) zone.
+    * Users "watch" streets by selecting an RPP (Residential Parking Permit) zone or by simply parking.
     * Users configure reminder offsets (e.g., "24 hours before").
-    * Alarms are scheduled via `AlarmManager` (Exact Alarms) based on the next valid cleaning time.
+    * Alarms are scheduled via `AlarmManager` (Exact Alarms) for:
+        1. **Street Cleaning**: Before the next valid cleaning time.
+        2. **Time Limits**: Before the current `ActiveTimed` restriction expires.
     * **Logic**: Handles 24h time formats, week specificity, and holidays (`HolidayUtils`).
 
 ## Architecture

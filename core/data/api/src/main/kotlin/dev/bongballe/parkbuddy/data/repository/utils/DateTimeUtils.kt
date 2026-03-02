@@ -21,7 +21,21 @@ fun SweepingSchedule.formatSchedule(): String {
   val dayName = weekday.name
   val fromTime = formatHour(fromHour)
   val toTime = formatHour(toHour)
-  return "$dayName, $fromTime - $toTime"
+
+  val activeWeeks = mutableListOf<Int>()
+  if (week1) activeWeeks.add(1)
+  if (week2) activeWeeks.add(2)
+  if (week3) activeWeeks.add(3)
+  if (week4) activeWeeks.add(4)
+  if (week5) activeWeeks.add(5)
+
+  val weekSuffix = if (activeWeeks.size == 5) {
+    ""
+  } else {
+    " (Weeks ${activeWeeks.joinToString(", ")})"
+  }
+
+  return "$dayName$weekSuffix, $fromTime - $toTime"
 }
 
 fun SweepingSchedule.formatWithDate(

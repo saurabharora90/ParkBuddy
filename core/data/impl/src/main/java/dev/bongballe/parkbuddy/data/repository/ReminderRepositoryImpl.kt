@@ -84,6 +84,11 @@ class ReminderRepositoryImpl(
     var alarmIndex = 0
 
     when (state) {
+      is ParkingRestrictionState.CleaningActive -> {
+        // Cleaning in progress. No reminders to schedule since the user should move immediately.
+        // We'll show the notification with the warning.
+      }
+
       is ParkingRestrictionState.ActiveTimed -> {
         // Time limit is running. User must move before expiry, so only expiry reminders.
         alarmIndex =
@@ -311,6 +316,12 @@ class ReminderRepositoryImpl(
 
     val (contentText, bigText) =
       when (state) {
+        is ParkingRestrictionState.CleaningActive -> {
+          val cleaningEndText = formatTime(state.cleaningEnd, zone)
+          "⚠️ STREET CLEANING IN PROGRESS!" to
+            "⚠️ STREET CLEANING IN PROGRESS!\nEnds at $cleaningEndText. MOVE YOUR CAR NOW!"
+        }
+
         is ParkingRestrictionState.ActiveTimed -> {
           val expiryText = "Move by ${formatTime(state.expiry, zone)}"
           expiryText to "$expiryText\n\n$reminderLines"
@@ -361,6 +372,7 @@ class ReminderRepositoryImpl(
   ): String {
     val suffix =
       when (state) {
+        is ParkingRestrictionState.CleaningActive -> " ⚠️ NO PARKING"
         is ParkingRestrictionState.PermitSafe -> " (Permit zone)"
         is ParkingRestrictionState.ActiveTimed,
         is ParkingRestrictionState.PendingTimed -> {
