@@ -24,8 +24,18 @@ object ParkingRestrictionEvaluator {
     currentTime: Instant = Clock.System.now(),
     zone: TimeZone = TimeZone.currentSystemDefault()
   ): ParkingRestrictionState {
-    // 1. Determine next cleaning
+    // 1. Check if street cleaning is currently active
+    val activeCleaning = spot.sweepingSchedules.firstOrNull { it.isWithinWindow(currentTime, zone) }
     val nextCleaning = spot.nextCleaning(currentTime, zone)
+
+    if (activeCleaning != null) {
+      val today = currentTime.toLocalDateTime(zone).date
+      val cleaningEnd = LocalDateTime(today, LocalTime(activeCleaning.toHour, 0)).toInstant(zone)
+      return ParkingRestrictionState.CleaningActive(
+        cleaningEnd = cleaningEnd,
+        nextCleaning = nextCleaning
+      )
+    }
 
     // 2. Check if user has permit
     if (spot.rppArea != null && spot.rppArea == userPermitZone) {

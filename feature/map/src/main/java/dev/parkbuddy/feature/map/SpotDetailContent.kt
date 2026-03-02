@@ -182,6 +182,8 @@ internal fun SpotDetailContent(
 private fun NoParkingInfo(schedule: SweepingSchedule) {
   val now = Clock.System.now()
   val nextCleaning = schedule.nextOccurrence(now)
+  val isActive = schedule.isWithinWindow(now)
+
   Row(
     verticalAlignment = Alignment.CenterVertically,
     horizontalArrangement = Arrangement.spacedBy(16.dp),
@@ -204,16 +206,27 @@ private fun NoParkingInfo(schedule: SweepingSchedule) {
           modifier = Modifier.background(Terracotta.copy(alpha = 0.2f)).padding(2.dp),
         )
 
-        nextCleaning?.let { nextTime ->
-          val duration = nextTime - now
-          val hoursUntil = duration.inWholeHours
-          val timeUntilText =
-            when {
-              hoursUntil < 1 -> "in ${duration.inWholeMinutes} min"
-              hoursUntil < 24 -> "in $hoursUntil hrs"
-              else -> "in ${hoursUntil / 24} days"
-            }
-          Text(text = " • $timeUntilText", style = MaterialTheme.typography.bodyMedium)
+        if (isActive) {
+          Text(
+            text = " • IN PROGRESS",
+            style =
+              MaterialTheme.typography.bodyMedium.copy(
+                color = Terracotta,
+                fontWeight = FontWeight.Bold,
+              ),
+          )
+        } else {
+          nextCleaning?.let { nextTime ->
+            val duration = nextTime - now
+            val hoursUntil = duration.inWholeHours
+            val timeUntilText =
+              when {
+                hoursUntil < 1 -> "in ${duration.inWholeMinutes} min"
+                hoursUntil < 24 -> "in $hoursUntil hrs"
+                else -> "in ${hoursUntil / 24} days"
+              }
+            Text(text = " • $timeUntilText", style = MaterialTheme.typography.bodyMedium)
+          }
         }
       }
     }

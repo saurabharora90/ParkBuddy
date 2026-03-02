@@ -134,6 +134,9 @@ private fun Header(spot: ParkingSpot, restrictionState: ParkingRestrictionState,
 
     val statusText =
       when (restrictionState) {
+        is ParkingRestrictionState.CleaningActive -> {
+          "● STREET CLEANING IN PROGRESS"
+        }
         is ParkingRestrictionState.Unrestricted -> {
           restrictionState.nextCleaning?.let {
             val hours = (it - now).inWholeHours
@@ -160,6 +163,7 @@ private fun Header(spot: ParkingSpot, restrictionState: ParkingRestrictionState,
 
     val statusColor =
       when (restrictionState) {
+        is ParkingRestrictionState.CleaningActive -> Terracotta
         is ParkingRestrictionState.ActiveTimed -> {
           val remaining = restrictionState.expiry - now
           if (remaining.isNegative() || remaining.inWholeMinutes < 30) Terracotta
@@ -179,6 +183,14 @@ private fun PrimaryCountdown(
   now: Instant,
 ) {
   when (restrictionState) {
+    is ParkingRestrictionState.CleaningActive -> {
+      TimeLimitCountdownCard(
+        label = "Street Cleaning Ends",
+        targetTime = restrictionState.cleaningEnd,
+        now = now,
+        accentColor = Terracotta,
+      )
+    }
     is ParkingRestrictionState.ActiveTimed -> {
       TimeLimitCountdownCard(
         label = "Time Limit Expires",
@@ -377,6 +389,9 @@ private fun AlertsSection(
   now: Instant,
 ) {
   when (restrictionState) {
+    is ParkingRestrictionState.CleaningActive -> {
+      CleaningActiveAlertsSection(restrictionState.cleaningEnd, now)
+    }
     is ParkingRestrictionState.ActiveTimed,
     is ParkingRestrictionState.PendingTimed -> {
       TimeLimitAlertsSection(restrictionState, now)
@@ -385,6 +400,25 @@ private fun AlertsSection(
     is ParkingRestrictionState.PermitSafe -> {
       CleaningAlertsSection(reminders, restrictionState.nextCleaning, now)
     }
+  }
+}
+
+@Composable
+private fun CleaningActiveAlertsSection(cleaningEnd: Instant, now: Instant) {
+  Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Text(
+      text = "URGENT ALERTS",
+      style = MaterialTheme.typography.labelLarge,
+      color = Terracotta,
+      fontWeight = FontWeight.Bold,
+      letterSpacing = 0.5.sp,
+    )
+
+    AlertCard(
+      title = "MOVE YOUR CAR NOW",
+      subtitle = "Street cleaning is in progress!",
+      timeLabel = if (cleaningEnd > now) "ACTIVE" else "ENDED",
+    )
   }
 }
 
@@ -586,6 +620,24 @@ private fun AlertCard(title: String, subtitle: String, timeLabel: String) {
         fontWeight = FontWeight.Bold,
       )
     }
+  }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun ParkedSpotDetailContentCleaningActivePreview() {
+  ParkBuddyTheme {
+    ParkedSpotDetailContent(
+      spot = spot,
+      restrictionState =
+        ParkingRestrictionState.CleaningActive(
+          cleaningEnd = Clock.System.now() + 45.minutes,
+          nextCleaning = Clock.System.now() + (24 * 7).hours,
+        ),
+      reminders = emptyList(),
+      onMovedCar = {},
+      onEndSession = {},
+    )
   }
 }
 

@@ -117,18 +117,13 @@ data class SweepingSchedule(
     repeat(52 * 7) {
       if (candidate.dayOfWeek == targetDayOfWeek) {
         val weekOfMonth = getWeekOfMonth(candidate)
-        val isValidWeek = when (weekOfMonth) {
-          1 -> week1
-          2 -> week2
-          3 -> week3
-          4 -> week4
-          5 -> week5
-          else -> false
-        }
-        if (isValidWeek) {
+        if (isWeekActive(weekOfMonth)) {
           val cleaningStart = LocalDateTime(candidate, LocalTime(fromHour, 0))
             .toInstant(zone)
-          if (cleaningStart > now) {
+          val cleaningEnd = LocalDateTime(candidate, LocalTime(toHour, 0))
+            .toInstant(zone)
+
+          if (cleaningEnd > now) {
             return cleaningStart
           }
         }
@@ -136,6 +131,34 @@ data class SweepingSchedule(
       candidate = candidate.plus(1, DateTimeUnit.DAY)
     }
     return null
+  }
+
+  fun isWithinWindow(
+    time: Instant,
+    zone: TimeZone = TimeZone.currentSystemDefault(),
+  ): Boolean {
+    val targetDayOfWeek = weekday.toDayOfWeek() ?: return false
+    val localDateTime = time.toLocalDateTime(zone)
+
+    if (localDateTime.dayOfWeek != targetDayOfWeek) return false
+    if (!isWeekActive(getWeekOfMonth(localDateTime.date))) return false
+
+    val currentHour = localDateTime.hour
+    return if (fromHour <= toHour) {
+      currentHour in fromHour until toHour
+    } else {
+      // Over-night window (rare for street cleaning but possible)
+      currentHour >= fromHour || currentHour < toHour
+    }
+  }
+
+  private fun isWeekActive(weekOfMonth: Int): Boolean = when (weekOfMonth) {
+    1 -> week1
+    2 -> week2
+    3 -> week3
+    4 -> week4
+    5 -> week5
+    else -> false
   }
 
   private fun getWeekOfMonth(date: LocalDate): Int {
