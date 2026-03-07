@@ -24,10 +24,15 @@ object ParkingRestrictionEvaluator {
     currentTime: Instant = Clock.System.now(),
     zone: TimeZone = TimeZone.currentSystemDefault()
   ): ParkingRestrictionState {
-    // 1. Check if street cleaning is currently active
-    val activeCleaning = spot.sweepingSchedules.firstOrNull { it.isWithinWindow(currentTime, zone) }
     val nextCleaning = spot.nextCleaning(currentTime, zone)
 
+    // 0. Check if parking is forbidden (No Parking, etc.)
+    if (!spot.regulation.isParkable) {
+      return ParkingRestrictionState.Forbidden(spot.regulation.displayName, nextCleaning)
+    }
+
+    // 1. Check if street cleaning is currently active
+    val activeCleaning = spot.sweepingSchedules.firstOrNull { it.isWithinWindow(currentTime, zone) }
     if (activeCleaning != null) {
       val today = currentTime.toLocalDateTime(zone).date
       val cleaningEnd = LocalDateTime(today, LocalTime(activeCleaning.toHour, 0)).toInstant(zone)

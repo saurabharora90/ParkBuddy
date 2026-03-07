@@ -1,6 +1,7 @@
 package dev.bongballe.parkbuddy.data.repository.utils
 
 import com.google.common.truth.Truth.assertThat
+import dev.bongballe.parkbuddy.model.ParkingRegulation
 import dev.bongballe.parkbuddy.model.ParkingRestrictionState
 import dev.bongballe.parkbuddy.model.TimedRestriction
 import dev.bongballe.parkbuddy.testing.createTestSpot
@@ -25,6 +26,17 @@ class ParkingRestrictionEvaluatorTest {
 
   private fun dateTime(year: Int, month: Int, day: Int, hour: Int, minute: Int): Instant {
     return LocalDateTime(year, month, day, hour, minute).toInstant(zone)
+  }
+
+  @Test
+  fun `evaluate returns Forbidden when regulation is not parkable`() {
+    val now = dateTime(2024, 1, 1, 12, 0)
+    val spot = createTestSpot(id = "1", regulation = ParkingRegulation.NO_PARKING)
+
+    val state = ParkingRestrictionEvaluator.evaluate(spot, "A", now, now)
+
+    assertThat(state).isInstanceOf(ParkingRestrictionState.Forbidden::class.java)
+    assertThat((state as ParkingRestrictionState.Forbidden).reason).isEqualTo("No Parking")
   }
 
   @Test
