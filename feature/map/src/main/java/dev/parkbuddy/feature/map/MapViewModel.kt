@@ -28,6 +28,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -87,7 +88,7 @@ class MapViewModel(
 
   val stateFlow: StateFlow<State> =
     combine(
-        repository.getAllSpots(),
+        repository.getAllSpots().map { spots -> spots.filter { it.regulation.isParkable } },
         repository.getUserPermitZone().flatMapLatest { zone ->
           if (zone == null) flowOf(emptyList()) else repository.getSpotsByZone(zone)
         },

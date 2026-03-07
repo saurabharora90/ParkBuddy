@@ -10,6 +10,7 @@ import kotlinx.datetime.LocalTime
 fun createTestSpot(
   id: String,
   zone: String? = null,
+  regulation: ParkingRegulation = ParkingRegulation.RPP_ONLY,
   lat: Double = 37.7749,
   lng: Double = -122.4194,
   timedRestriction: TimedRestriction? = TimedRestriction(
@@ -28,7 +29,7 @@ fun createTestSpot(
     streetName = "Test St",
     blockLimits = "100-200",
     neighborhood = "Test Neighborhood",
-    regulation = ParkingRegulation.RPP_ONLY,
+    regulation = regulation,
     rppArea = zone,
     timedRestriction = timedRestriction,
     sweepingCnn = "123",

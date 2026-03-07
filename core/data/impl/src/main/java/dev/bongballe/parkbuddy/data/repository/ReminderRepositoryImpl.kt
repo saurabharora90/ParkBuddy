@@ -9,6 +9,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import dev.bongballe.parkbuddy.data.repository.utils.DateTimeUtils
 import dev.bongballe.parkbuddy.data.repository.utils.ParkingRestrictionEvaluator
+import dev.bongballe.parkbuddy.model.ParkingRegulation
 import dev.bongballe.parkbuddy.model.ParkingRestrictionState
 import dev.bongballe.parkbuddy.model.ParkingSpot
 import dev.bongballe.parkbuddy.model.ReminderMinutes
@@ -87,6 +88,10 @@ class ReminderRepositoryImpl(
       is ParkingRestrictionState.CleaningActive -> {
         // Cleaning in progress. No reminders to schedule since the user should move immediately.
         // We'll show the notification with the warning.
+      }
+
+      is ParkingRestrictionState.Forbidden -> {
+        // Parking is prohibited. No reminders, just an urgent notification.
       }
 
       is ParkingRestrictionState.ActiveTimed -> {
@@ -316,6 +321,11 @@ class ReminderRepositoryImpl(
 
     val (contentText, bigText) =
       when (state) {
+        is ParkingRestrictionState.Forbidden -> {
+          "⚠️ DO NOT PARK HERE: ${state.reason.uppercase()}" to
+            "⚠️ DO NOT PARK HERE!\nReason: ${state.reason}\n\nThis is a restricted zone (e.g., Red Curb, Government only). MOVE YOUR CAR IMMEDIATELY."
+        }
+
         is ParkingRestrictionState.CleaningActive -> {
           val cleaningEndText = formatTime(state.cleaningEnd, zone)
           "⚠️ STREET CLEANING IN PROGRESS!" to
@@ -324,7 +334,12 @@ class ReminderRepositoryImpl(
 
         is ParkingRestrictionState.ActiveTimed -> {
           val expiryText = "Move by ${formatTime(state.expiry, zone)}"
-          expiryText to "$expiryText\n\n$reminderLines"
+          val isPayAtMeter = spot.regulation == ParkingRegulation.PAY_OR_PERMIT
+          val paymentWarning =
+            if (isPayAtMeter) "\n⚠️ PAY AT METER: You lack a permit for Zone ${spot.rppArea}."
+            else ""
+          val contentText = if (isPayAtMeter) "⚠️ PAY AT METER. $expiryText" else expiryText
+          contentText to "$expiryText$paymentWarning\n\n$reminderLines"
         }
 
         is ParkingRestrictionState.PendingTimed -> {
@@ -332,16 +347,21 @@ class ReminderRepositoryImpl(
             if (state.startsAt.toLocalDateTime(zone).date == now.toLocalDateTime(zone).date) "today"
             else "tomorrow"
           val expiryText = "Starts $dayName. Move by ${formatTime(state.expiry, zone)}"
+          val isPayAtMeter = spot.regulation == ParkingRegulation.PAY_OR_PERMIT
+          val paymentWarning =
+            if (isPayAtMeter) "\n⚠️ PAY AT METER: You lack a permit for Zone ${spot.rppArea}."
+            else ""
+          val contentText = if (isPayAtMeter) "⚠️ PAY AT METER. $expiryText" else expiryText
 
           val nextCleaning = state.nextCleaning
           if (nextCleaning != null && nextCleaning < state.startsAt) {
             val cleaningText = formattedCleaningText(nextCleaning, now, zone)
             val urgencyWarning =
               if ((nextCleaning - now) < 6.hours) "\n⚠️ CLEANING IS TODAY!" else ""
-            expiryText to
-              "$expiryText\nNext cleaning: $cleaningText$urgencyWarning\n\n$reminderLines"
+            contentText to
+              "$expiryText$paymentWarning\nNext cleaning: $cleaningText$urgencyWarning\n\n$reminderLines"
           } else {
-            expiryText to "$expiryText\n\n$reminderLines"
+            contentText to "$expiryText$paymentWarning\n\n$reminderLines"
           }
         }
 
@@ -372,6 +392,7 @@ class ReminderRepositoryImpl(
   ): String {
     val suffix =
       when (state) {
+        is ParkingRestrictionState.Forbidden,
         is ParkingRestrictionState.CleaningActive -> " ⚠️ NO PARKING"
         is ParkingRestrictionState.PermitSafe -> " (Permit zone)"
         is ParkingRestrictionState.ActiveTimed,

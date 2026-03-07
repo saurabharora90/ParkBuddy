@@ -146,15 +146,12 @@ class ParkingRepositoryImpl(
         val matcher = CoordinateMatcher(sweepingData)
         Log.d(TAG, "refreshData: spatial index built, starting matching...")
 
-        val parkableRegulations = parkingRegulations.filter { it.isParkable() }
-        Log.d(TAG, "refreshData: ${parkableRegulations.size} parkable regulations after filtering")
-
         val spotsList = mutableListOf<ParkingSpotEntity>()
         val schedulesList = mutableListOf<SweepingScheduleEntity>()
 
-        for ((index, regulation) in parkableRegulations.withIndex()) {
+        for ((index, regulation) in parkingRegulations.withIndex()) {
           if (index % 1000 == 0) {
-            Log.d(TAG, "refreshData: processing regulation $index/${parkableRegulations.size}")
+            Log.d(TAG, "refreshData: processing regulation $index/${parkingRegulations.size}")
           }
 
           val geometry = parseGeometry(regulation.shape) ?: continue

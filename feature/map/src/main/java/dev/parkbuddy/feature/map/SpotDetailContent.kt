@@ -115,9 +115,23 @@ internal fun SpotDetailContent(
         ) {
           Icon(imageVector = Icons.Default.SafetyCheck, contentDescription = null, tint = SageGreen)
           Text(
-            text = "PERMIT VALID. TIME LIMITS DO NOT APPLY TO YOU",
+            text = "PERMIT ${spot.rppArea} VALID. TIME LIMITS DO NOT APPLY.",
             style = MaterialTheme.typography.labelSmall,
             color = SageGreen,
+          )
+        }
+      } else if (spot.regulation == ParkingRegulation.PAY_OR_PERMIT) {
+        Row(
+          verticalAlignment = Alignment.CenterVertically,
+          horizontalArrangement = Arrangement.spacedBy(16.dp),
+          modifier =
+            Modifier.fillMaxWidth().background(Terracotta.copy(alpha = 0.1f)).padding(16.dp),
+        ) {
+          Icon(imageVector = Icons.Default.Error, contentDescription = null, tint = Terracotta)
+          Text(
+            text = "PAY AT METER. YOU LACK A PERMIT FOR ZONE ${spot.rppArea}",
+            style = MaterialTheme.typography.labelSmall,
+            color = Terracotta,
           )
         }
       }
