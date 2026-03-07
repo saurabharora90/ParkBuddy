@@ -120,7 +120,10 @@ internal fun SpotDetailContent(
             color = SageGreen,
           )
         }
-      } else if (spot.regulation == ParkingRegulation.PAY_OR_PERMIT) {
+      } else if (
+        spot.regulation == ParkingRegulation.PAY_OR_PERMIT ||
+          spot.regulation == ParkingRegulation.METERED
+      ) {
         Row(
           verticalAlignment = Alignment.CenterVertically,
           horizontalArrangement = Arrangement.spacedBy(16.dp),
@@ -129,7 +132,7 @@ internal fun SpotDetailContent(
         ) {
           Icon(imageVector = Icons.Default.Error, contentDescription = null, tint = Terracotta)
           Text(
-            text = "PAY AT METER. YOU LACK A PERMIT FOR ZONE ${spot.rppArea}",
+            text = "PAY AT METER.",
             style = MaterialTheme.typography.labelSmall,
             color = Terracotta,
           )

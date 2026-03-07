@@ -5,6 +5,8 @@ import androidx.room.PrimaryKey
 import dev.bongballe.parkbuddy.model.Geometry
 import dev.bongballe.parkbuddy.model.ParkingRegulation
 import dev.bongballe.parkbuddy.model.StreetSide
+import kotlinx.datetime.DayOfWeek
+import kotlinx.datetime.LocalTime
 
 /**
  * Database entity for a parkable street segment.
@@ -42,20 +44,14 @@ data class ParkingSpotEntity(
   /** Max parking hours, null if unlimited */
   val timeLimitHours: Int?,
 
-  /** Days when enforcement applies (format varies by data source) */
-  val enforcementDays: String?,
+  /** Days when enforcement applies */
+  val enforcementDays: Set<DayOfWeek>?,
 
-  /**
-   * Enforcement start time as HHMM integer (e.g., 800 for 8:00 AM). Convert to LocalTime: hour =
-   * value / 100, minute = value % 100
-   */
-  val enforcementStart: Int?,
+  /** Enforcement start time */
+  val enforcementStart: LocalTime?,
 
-  /**
-   * Enforcement end time as HHMM integer (e.g., 1800 for 6:00 PM). Some data sources may use 2400
-   * for midnight (end of day).
-   */
-  val enforcementEnd: Int?,
+  /** Enforcement end time */
+  val enforcementEnd: LocalTime?,
 
   /** Street segment identifier used for matching sweeping schedules */
   val sweepingCnn: String?,

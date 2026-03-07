@@ -1,13 +1,17 @@
 package dev.bongballe.parkbuddy.data.repository.utils
 
+import dev.bongballe.parkbuddy.model.MeterSchedule
+import dev.bongballe.parkbuddy.model.ParkingRegulation
 import dev.bongballe.parkbuddy.model.ParkingRestrictionState
 import dev.bongballe.parkbuddy.model.ParkingSpot
 import dev.bongballe.parkbuddy.model.TimedRestriction
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.hours
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
 import kotlinx.datetime.DateTimeUnit
+import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
 import kotlinx.datetime.TimeZone
@@ -38,7 +42,7 @@ object ParkingRestrictionEvaluator {
       val cleaningEnd = LocalDateTime(today, LocalTime(activeCleaning.toHour, 0)).toInstant(zone)
       return ParkingRestrictionState.CleaningActive(
         cleaningEnd = cleaningEnd,
-        nextCleaning = nextCleaning
+        nextCleaning = nextCleaning,
       )
     }
 
@@ -47,7 +51,17 @@ object ParkingRestrictionEvaluator {
       return ParkingRestrictionState.PermitSafe(nextCleaning)
     }
 
-    // 3. Check for time limits
+    // 3. Handle purely Metered spots
+    if (spot.regulation == ParkingRegulation.METERED) {
+      // Fallback: If we know there's a meter but don't have its schedule,
+      // return MeteredActive to warn the user to pay manually.
+      if (spot.meterSchedules.isEmpty()) {
+        return ParkingRestrictionState.MeteredActive(nextCleaning)
+      }
+      return evaluateMeterSchedules(spot, parkedAt, currentTime, zone, nextCleaning)
+    }
+
+    // 4. Check for time limits
     val restriction = spot.timedRestriction
       ?: return ParkingRestrictionState.Unrestricted(nextCleaning)
 
@@ -63,19 +77,105 @@ object ParkingRestrictionEvaluator {
     val effectiveStart = findEnforceableWindow(parkedAt, restriction, zone)
       ?: return ParkingRestrictionState.Unrestricted(nextCleaning)
     val expiry = effectiveStart.plus(restriction.limitHours.hours)
+    val paymentRequired = spot.regulation == ParkingRegulation.PAY_OR_PERMIT
 
     return when {
       effectiveStart > currentTime -> ParkingRestrictionState.PendingTimed(
         startsAt = effectiveStart,
         expiry = expiry,
+        paymentRequired = paymentRequired,
         nextCleaning = nextCleaning,
       )
 
       else -> ParkingRestrictionState.ActiveTimed(
         expiry = expiry,
+        paymentRequired = paymentRequired,
         nextCleaning = nextCleaning,
       )
     }
+  }
+
+  private fun evaluateMeterSchedules(
+    spot: ParkingSpot,
+    parkedAt: Instant,
+    currentTime: Instant,
+    zone: TimeZone,
+    nextCleaning: Instant?,
+  ): ParkingRestrictionState {
+    val schedules = spot.meterSchedules
+    val localNow = currentTime.toLocalDateTime(zone)
+    val today = localNow.date
+
+    // 1. Check for active Tow Zone (priority over operating schedules)
+    val activeTow = schedules.firstOrNull {
+      it.isTowZone && isTimeInSchedule(localNow.time, localNow.dayOfWeek, it)
+    }
+    if (activeTow != null) {
+      return ParkingRestrictionState.Forbidden("Tow Away Zone", nextCleaning)
+    }
+
+    // 2. Check for active Operating Schedule
+    val activeMeter = schedules.firstOrNull {
+      !it.isTowZone && isTimeInSchedule(localNow.time, localNow.dayOfWeek, it)
+    }
+    if (activeMeter != null) {
+      val windowStart = LocalDateTime(today, activeMeter.startTime).toInstant(zone)
+      val effectiveStart = if (parkedAt > windowStart) parkedAt else windowStart
+      val expiry = effectiveStart + activeMeter.timeLimitMinutes.minutes
+
+      return ParkingRestrictionState.ActiveTimed(
+        expiry = expiry,
+        paymentRequired = true,
+        nextCleaning = nextCleaning,
+      )
+    }
+
+    // 3. Check for upcoming window today or in future
+    val nextWindow = findNextMeterWindow(schedules, currentTime, zone)
+    if (nextWindow != null) {
+      val (startTime, schedule) = nextWindow
+      val expiry = startTime + schedule.timeLimitMinutes.minutes
+      return ParkingRestrictionState.PendingTimed(
+        startsAt = startTime,
+        expiry = expiry,
+        paymentRequired = true,
+        nextCleaning = nextCleaning,
+      )
+    }
+
+    return ParkingRestrictionState.Unrestricted(nextCleaning)
+  }
+
+  private fun isTimeInSchedule(time: LocalTime, day: DayOfWeek, schedule: MeterSchedule): Boolean {
+    if (day !in schedule.days) return false
+    return if (schedule.startTime <= schedule.endTime) {
+      time in schedule.startTime..schedule.endTime
+    } else {
+      time >= schedule.startTime || time <= schedule.endTime
+    }
+  }
+
+  private fun findNextMeterWindow(
+    schedules: List<MeterSchedule>,
+    now: Instant,
+    zone: TimeZone
+  ): Pair<Instant, MeterSchedule>? {
+    val localNow = now.toLocalDateTime(zone)
+    var candidateDate = localNow.date
+
+    repeat(7) {
+      val daySchedules = schedules.filter { candidateDate.dayOfWeek in it.days }
+        .sortedBy { it.startTime }
+
+      for (schedule in daySchedules) {
+        val startInstant = LocalDateTime(candidateDate, schedule.startTime).toInstant(zone)
+        if (startInstant > now) {
+          return startInstant to schedule
+        }
+      }
+      candidateDate = candidateDate.plus(1, DateTimeUnit.DAY)
+    }
+    return null
   }
 
   /**

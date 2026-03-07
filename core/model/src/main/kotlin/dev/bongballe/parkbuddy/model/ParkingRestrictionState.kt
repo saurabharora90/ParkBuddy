@@ -23,6 +23,7 @@ sealed class ParkingRestrictionState {
   /** Time limit is currently active */
   data class ActiveTimed(
     val expiry: Instant,
+    val paymentRequired: Boolean,
     override val nextCleaning: Instant?
   ) : ParkingRestrictionState()
 
@@ -30,6 +31,13 @@ sealed class ParkingRestrictionState {
   data class PendingTimed(
     val startsAt: Instant,
     val expiry: Instant,
+    val paymentRequired: Boolean,
+    override val nextCleaning: Instant?
+  ) : ParkingRestrictionState()
+
+
+  /** Metered parking is active (payment required) */
+  data class MeteredActive(
     override val nextCleaning: Instant?
   ) : ParkingRestrictionState()
 

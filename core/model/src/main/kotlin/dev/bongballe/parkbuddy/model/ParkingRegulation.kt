@@ -28,6 +28,9 @@ enum class ParkingRegulation(val displayName: String, val isParkable: Boolean) {
   /** Residential Parking Permit required */
   RPP_ONLY("Residential Permit Only", true),
 
+  /** Standard paid parking via meter */
+  METERED("Metered Parking", true),
+
   /** No parking allowed at any time (red curb, etc.) */
   NO_PARKING("No Parking", false),
 

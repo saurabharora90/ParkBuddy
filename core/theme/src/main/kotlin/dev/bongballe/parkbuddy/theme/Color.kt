@@ -33,6 +33,8 @@ val OnTertiaryContainerLight = Color(0xFF001F29)
 val Terracotta = Color(0xFFBC5449)
 
 val WildIris = Color(0xFF7D5BA6)
+
+val Goldenrod = Color(0xFFDAA520)
 val ErrorLight = Color(0xFFBA1A1A)
 val OnErrorLight = Color(0xFFFFFFFF)
 val ErrorContainerLight = Color(0xFFFFDAD6)

@@ -12,6 +12,7 @@ internal fun String.toParkingRegulation(): ParkingRegulation {
     normalized == "pay or permit" -> ParkingRegulation.PAY_OR_PERMIT
     normalized == "paid + permit" || normalized == "paid+permit" ->
       ParkingRegulation.PAID_PLUS_PERMIT
+    normalized.contains("metered") || normalized.contains("meter") -> ParkingRegulation.METERED
     normalized.contains("residential permit") -> ParkingRegulation.RPP_ONLY
     normalized.contains("no overnight") -> ParkingRegulation.NO_OVERNIGHT
     normalized.contains("no oversized") -> ParkingRegulation.NO_OVERSIZED

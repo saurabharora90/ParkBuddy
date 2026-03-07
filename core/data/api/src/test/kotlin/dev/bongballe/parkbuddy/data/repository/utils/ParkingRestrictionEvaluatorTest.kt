@@ -1,6 +1,7 @@
 package dev.bongballe.parkbuddy.data.repository.utils
 
 import com.google.common.truth.Truth.assertThat
+import dev.bongballe.parkbuddy.model.MeterSchedule
 import dev.bongballe.parkbuddy.model.ParkingRegulation
 import dev.bongballe.parkbuddy.model.ParkingRestrictionState
 import dev.bongballe.parkbuddy.model.TimedRestriction
@@ -173,5 +174,45 @@ class ParkingRestrictionEvaluatorTest {
     val pending = state as ParkingRestrictionState.PendingTimed
     assertThat(pending.startsAt).isEqualTo(dateTime(2024, 1, 8, 8, 0)) // Monday morning
     assertThat(pending.expiry).isEqualTo(dateTime(2024, 1, 8, 10, 0))
+  }
+
+  @Test
+  fun `evaluate returns Forbidden for metered spot during active Tow window`() {
+    val now = dateTime(2024, 1, 1, 8, 0) // Monday 8 AM
+    val towSchedule = MeterSchedule(
+      days = setOf(DayOfWeek.MONDAY, DayOfWeek.TUESDAY),
+      startTime = LocalTime(7, 0),
+      endTime = LocalTime(9, 0),
+      timeLimitMinutes = 0,
+      isTowZone = true
+    )
+    val spot = createTestSpot(id = "1", regulation = ParkingRegulation.METERED, timedRestriction = null)
+      .copy(meterSchedules = listOf(towSchedule))
+
+    val state = ParkingRestrictionEvaluator.evaluate(spot, null, now, now)
+
+    assertThat(state).isInstanceOf(ParkingRestrictionState.Forbidden::class.java)
+    assertThat((state as ParkingRestrictionState.Forbidden).reason).isEqualTo("Tow Away Zone")
+  }
+
+  @Test
+  fun `evaluate returns ActiveTimed for metered spot during active operating window`() {
+    val now = dateTime(2024, 1, 1, 10, 0) // Monday 10 AM
+    val meterSchedule = MeterSchedule(
+      days = setOf(DayOfWeek.MONDAY, DayOfWeek.TUESDAY),
+      startTime = LocalTime(9, 0),
+      endTime = LocalTime(18, 0),
+      timeLimitMinutes = 60,
+      isTowZone = false
+    )
+    val spot = createTestSpot(id = "1", regulation = ParkingRegulation.METERED, timedRestriction = null)
+      .copy(meterSchedules = listOf(meterSchedule))
+
+    val state = ParkingRestrictionEvaluator.evaluate(spot, null, now, now)
+
+    assertThat(state).isInstanceOf(ParkingRestrictionState.ActiveTimed::class.java)
+    val active = state as ParkingRestrictionState.ActiveTimed
+    assertThat(active.expiry).isEqualTo(dateTime(2024, 1, 1, 11, 0)) // 10 AM + 60 min
+    assertThat(active.paymentRequired).isTrue()
   }
 }

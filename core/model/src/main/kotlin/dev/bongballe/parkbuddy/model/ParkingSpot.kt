@@ -70,12 +70,30 @@ data class ParkingSpot(
   val sweepingCnn: String?,
   val sweepingSide: StreetSide?,
   val sweepingSchedules: List<SweepingSchedule>,
+  val meterSchedules: List<MeterSchedule> = emptyList(),
 ) {
   fun nextCleaning(
     now: Instant,
     zone: TimeZone = TimeZone.currentSystemDefault(),
   ): Instant? = sweepingSchedules.mapNotNull { it.nextOccurrence(now, zone) }.minOrNull()
 }
+
+/**
+ * Represents a specific operating window for a parking meter.
+ *
+ * @property days Days when this schedule applies
+ * @property startTime Opening hour for meter enforcement
+ * @property endTime Closing hour for meter enforcement
+ * @property timeLimitMinutes Maximum allowed parking duration (0 means no limit or towing)
+ * @property isTowZone Whether parking is strictly prohibited (towing) during this window
+ */
+data class MeterSchedule(
+  val days: Set<DayOfWeek>,
+  val startTime: LocalTime,
+  val endTime: LocalTime,
+  val timeLimitMinutes: Int,
+  val isTowZone: Boolean = false,
+)
 
 /**
  * Represents a street sweeping schedule for a specific day of the week.
