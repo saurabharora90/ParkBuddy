@@ -51,7 +51,7 @@ class ParkingRepositoryImplTest {
           dao = db.parkingDao(),
           api = api,
           analyticsTracker = analyticsTracker,
-          ioDispatcher = UnconfinedTestDispatcher(),
+          defaultDispatcher = UnconfinedTestDispatcher(),
         )
 
       try {

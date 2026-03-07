@@ -25,6 +25,8 @@ import dev.zacsweers.metro.ContributesBinding
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -43,7 +45,7 @@ class ParkingRepositoryImpl(
   private val dao: ParkingDao,
   private val api: SfOpenDataApi,
   private val analyticsTracker: AnalyticsTracker,
-  @WithDispatcherType(DispatcherType.IO) private val ioDispatcher: CoroutineDispatcher,
+  @WithDispatcherType(DispatcherType.DEFAULT) private val defaultDispatcher: CoroutineDispatcher,
 ) : ParkingRepository {
 
   private fun parseEnforcementDays(daysStr: String?): Set<DayOfWeek> {
@@ -121,21 +123,25 @@ class ParkingRepositoryImpl(
     return dao.getUserPreferences().first() ?: UserPreferencesEntity(id = 1, rppZone = null)
   }
 
-  override suspend fun refreshData(): Boolean {
+  override suspend fun refreshData(): Boolean = coroutineScope {
     Log.d(TAG, "refreshData: starting")
-    val parkingRegulations = fetchAllParkingRegulations()
+    // fetch in parallel
+    val parkingRegulationsJob = async { fetchAllParkingRegulations() }
+    val sweepingDataJob = async { fetchAllSweepingData() }
+
+    val parkingRegulations = parkingRegulationsJob.await()
     Log.d(TAG, "refreshData: fetched ${parkingRegulations.size} parking regulations")
     if (parkingRegulations.isEmpty()) {
       Log.w(TAG, "refreshData: no parking regulations found, aborting")
-      return false
+      return@coroutineScope false
     }
 
-    val sweepingData = fetchAllSweepingData()
+    val sweepingData = sweepingDataJob.await()
     Log.d(TAG, "refreshData: fetched ${sweepingData.size} sweeping records")
 
     // Heavy processing on background thread
     val (spots, schedules) =
-      withContext(ioDispatcher) {
+      withContext(defaultDispatcher) {
         Log.d(TAG, "refreshData: building spatial index...")
         val matcher = CoordinateMatcher(sweepingData)
         Log.d(TAG, "refreshData: spatial index built, starting matching...")
@@ -214,7 +220,7 @@ class ParkingRepositoryImpl(
       Log.d(TAG, "refreshData: saved to database")
     }
 
-    return true
+    return@coroutineScope true
   }
 
   @Suppress("LoopWithTooManyJumpStatements")
