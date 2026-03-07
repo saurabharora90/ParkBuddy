@@ -36,7 +36,9 @@ import com.google.maps.android.compose.MarkerState
 import com.google.maps.android.compose.Polyline
 import com.google.maps.android.compose.rememberCameraPositionState
 import dev.bongballe.parkbuddy.model.Geometry
+import dev.bongballe.parkbuddy.model.ParkingRegulation
 import dev.bongballe.parkbuddy.model.ParkingSpot
+import dev.bongballe.parkbuddy.theme.Goldenrod
 import dev.bongballe.parkbuddy.theme.SageGreen
 import dev.bongballe.parkbuddy.theme.Terracotta
 import dev.bongballe.parkbuddy.theme.WildIris
@@ -133,9 +135,12 @@ fun MapScreen(modifier: Modifier = Modifier, viewModel: MapViewModel = metroView
       visibleSpots.forEach { (spot, points) ->
         if (points.isNotEmpty()) {
           val isInPermitZone = spot.objectId in permitSpotIds
+          val isPaid =
+            spot.regulation == ParkingRegulation.METERED ||
+              spot.regulation == ParkingRegulation.PAY_OR_PERMIT
           Polyline(
             points = points,
-            color = if (isInPermitZone) SageGreen else WildIris,
+            color = if (isInPermitZone) SageGreen else if (isPaid) Goldenrod else WildIris,
             width = if (isInPermitZone) 12f else 8f,
             clickable = true,
             onClick = { selectedSpot = spot },

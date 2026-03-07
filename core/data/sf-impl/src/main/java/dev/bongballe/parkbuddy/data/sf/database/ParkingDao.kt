@@ -6,6 +6,7 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
 import androidx.room.Upsert
+import dev.bongballe.parkbuddy.data.sf.database.entity.MeterScheduleEntity
 import dev.bongballe.parkbuddy.data.sf.database.entity.ParkingSpotEntity
 import dev.bongballe.parkbuddy.data.sf.database.entity.SweepingScheduleEntity
 import dev.bongballe.parkbuddy.data.sf.database.entity.UserPreferencesEntity
@@ -82,6 +83,10 @@ interface ParkingDao {
   @Insert(onConflict = OnConflictStrategy.REPLACE)
   suspend fun insertSchedules(schedules: List<SweepingScheduleEntity>)
 
+  /** Insert or replace meter schedules. Called during data refresh. */
+  @Insert(onConflict = OnConflictStrategy.REPLACE)
+  suspend fun insertMeterSchedules(schedules: List<MeterScheduleEntity>)
+
   /**
    * Delete all parking spots. Called before data refresh to ensure clean state. Cascades to delete
    * related sweeping schedules via foreign key.
@@ -90,6 +95,9 @@ interface ParkingDao {
 
   /** Delete all sweeping schedules. Called before data refresh. */
   @Query("DELETE FROM sweeping_schedules") suspend fun clearAllSchedules()
+
+  /** Delete all meter schedules. Called before data refresh. */
+  @Query("DELETE FROM meter_schedules") suspend fun clearAllMeterSchedules()
 
   // ==================== User Preferences ====================
 

@@ -14,6 +14,7 @@ import kotlinx.serialization.json.jsonPrimitive
 data class SweepingMatch(
   val cnn: String,
   val side: String, // "L" or "R"
+  val geometry: Geometry,
   val schedules: List<StreetCleaningResponse>,
 )
 
@@ -96,7 +97,32 @@ class CoordinateMatcher(sweepingData: List<StreetCleaningResponse>) {
     // Get all schedules for this CNN and side
     val schedules = schedulesByCnnAndSide["$cnn:$targetSide"] ?: listOf(bestMatch.response)
 
-    return SweepingMatch(cnn = cnn, side = targetSide, schedules = schedules)
+    return SweepingMatch(
+      cnn = cnn,
+      side = targetSide,
+      geometry = bestMatch.geometry,
+      schedules = schedules,
+    )
+  }
+
+  /** Finds all available sweeping segments (Left and Right sides) for a given CNN. */
+  fun findAllMatchesForCnn(cnn: String): List<SweepingMatch> {
+    val results = mutableListOf<SweepingMatch>()
+
+    // Try both sides
+    listOf("L", "R").forEach { side ->
+      schedulesByCnnAndSide["$cnn:$side"]?.let { schedules ->
+        // We need a geometry for the segment. Use the first one we find in parsed data.
+        val geometry = parsedSweepingData.firstOrNull { it.response.cnn == cnn }?.geometry
+        if (geometry != null) {
+          results.add(
+            SweepingMatch(cnn = cnn, side = side, geometry = geometry, schedules = schedules)
+          )
+        }
+      }
+    }
+
+    return results
   }
 
   // Determine which side of the line the point is on using cross product

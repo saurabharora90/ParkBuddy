@@ -9,7 +9,6 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import dev.bongballe.parkbuddy.data.repository.utils.DateTimeUtils
 import dev.bongballe.parkbuddy.data.repository.utils.ParkingRestrictionEvaluator
-import dev.bongballe.parkbuddy.model.ParkingRegulation
 import dev.bongballe.parkbuddy.model.ParkingRestrictionState
 import dev.bongballe.parkbuddy.model.ParkingSpot
 import dev.bongballe.parkbuddy.model.ReminderMinutes
@@ -92,6 +91,11 @@ class ReminderRepositoryImpl(
 
       is ParkingRestrictionState.Forbidden -> {
         // Parking is prohibited. No reminders, just an urgent notification.
+      }
+
+      is ParkingRestrictionState.MeteredActive -> {
+        // Metered parking. No time limit known yet, so no alarms.
+        // We'll show the notification with the warning.
       }
 
       is ParkingRestrictionState.ActiveTimed -> {
@@ -323,7 +327,14 @@ class ReminderRepositoryImpl(
       when (state) {
         is ParkingRestrictionState.Forbidden -> {
           "⚠️ DO NOT PARK HERE: ${state.reason.uppercase()}" to
-            "⚠️ DO NOT PARK HERE!\nReason: ${state.reason}\n\nThis is a restricted zone (e.g., Red Curb, Government only). MOVE YOUR CAR IMMEDIATELY."
+            "⚠️ DO NOT PARK HERE!\nReason: ${state.reason}\n\nT" +
+              "his is a restricted zone. MOVE YOUR CAR IMMEDIATELY."
+        }
+
+        is ParkingRestrictionState.MeteredActive -> {
+          "⚠️ PAY AT METER." to
+            "⚠️ PAY AT METER.\n\nThis is a metered parking zone. " +
+              "Please check the nearest meter for rates and time limits."
         }
 
         is ParkingRestrictionState.CleaningActive -> {
@@ -334,11 +345,12 @@ class ReminderRepositoryImpl(
 
         is ParkingRestrictionState.ActiveTimed -> {
           val expiryText = "Move by ${formatTime(state.expiry, zone)}"
-          val isPayAtMeter = spot.regulation == ParkingRegulation.PAY_OR_PERMIT
           val paymentWarning =
-            if (isPayAtMeter) "\n⚠️ PAY AT METER: You lack a permit for Zone ${spot.rppArea}."
+            if (state.paymentRequired)
+              "\n⚠️ PAY AT METER: You lack a permit for Zone ${spot.rppArea}."
             else ""
-          val contentText = if (isPayAtMeter) "⚠️ PAY AT METER. $expiryText" else expiryText
+          val contentText =
+            if (state.paymentRequired) "⚠️ PAY AT METER. $expiryText" else expiryText
           contentText to "$expiryText$paymentWarning\n\n$reminderLines"
         }
 
@@ -347,11 +359,12 @@ class ReminderRepositoryImpl(
             if (state.startsAt.toLocalDateTime(zone).date == now.toLocalDateTime(zone).date) "today"
             else "tomorrow"
           val expiryText = "Starts $dayName. Move by ${formatTime(state.expiry, zone)}"
-          val isPayAtMeter = spot.regulation == ParkingRegulation.PAY_OR_PERMIT
           val paymentWarning =
-            if (isPayAtMeter) "\n⚠️ PAY AT METER: You lack a permit for Zone ${spot.rppArea}."
+            if (state.paymentRequired)
+              "\n⚠️ PAY AT METER: You lack a permit for Zone ${spot.rppArea}."
             else ""
-          val contentText = if (isPayAtMeter) "⚠️ PAY AT METER. $expiryText" else expiryText
+          val contentText =
+            if (state.paymentRequired) "⚠️ PAY AT METER. $expiryText" else expiryText
 
           val nextCleaning = state.nextCleaning
           if (nextCleaning != null && nextCleaning < state.startsAt) {
@@ -359,7 +372,8 @@ class ReminderRepositoryImpl(
             val urgencyWarning =
               if ((nextCleaning - now) < 6.hours) "\n⚠️ CLEANING IS TODAY!" else ""
             contentText to
-              "$expiryText$paymentWarning\nNext cleaning: $cleaningText$urgencyWarning\n\n$reminderLines"
+              "$expiryText$paymentWarning\nNext cleaning: " +
+                "$cleaningText$urgencyWarning\n\n$reminderLines"
           } else {
             contentText to "$expiryText$paymentWarning\n\n$reminderLines"
           }
@@ -394,12 +408,15 @@ class ReminderRepositoryImpl(
       when (state) {
         is ParkingRestrictionState.Forbidden,
         is ParkingRestrictionState.CleaningActive -> " ⚠️ NO PARKING"
+
+        is ParkingRestrictionState.MeteredActive -> " (Metered)"
         is ParkingRestrictionState.PermitSafe -> " (Permit zone)"
         is ParkingRestrictionState.ActiveTimed,
         is ParkingRestrictionState.PendingTimed -> {
           val hours = spot.timedRestriction?.limitHours
           if (hours != null) " (${hours}hr limit)" else ""
         }
+
         is ParkingRestrictionState.Unrestricted -> ""
       }
     return "$streetName$suffix"
