@@ -1,6 +1,11 @@
 package dev.parkbuddy.feature.map
 
 import androidx.annotation.VisibleForTesting
+import androidx.compose.animation.animateColor
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -17,6 +22,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -50,6 +57,7 @@ internal fun SpotDetailContent(
   isInPermitZone: Boolean,
   onParkHere: () -> Unit,
   modifier: Modifier = Modifier,
+  clock: Clock = Clock.System,
 ) {
   Column(
     modifier =
@@ -138,14 +146,17 @@ internal fun SpotDetailContent(
       }
 
       Column(
-        modifier = Modifier.padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+        modifier = Modifier.padding(vertical = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
       ) {
         if (!isInPermitZone) {
+          val now = clock.now()
+
           Text(
             text = "PARKING RULES & SCHEDULES",
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 8.dp),
           )
 
           // Show standard time restrictions
@@ -156,6 +167,7 @@ internal fun SpotDetailContent(
               days = restriction.days,
               startTime = restriction.startTime,
               endTime = restriction.endTime,
+              isActive = restriction.isWithinWindow(now),
             )
           }
 
@@ -175,11 +187,12 @@ internal fun SpotDetailContent(
               startTime = schedule.startTime,
               endTime = schedule.endTime,
               tint = if (schedule.isTowZone) Terracotta else SageGreen,
+              isActive = schedule.isWithinWindow(now),
             )
           }
         }
 
-        spot.sweepingSchedules.forEach { schedule -> NoParkingInfo(schedule) }
+        spot.sweepingSchedules.forEach { schedule -> NoParkingInfo(schedule, clock) }
       }
     }
 
@@ -194,11 +207,32 @@ private fun RestrictionRow(
   days: Set<kotlinx.datetime.DayOfWeek>,
   startTime: LocalTime?,
   endTime: LocalTime?,
+  modifier: Modifier = Modifier,
   tint: Color = SageGreen,
+  isActive: Boolean = false,
 ) {
+  val backgroundColor =
+    if (isActive)
+      rememberInfiniteTransition(label = "restrictionRowBg")
+        .animateColor(
+          initialValue = SageGreen.copy(alpha = 0.05f),
+          targetValue = SageGreen.copy(alpha = 0.25f),
+          animationSpec =
+            infiniteRepeatable(
+              animation = tween(durationMillis = 1000),
+              repeatMode = RepeatMode.Reverse,
+            ),
+        )
+    else remember { mutableStateOf(Color.Transparent) }
+
   Row(
     verticalAlignment = Alignment.CenterVertically,
     horizontalArrangement = Arrangement.spacedBy(16.dp),
+    modifier =
+      modifier
+        .fillMaxWidth()
+        .background(backgroundColor.value)
+        .padding(horizontal = 16.dp, vertical = 8.dp),
   ) {
     Icon(imageVector = icon, contentDescription = null, tint = tint)
 
@@ -225,14 +259,15 @@ private fun RestrictionRow(
 }
 
 @Composable
-private fun NoParkingInfo(schedule: SweepingSchedule) {
-  val now = Clock.System.now()
+private fun NoParkingInfo(schedule: SweepingSchedule, clock: Clock, modifier: Modifier = Modifier) {
+  val now = clock.now()
   val nextCleaning = schedule.nextOccurrence(now)
   val isActive = schedule.isWithinWindow(now)
 
   Row(
     verticalAlignment = Alignment.CenterVertically,
     horizontalArrangement = Arrangement.spacedBy(16.dp),
+    modifier = modifier.padding(horizontal = 16.dp, vertical = 8.dp),
   ) {
     Icon(imageVector = Icons.Default.Error, contentDescription = null, tint = Terracotta)
 

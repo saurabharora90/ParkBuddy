@@ -103,12 +103,11 @@ object ParkingRestrictionEvaluator {
     nextCleaning: Instant?,
   ): ParkingRestrictionState {
     val schedules = spot.meterSchedules
-    val localNow = currentTime.toLocalDateTime(zone)
-    val today = localNow.date
+    val today = currentTime.toLocalDateTime(zone).date
 
     // 1. Check for active Tow Zone (priority over operating schedules)
     val activeTow = schedules.firstOrNull {
-      it.isTowZone && isTimeInSchedule(localNow.time, localNow.dayOfWeek, it)
+      it.isTowZone && it.isWithinWindow(currentTime, zone)
     }
     if (activeTow != null) {
       return ParkingRestrictionState.Forbidden("Tow Away Zone", nextCleaning)
@@ -116,7 +115,7 @@ object ParkingRestrictionEvaluator {
 
     // 2. Check for active Operating Schedule
     val activeMeter = schedules.firstOrNull {
-      !it.isTowZone && isTimeInSchedule(localNow.time, localNow.dayOfWeek, it)
+      !it.isTowZone && it.isWithinWindow(currentTime, zone)
     }
     if (activeMeter != null) {
       val windowStart = LocalDateTime(today, activeMeter.startTime).toInstant(zone)
@@ -144,15 +143,6 @@ object ParkingRestrictionEvaluator {
     }
 
     return ParkingRestrictionState.Unrestricted(nextCleaning)
-  }
-
-  private fun isTimeInSchedule(time: LocalTime, day: DayOfWeek, schedule: MeterSchedule): Boolean {
-    if (day !in schedule.days) return false
-    return if (schedule.startTime <= schedule.endTime) {
-      time in schedule.startTime..schedule.endTime
-    } else {
-      time >= schedule.startTime || time <= schedule.endTime
-    }
   }
 
   private fun findNextMeterWindow(
