@@ -90,7 +90,7 @@ class ParkingManager(
   }
 
   private fun findMatchingSpot(location: Location, spots: List<ParkingSpot>): ParkingSpot? {
-    val thresholdMeters = 20.0
+    val thresholdMeters = 10.0
     return spots
       .map { spot ->
         spot to
