@@ -330,6 +330,7 @@ class ParkingRepositoryImpl(
     }
   }
 
+  @Suppress("LoopWithTooManyJumpStatements")
   private fun addMeterSchedules(
     spotId: String,
     responses: List<MeterScheduleResponse>,
@@ -392,7 +393,8 @@ class ParkingRepositoryImpl(
       if (!isPm && hour == 12) hour = 0
 
       LocalTime(hour % 24, minute % 60)
-    } catch (e: Exception) {
+    } catch (e: NumberFormatException) {
+      Log.e(TAG, "parseMeterTime: invalid time format", e)
       null
     }
   }
@@ -532,7 +534,6 @@ class ParkingRepositoryImpl(
   private fun timeToLocalTime(time: Int): LocalTime {
     val hour = time / 100
     val minute = time % 100
-    // API returns 2400 for midnight (end of day), normalize to 23:59
     return if (hour >= 24) {
       LocalTime(23, 59)
     } else {
@@ -561,29 +562,38 @@ class ParkingRepositoryImpl(
       sweepingCnn = spot.sweepingCnn,
       sweepingSide = spot.sweepingSide,
       sweepingSchedules =
-        schedules.map { schedule ->
-          SweepingSchedule(
-            weekday = schedule.weekday,
-            fromHour = schedule.fromHour,
-            toHour = schedule.toHour,
-            week1 = schedule.week1,
-            week2 = schedule.week2,
-            week3 = schedule.week3,
-            week4 = schedule.week4,
-            week5 = schedule.week5,
-            holidays = schedule.holidays,
-          )
-        },
+        schedules
+          .map { schedule ->
+            SweepingSchedule(
+              weekday = schedule.weekday,
+              fromHour = schedule.fromHour,
+              toHour = schedule.toHour,
+              week1 = schedule.week1,
+              week2 = schedule.week2,
+              week3 = schedule.week3,
+              week4 = schedule.week4,
+              week5 = schedule.week5,
+              holidays = schedule.holidays,
+            )
+          }
+          .sortedWith(compareBy({ it.weekday.ordinal }, { it.fromHour })),
       meterSchedules =
-        meterSchedules.map { entity ->
-          MeterSchedule(
-            days = entity.days,
-            startTime = entity.startTime,
-            endTime = entity.endTime,
-            timeLimitMinutes = entity.timeLimitMinutes,
-            isTowZone = entity.isTowZone,
-          )
-        },
+        meterSchedules
+          .map { entity ->
+            MeterSchedule(
+              days = entity.days,
+              startTime = entity.startTime,
+              endTime = entity.endTime,
+              timeLimitMinutes = entity.timeLimitMinutes,
+              isTowZone = entity.isTowZone,
+            )
+          }
+          .sortedWith(
+            compareBy(
+              { schedule -> schedule.days.minByOrNull { it.ordinal }?.ordinal ?: Int.MAX_VALUE },
+              { it.startTime },
+            )
+          ),
     )
   }
 }
