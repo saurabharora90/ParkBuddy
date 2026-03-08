@@ -1,6 +1,5 @@
 package dev.parkbuddy.feature.reminders.permitzone
 
-import android.Manifest
 import android.app.AlarmManager
 import android.content.Context
 import android.content.Intent
@@ -43,8 +42,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
-import com.google.accompanist.permissions.isGranted
-import com.google.accompanist.permissions.rememberPermissionState
 import dev.bongballe.parkbuddy.model.Geometry
 import dev.bongballe.parkbuddy.model.ParkingRegulation
 import dev.bongballe.parkbuddy.model.ParkingSpot
@@ -54,7 +51,7 @@ import dev.bongballe.parkbuddy.model.SweepingSchedule
 import dev.bongballe.parkbuddy.model.Weekday
 import dev.bongballe.parkbuddy.theme.ParkBuddyTheme
 import dev.parkbuddy.core.ui.NestedScaffold
-import dev.parkbuddy.core.ui.PermissionRationaleDialog
+import dev.parkbuddy.core.ui.ParkBuddyAlertDialog
 import dev.parkbuddy.core.ui.SquircleIcon
 import dev.zacsweers.metrox.viewmodel.metroViewModel
 import kotlinx.datetime.LocalTime
@@ -76,22 +73,8 @@ fun PermitZoneScreen(
   var showPermissionRationale by remember { mutableStateOf(false) }
   var lastKnownZoneWasNull by remember { mutableStateOf(selectedZone == null) }
 
-  val notificationPermissionState =
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-      rememberPermissionState(Manifest.permission.POST_NOTIFICATIONS)
-    } else {
-      null
-    }
-
   LaunchedEffect(selectedZone) {
     if (selectedZone != null && lastKnownZoneWasNull) {
-      val needsNotificationPermission =
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-          !notificationPermissionState!!.status.isGranted
-        } else {
-          false
-        }
-
       val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
       val needsAlarmPermission =
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -100,7 +83,7 @@ fun PermitZoneScreen(
           false
         }
 
-      if (needsNotificationPermission || needsAlarmPermission) {
+      if (needsAlarmPermission) {
         showPermissionRationale = true
       }
     }
@@ -108,27 +91,24 @@ fun PermitZoneScreen(
   }
 
   if (showPermissionRationale) {
-    PermissionRationaleDialog(
-      title = "Enable Notifications & Alarms",
+    ParkBuddyAlertDialog(
+      title = "One quick thing",
       text =
-        "To provide timely street cleaning reminders, ParkBuddy needs permission to send " +
-          "you notifications and schedule precise alarms. This ensures you never miss a " +
-          "cleaning window and avoid potential tickets.",
-      confirmButtonText = "Enable",
-      dismissButtonText = "Not Now",
+        "Your phone sometimes delays notifications to save battery. " +
+          "Toggle on \"Allow setting alarms and reminders\" on the next screen " +
+          "so your street cleaning reminders arrive exactly on time.",
+      confirmLabel = "Open Settings",
+      dismissLabel = null,
       onConfirm = {
         showPermissionRationale = false
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-          notificationPermissionState?.launchPermissionRequest()
-        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
           val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
           if (!alarmManager.canScheduleExactAlarms()) {
-            val intent =
+            context.startActivity(
               Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
                 data = Uri.fromParts("package", context.packageName, null)
               }
-            context.startActivity(intent)
+            )
           }
         }
       },
@@ -269,8 +249,8 @@ internal fun PermitZoneContent(
 
               Text(
                 text =
-                  "Choose your residential parking permit zone to automatically " +
-                    "manage all streets in your area and receive street cleaning reminders.",
+                  "Live in a permit zone? Set it here so we know when you're exempt from local time limits. " +
+                    "We'll handle all the streets and reminders for you.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,

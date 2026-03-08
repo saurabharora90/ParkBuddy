@@ -20,10 +20,13 @@ class PreferencesRepositoryImpl(private val context: Context, private val json: 
   PreferencesRepository {
 
   private object Keys {
+    val HAS_SEEN_ONBOARDING = booleanPreferencesKey("has_seen_onboarding")
+    val HAS_SEEN_MAP_NUX = booleanPreferencesKey("has_seen_map_nux")
     val INITIAL_SYNC_DONE = booleanPreferencesKey("initial_sync_done")
     val BLUETOOTH_DEVICE_ADDRESS = stringPreferencesKey("bluetooth_device_address")
     val PARKED_LOCATION = stringPreferencesKey("parked_location")
     val AUTO_TRACKING_ENABLED = booleanPreferencesKey("auto_tracking_enabled")
+    val HAS_SEEN_ZONE_NUDGE = booleanPreferencesKey("has_seen_zone_nudge")
   }
 
   override val isInitialSyncDone: Flow<Boolean> =
@@ -31,6 +34,20 @@ class PreferencesRepositoryImpl(private val context: Context, private val json: 
 
   override suspend fun setInitialSyncDone(isDone: Boolean) {
     context.dataStore.edit { preferences -> preferences[Keys.INITIAL_SYNC_DONE] = isDone }
+  }
+
+  override val hasSeenOnboarding: Flow<Boolean> =
+    context.dataStore.data.map { preferences -> preferences[Keys.HAS_SEEN_ONBOARDING] ?: false }
+
+  override suspend fun setHasSeenOnboarding(hasSeen: Boolean) {
+    context.dataStore.edit { preferences -> preferences[Keys.HAS_SEEN_ONBOARDING] = hasSeen }
+  }
+
+  override val hasSeenMapNux: Flow<Boolean> =
+    context.dataStore.data.map { preferences -> preferences[Keys.HAS_SEEN_MAP_NUX] ?: false }
+
+  override suspend fun setHasSeenMapNux(hasSeen: Boolean) {
+    context.dataStore.edit { preferences -> preferences[Keys.HAS_SEEN_MAP_NUX] = hasSeen }
   }
 
   override val bluetoothDeviceAddress: Flow<String?> =
@@ -67,5 +84,12 @@ class PreferencesRepositoryImpl(private val context: Context, private val json: 
 
   override suspend fun setAutoTrackingEnabled(enabled: Boolean) {
     context.dataStore.edit { preferences -> preferences[Keys.AUTO_TRACKING_ENABLED] = enabled }
+  }
+
+  override val hasSeenZoneNudge: Flow<Boolean> =
+    context.dataStore.data.map { preferences -> preferences[Keys.HAS_SEEN_ZONE_NUDGE] ?: false }
+
+  override suspend fun setHasSeenZoneNudge(hasSeen: Boolean) {
+    context.dataStore.edit { preferences -> preferences[Keys.HAS_SEEN_ZONE_NUDGE] = hasSeen }
   }
 }

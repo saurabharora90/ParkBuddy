@@ -56,6 +56,9 @@ class MapViewModel(
     val permitSpots: List<ParkingSpot>,
     val parkedState: ParkedState?,
     val shouldShowParkedLocationBottomSheet: Boolean,
+    val hasSeenMapNux: Boolean,
+    val hasPermitZone: Boolean,
+    val hasSeenZoneNudge: Boolean,
   )
 
   private val shouldShowParkedLocationBottomSheet: MutableStateFlow<Boolean> =
@@ -86,20 +89,37 @@ class MapViewModel(
       }
     }
 
+  private val permitZoneFlow = repository.getUserPermitZone()
+
   val stateFlow: StateFlow<State> =
     combine(
         repository.getAllSpots().map { spots -> spots.filter { it.regulation.isParkable } },
-        repository.getUserPermitZone().flatMapLatest { zone ->
+        permitZoneFlow.flatMapLatest { zone ->
           if (zone == null) flowOf(emptyList()) else repository.getSpotsByZone(zone)
         },
         parkedStateFlow,
         shouldShowParkedLocationBottomSheet,
-      ) { parkingSpots, permitSpots, parkedState, shouldShowSheet ->
+        combine(
+          preferencesRepository.hasSeenMapNux,
+          permitZoneFlow,
+          preferencesRepository.hasSeenZoneNudge,
+        ) { nux, zone, seenNudge ->
+          Triple(nux, zone, seenNudge)
+        },
+      ) {
+        parkingSpots,
+        permitSpots,
+        parkedState,
+        shouldShowSheet,
+        (hasSeenNux, permitZone, seenNudge) ->
         State(
           spots = parkingSpots,
           permitSpots = permitSpots,
           parkedState = parkedState,
           shouldShowParkedLocationBottomSheet = shouldShowSheet,
+          hasSeenMapNux = hasSeenNux,
+          hasPermitZone = permitZone != null,
+          hasSeenZoneNudge = seenNudge,
         )
       }
       .stateIn(
@@ -111,6 +131,9 @@ class MapViewModel(
             permitSpots = emptyList(),
             parkedState = null,
             shouldShowParkedLocationBottomSheet = false,
+            hasSeenMapNux = true,
+            hasPermitZone = true,
+            hasSeenZoneNudge = true,
           ),
       )
 
@@ -120,6 +143,10 @@ class MapViewModel(
         shouldShowParkedLocationBottomSheet.value = it != null
       }
     }
+  }
+
+  fun markMapNuxSeen() {
+    viewModelScope.launch { preferencesRepository.setHasSeenMapNux(true) }
   }
 
   fun parkHere(spot: ParkingSpot) {
@@ -138,6 +165,10 @@ class MapViewModel(
   fun clearParkedLocation() {
     analyticsTracker.logEvent("clear_parked_location")
     viewModelScope.launch { parkingManager.markCarMoved() }
+  }
+
+  fun dismissZoneNudge() {
+    viewModelScope.launch { preferencesRepository.setHasSeenZoneNudge(true) }
   }
 
   fun reportWrongLocation() {

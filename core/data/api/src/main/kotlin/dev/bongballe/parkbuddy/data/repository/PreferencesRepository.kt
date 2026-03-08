@@ -7,6 +7,12 @@ interface PreferencesRepository {
   val isInitialSyncDone: Flow<Boolean>
   suspend fun setInitialSyncDone(isDone: Boolean)
 
+  val hasSeenOnboarding: Flow<Boolean>
+  suspend fun setHasSeenOnboarding(hasSeen: Boolean)
+
+  val hasSeenMapNux: Flow<Boolean>
+  suspend fun setHasSeenMapNux(hasSeen: Boolean)
+
   val bluetoothDeviceAddress: Flow<String?>
   suspend fun setBluetoothDeviceAddress(address: String?)
 
@@ -16,4 +22,7 @@ interface PreferencesRepository {
 
   val isAutoTrackingEnabled: Flow<Boolean>
   suspend fun setAutoTrackingEnabled(enabled: Boolean)
+
+  val hasSeenZoneNudge: Flow<Boolean>
+  suspend fun setHasSeenZoneNudge(hasSeen: Boolean)
 }
