@@ -547,4 +547,309 @@ class ParkingRepositoryImplTest {
       assertThat(tow.startTime.hour).isEqualTo(7)
     }
   }
+
+  @Test
+  fun `meter schedules with same window and limit merge days across posts`() =
+    runRepoTest { repository, api, _, _ ->
+      val geometryJson = Json.encodeToJsonElement(howardCenterline)
+
+      api.streetCleaningData =
+        listOf(
+          StreetCleaningResponse(
+            cnn = "7042000",
+            streetName = "Howard St",
+            cnnRightLeft = "R",
+            weekday = Weekday.Fri,
+            geometry = geometryJson,
+          )
+        )
+
+      // Post A: Mon-Sat 7-7, 30 min
+      // Post B: Mon-Sun 7-7, 30 min (superset of A's days, same window)
+      api.parkingMeterInventory =
+        listOf(
+          ParkingMeterResponse(
+            objectId = "m1",
+            postId = "470-09440",
+            streetSegCtrlnId = "7042000",
+            streetName = "HOWARD ST",
+          ),
+          ParkingMeterResponse(
+            objectId = "m2",
+            postId = "470-09450",
+            streetSegCtrlnId = "7042000",
+            streetName = "HOWARD ST",
+          ),
+        )
+
+      api.meterSchedules =
+        listOf(
+          MeterScheduleResponse(
+            postId = "470-09440",
+            daysApplied = "Mo,Tu,We,Th,Fr,Sa",
+            fromTime = "7:00 AM",
+            toTime = "7:00 PM",
+            timeLimit = "30 minutes",
+            scheduleType = "Operating Schedule",
+          ),
+          MeterScheduleResponse(
+            postId = "470-09450",
+            daysApplied = "Mo,Tu,We,Th,Fr,Sa,Su",
+            fromTime = "7:00 AM",
+            toTime = "7:00 PM",
+            timeLimit = "30 minutes",
+            scheduleType = "Operating Schedule",
+          ),
+        )
+
+      api.parkingRegulations = emptyList()
+
+      repository.refreshData()
+
+      repository.getAllSpots().test {
+        val spot = awaitItem().single()
+        // Mon-Sat is a subset of Mon-Sun with same window/limit, so only one merged schedule
+        assertThat(spot.meterSchedules).hasSize(1)
+        assertThat(spot.meterSchedules[0].days).hasSize(7)
+        assertThat(spot.meterSchedules[0].timeLimitMinutes).isEqualTo(30)
+      }
+    }
+
+  @Test
+  fun `meter schedules with different limits on same window kept separate`() =
+    runRepoTest { repository, api, _, _ ->
+      val geometryJson = Json.encodeToJsonElement(howardCenterline)
+
+      api.streetCleaningData =
+        listOf(
+          StreetCleaningResponse(
+            cnn = "7042000",
+            streetName = "Howard St",
+            cnnRightLeft = "R",
+            weekday = Weekday.Fri,
+            geometry = geometryJson,
+          )
+        )
+
+      api.parkingMeterInventory =
+        listOf(
+          ParkingMeterResponse(
+            objectId = "m1",
+            postId = "470-09440",
+            streetSegCtrlnId = "7042000",
+            streetName = "HOWARD ST",
+          ),
+          ParkingMeterResponse(
+            objectId = "m2",
+            postId = "470-09450",
+            streetSegCtrlnId = "7042000",
+            streetName = "HOWARD ST",
+          ),
+        )
+
+      // Post A: Mon-Fri 7-7, 30 min
+      // Post B: Mon-Fri 7-7, 240 min (same window but different limit)
+      api.meterSchedules =
+        listOf(
+          MeterScheduleResponse(
+            postId = "470-09440",
+            daysApplied = "Mo,Tu,We,Th,Fr",
+            fromTime = "7:00 AM",
+            toTime = "7:00 PM",
+            timeLimit = "30 minutes",
+            scheduleType = "Operating Schedule",
+          ),
+          MeterScheduleResponse(
+            postId = "470-09450",
+            daysApplied = "Mo,Tu,We,Th,Fr",
+            fromTime = "7:00 AM",
+            toTime = "7:00 PM",
+            timeLimit = "240 minutes",
+            scheduleType = "Operating Schedule",
+          ),
+        )
+
+      api.parkingRegulations = emptyList()
+
+      repository.refreshData()
+
+      repository.getAllSpots().test {
+        val spot = awaitItem().single()
+        // Different limits mean different rules, both kept
+        assertThat(spot.meterSchedules).hasSize(2)
+        val limits = spot.meterSchedules.map { it.timeLimitMinutes }.toSet()
+        assertThat(limits).containsExactly(30, 240)
+      }
+    }
+
+  @Test
+  fun `meter schedules with different windows but same limit kept separate`() =
+    runRepoTest { repository, api, _, _ ->
+      val geometryJson = Json.encodeToJsonElement(howardCenterline)
+
+      api.streetCleaningData =
+        listOf(
+          StreetCleaningResponse(
+            cnn = "7042000",
+            streetName = "Howard St",
+            cnnRightLeft = "R",
+            weekday = Weekday.Fri,
+            geometry = geometryJson,
+          )
+        )
+
+      api.parkingMeterInventory =
+        listOf(
+          ParkingMeterResponse(
+            objectId = "m1",
+            postId = "470-09440",
+            streetSegCtrlnId = "7042000",
+            streetName = "HOWARD ST",
+          )
+        )
+
+      // Same post, two windows: morning and afternoon
+      api.meterSchedules =
+        listOf(
+          MeterScheduleResponse(
+            postId = "470-09440",
+            daysApplied = "Mo,Tu,We,Th,Fr",
+            fromTime = "7:00 AM",
+            toTime = "12:00 PM",
+            timeLimit = "30 minutes",
+            scheduleType = "Operating Schedule",
+          ),
+          MeterScheduleResponse(
+            postId = "470-09440",
+            daysApplied = "Mo,Tu,We,Th,Fr",
+            fromTime = "1:00 PM",
+            toTime = "7:00 PM",
+            timeLimit = "30 minutes",
+            scheduleType = "Operating Schedule",
+          ),
+        )
+
+      api.parkingRegulations = emptyList()
+
+      repository.refreshData()
+
+      repository.getAllSpots().test {
+        val spot = awaitItem().single()
+        // Different time windows are distinct schedules
+        assertThat(spot.meterSchedules).hasSize(2)
+      }
+    }
+
+  @Test
+  fun `timedRestriction nulled when spot has meter schedules`() =
+    runRepoTest { repository, api, _, _ ->
+      val geometryJson = Json.encodeToJsonElement(howardCenterline)
+
+      api.streetCleaningData =
+        listOf(
+          StreetCleaningResponse(
+            cnn = "7042000",
+            streetName = "Howard St",
+            cnnRightLeft = "R",
+            weekday = Weekday.Fri,
+            geometry = geometryJson,
+          )
+        )
+
+      // Regulation that would produce a timedRestriction
+      api.parkingRegulations =
+        listOf(
+          ParkingRegulationResponse(
+            objectId = "9999",
+            regulation = "Time limited",
+            rppArea1 = null,
+            hrsBegin = "700",
+            hrsEnd = "1900",
+            days = "M-Su",
+            hrLimit = "4",
+            shape =
+              Json.parseToJsonElement(
+                """{"type":"LineString","coordinates":[${
+                howardCenterline.coordinates.joinToString(",") { "[${it[0]},${it[1]}]" }
+              }]}"""
+              ),
+          )
+        )
+
+      // Meter on the same CNN
+      api.parkingMeterInventory =
+        listOf(
+          ParkingMeterResponse(
+            objectId = "m1",
+            postId = "470-09440",
+            streetSegCtrlnId = "7042000",
+            streetName = "HOWARD ST",
+          )
+        )
+
+      api.meterSchedules =
+        listOf(
+          MeterScheduleResponse(
+            postId = "470-09440",
+            daysApplied = "Mo,Tu,We,Th,Fr,Sa",
+            fromTime = "7:00 AM",
+            toTime = "7:00 PM",
+            timeLimit = "30 minutes",
+            scheduleType = "Operating Schedule",
+          )
+        )
+
+      repository.refreshData()
+
+      repository.getAllSpots().test {
+        val spot = awaitItem().single()
+        // Meter schedules are present, so timedRestriction should be dropped
+        // to avoid double-reporting the same rules from two SF datasets.
+        assertThat(spot.meterSchedules).hasSize(1)
+        assertThat(spot.timedRestriction).isNull()
+      }
+    }
+
+  @Test
+  fun `timedRestriction preserved when spot has no meter schedules`() =
+    runRepoTest { repository, api, _, _ ->
+      val geometryJson = Json.encodeToJsonElement(delanceyCenterline)
+
+      api.streetCleaningData =
+        listOf(
+          StreetCleaningResponse(
+            cnn = "115001",
+            streetName = "Delancey St",
+            cnnRightLeft = "R",
+            weekday = Weekday.Fri,
+            geometry = geometryJson,
+          )
+        )
+
+      api.parkingRegulations =
+        listOf(
+          ParkingRegulationResponse(
+            objectId = "1017",
+            regulation = "Time limited",
+            rppArea1 = "Y",
+            hrsBegin = "800",
+            hrsEnd = "2200",
+            days = "M-Su",
+            hrLimit = "2",
+            shape = delanceyRegulationShapeJson,
+          )
+        )
+
+      api.parkingMeterInventory = emptyList()
+      api.meterSchedules = emptyList()
+
+      repository.refreshData()
+
+      repository.getAllSpots().test {
+        val spot = awaitItem().single()
+        assertThat(spot.meterSchedules).isEmpty()
+        assertThat(spot.timedRestriction).isNotNull()
+        assertThat(spot.timedRestriction!!.limitHours).isEqualTo(2)
+      }
+    }
 }
