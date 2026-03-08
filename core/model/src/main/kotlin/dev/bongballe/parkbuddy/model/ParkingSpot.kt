@@ -93,7 +93,18 @@ data class MeterSchedule(
   val endTime: LocalTime,
   val timeLimitMinutes: Int,
   val isTowZone: Boolean = false,
-)
+) {
+  fun isWithinWindow(time: Instant, zone: TimeZone = TimeZone.currentSystemDefault()): Boolean {
+    val localDateTime = time.toLocalDateTime(zone)
+    if (days.isNotEmpty() && localDateTime.dayOfWeek !in days) return false
+    val currentTime = localDateTime.time
+    return if (startTime <= endTime) {
+      currentTime in startTime..endTime
+    } else {
+      currentTime >= startTime || currentTime <= endTime
+    }
+  }
+}
 
 /**
  * Represents a street sweeping schedule for a specific day of the week.
