@@ -111,12 +111,18 @@ class ParkingRepositoryImplTest {
     assertThat(success).isTrue()
 
     repository.getAllSpots().test {
-      val spots = awaitItem()
-      assertThat(spots).hasSize(1)
-      assertThat(spots[0].objectId).isEqualTo("reg_1")
-      assertThat(spots[0].rppArea).isEqualTo("A")
-      assertThat(spots[0].sweepingSchedules).hasSize(1)
-      assertThat(spots[0].sweepingSchedules[0].weekday.name).isEqualTo("Mon")
+      val spots = awaitItem().sortedBy { it.objectId }
+      // Should have 2 spots: cnn_123_LEFT (sweeping) and cnn_123_RIGHT (regulation)
+      // Identical geometry in test makes determineSide return RIGHT for the regulation.
+      assertThat(spots).hasSize(2)
+
+      val leftSpot = spots.find { it.objectId == "cnn_123_LEFT" }!!
+      assertThat(leftSpot.sweepingSchedules).hasSize(1)
+      assertThat(leftSpot.sweepingSchedules[0].weekday.name).isEqualTo("Mon")
+
+      val rightSpot = spots.find { it.objectId == "cnn_123_RIGHT" }!!
+      assertThat(rightSpot.rppArea).isEqualTo("A")
+      assertThat(rightSpot.regulation.name).isEqualTo("TIME_LIMITED")
     }
   }
 
@@ -142,8 +148,7 @@ class ParkingRepositoryImplTest {
           )
         )
 
-      // CNN 123 also has meters (should be deduplicated)
-      // CNN 456 only has meters (should be added as gap-filler)
+      // CNN 123 also has meters (should be deduplicated by map key)
       api.parkingMeterInventory =
         listOf(
           ParkingMeterResponse(
@@ -183,13 +188,12 @@ class ParkingRepositoryImplTest {
 
       repository.getAllSpots().test {
         val spots = awaitItem().sortedBy { it.objectId }
-        // Should have 2 spots: reg_reg1 and meter_456_R
-        // meter_123_R should be deduplicated because reg_reg1 covers it
+        // Should have 2 spots: cnn_123_RIGHT and cnn_456_RIGHT
         assertThat(spots).hasSize(2)
-        assertThat(spots[0].objectId).isEqualTo("meter_456_R")
-        assertThat(spots[0].regulation.name).isEqualTo("METERED")
-        assertThat(spots[1].objectId).isEqualTo("reg_reg1")
-        assertThat(spots[1].rppArea).isEqualTo("A")
+        assertThat(spots[0].objectId).isEqualTo("cnn_123_RIGHT")
+        assertThat(spots[0].rppArea).isEqualTo("A")
+        assertThat(spots[1].objectId).isEqualTo("cnn_456_RIGHT")
+        assertThat(spots[1].regulation.name).isEqualTo("METERED")
       }
     }
 
@@ -250,6 +254,7 @@ class ParkingRepositoryImplTest {
         val spots = awaitItem()
         assertThat(spots).hasSize(1)
         val spot = spots[0]
+        assertThat(spot.objectId).isEqualTo("cnn_789_LEFT")
         assertThat(spot.regulation.name).isEqualTo("METERED")
         assertThat(spot.meterSchedules).hasSize(2)
 
