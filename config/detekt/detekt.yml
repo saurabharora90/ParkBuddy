@@ -34,6 +34,8 @@ style:
     comments: [ 'FIXME:', 'STOPSHIP:' ]
   UnusedImports:
     active: true
+  LoopWithTooManyJumpStatements:
+    active: false
 
 Compose:
   ComposableAnnotationNaming:

@@ -197,16 +197,16 @@ class CoordinateMatcher(sweepingData: List<StreetCleaningResponse>) {
               point.jsonArray.map { it.jsonPrimitive.content.toDouble() }
             }
           }
+
         "LineString" ->
           coordsArray.map { point -> point.jsonArray.map { it.jsonPrimitive.content.toDouble() } }
+
         else -> return null
       }
     return Geometry(type = "LineString", coordinates = coordinates)
   }
 
   companion object {
-    private const val EARTH_RADIUS_METERS = 6371000.0
-
     fun offsetGeometry(geometry: Geometry, side: StreetSide, offsetMeters: Double = 5.0): Geometry {
       val coords = geometry.coordinates
       if (coords.size < 2) return geometry

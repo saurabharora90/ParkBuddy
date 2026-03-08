@@ -113,6 +113,7 @@ class ParkingRepositoryImpl(
 
   companion object {
     private const val TAG = "ParkingRepository"
+
     /** Threshold for matching a regulation or meter to a street centerline segment. */
     private const val MATCHING_THRESHOLD_METERS = 20.0
     private const val API_BATCH_LIMIT = 5000
@@ -262,6 +263,7 @@ class ParkingRepositoryImpl(
               context.curbsideGeometry != null -> context.curbsideGeometry
               context.centerline != null ->
                 CoordinateMatcher.offsetGeometry(context.centerline!!, context.side)
+
               else -> null
             } ?: continue
 
@@ -332,7 +334,6 @@ class ParkingRepositoryImpl(
     }
   }
 
-  @Suppress("LoopWithTooManyJumpStatements")
   private fun addMeterSchedules(
     spotId: String,
     responses: List<MeterScheduleResponse>,
@@ -444,7 +445,6 @@ class ParkingRepositoryImpl(
     }
   }
 
-  @Suppress("LoopWithTooManyJumpStatements")
   private suspend fun fetchAllParkingRegulations(): List<ParkingRegulationResponse> {
     val allRegulations = mutableListOf<ParkingRegulationResponse>()
     var offset = 0
@@ -471,7 +471,6 @@ class ParkingRepositoryImpl(
     return allRegulations
   }
 
-  @Suppress("LoopWithTooManyJumpStatements")
   private suspend fun fetchAllSweepingData(): List<StreetCleaningResponse> {
     val allSweeping = mutableListOf<StreetCleaningResponse>()
     var offset = 0
@@ -494,7 +493,6 @@ class ParkingRepositoryImpl(
     return allSweeping
   }
 
-  @Suppress("LoopWithTooManyJumpStatements")
   private suspend fun fetchAllMeterInventory(): List<ParkingMeterResponse> {
     val allMeters = mutableListOf<ParkingMeterResponse>()
     var offset = 0
@@ -517,7 +515,6 @@ class ParkingRepositoryImpl(
     return allMeters
   }
 
-  @Suppress("LoopWithTooManyJumpStatements")
   private suspend fun fetchAllMeterSchedules(): List<MeterScheduleResponse> {
     val allSchedules = mutableListOf<MeterScheduleResponse>()
     var offset = 0
