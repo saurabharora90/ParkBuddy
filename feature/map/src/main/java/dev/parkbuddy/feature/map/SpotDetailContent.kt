@@ -20,6 +20,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -120,10 +121,7 @@ internal fun SpotDetailContent(
             color = SageGreen,
           )
         }
-      } else if (
-        spot.regulation == ParkingRegulation.PAY_OR_PERMIT ||
-          spot.regulation == ParkingRegulation.METERED
-      ) {
+      } else if (spot.regulation.requiresPayment) {
         Row(
           verticalAlignment = Alignment.CenterVertically,
           horizontalArrangement = Arrangement.spacedBy(16.dp),
@@ -185,7 +183,7 @@ internal fun SpotDetailContent(
 
 @Composable
 private fun RestrictionRow(
-  icon: androidx.compose.ui.graphics.vector.ImageVector,
+  icon: ImageVector,
   label: String,
   days: Set<kotlinx.datetime.DayOfWeek>,
   startTime: LocalTime?,
