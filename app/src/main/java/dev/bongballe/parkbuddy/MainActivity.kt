@@ -46,13 +46,12 @@ import com.airbnb.lottie.compose.LottieAnimation
 import com.airbnb.lottie.compose.LottieCompositionSpec
 import com.airbnb.lottie.compose.LottieConstants
 import com.airbnb.lottie.compose.rememberLottieComposition
-import dev.bongballe.parkbuddy.data.repository.ParkingRepository
 import dev.bongballe.parkbuddy.data.repository.PreferencesRepository
 import dev.bongballe.parkbuddy.theme.ParkBuddyTheme
 import dev.parkbuddy.feature.map.MapScreen
-import dev.parkbuddy.feature.onboarding.PermissionChecker
+import dev.parkbuddy.feature.map.PermissionChecker
 import dev.parkbuddy.feature.onboarding.bluetooth.BluetoothDeviceSelectionScreen
-import dev.parkbuddy.feature.onboarding.permission.RequestPermissionScreen
+import dev.parkbuddy.feature.onboarding.setup.SetupChecklistScreen
 import dev.parkbuddy.feature.reminders.permitzone.PermitZoneScreen
 import dev.parkbuddy.feature.settings.SettingsScreen
 import dev.zacsweers.metro.AppScope
@@ -66,7 +65,7 @@ import dev.zacsweers.metrox.viewmodel.metroViewModel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 
-data object RouteRequestPermission
+data object RouteOnboarding
 
 data object RouteBluetoothDeviceSelection
 
@@ -77,7 +76,6 @@ data object Main
 @Inject
 class MainActivity(
   private val viewModelFactory: MetroViewModelFactory,
-  private val repository: ParkingRepository,
   private val preferencesRepository: PreferencesRepository,
 ) : ComponentActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
@@ -90,22 +88,14 @@ class MainActivity(
         val state by vm.stateFlow.collectAsStateWithLifecycle()
 
         ParkBuddyTheme {
-          val bluetoothDeviceAddress = runBlocking {
-            preferencesRepository.bluetoothDeviceAddress.first()
-          }
-          val userRppZone = runBlocking { repository.getUserPermitZone().first() }
+          val hasSeenOnboarding = runBlocking { preferencesRepository.hasSeenOnboarding.first() }
           val initialRoute =
             when {
-              !PermissionChecker.areAllPermissionsGranted(this@MainActivity) ->
-                RouteRequestPermission
-
-              bluetoothDeviceAddress == null -> RouteBluetoothDeviceSelection
+              !hasSeenOnboarding -> RouteOnboarding
               else -> Main
             }
 
-          var mainPageSelectedTab by rememberSaveable {
-            mutableIntStateOf(if (userRppZone == null) 1 else 0)
-          }
+          var mainPageSelectedTab by rememberSaveable { mutableIntStateOf(0) }
 
           val backStack = remember(initialRoute) { mutableStateListOf(initialRoute) }
           NavDisplay(
@@ -118,11 +108,13 @@ class MainActivity(
               ),
             entryProvider =
               entryProvider {
-                entry<RouteRequestPermission> {
-                  RequestPermissionScreen(
-                    onPermissionsGranted = {
+                entry<RouteOnboarding> {
+                  SetupChecklistScreen(
+                    onSetupComplete = {
                       backStack.clear()
-                      backStack.add(RouteBluetoothDeviceSelection)
+                      val hasBluetooth =
+                        PermissionChecker.areBluetoothPermissionsGranted(this@MainActivity)
+                      backStack.add(if (hasBluetooth) RouteBluetoothDeviceSelection else Main)
                     }
                   )
                 }
@@ -192,7 +184,7 @@ private fun MainScreen(
     ) { paddingValues ->
       Box(modifier = Modifier.padding(paddingValues).consumeWindowInsets(paddingValues)) {
         when (selectedTab) {
-          0 -> MapScreen()
+          0 -> MapScreen(onNavigateToZone = { onTabSelected(1) })
           1 -> PermitZoneScreen()
           2 -> SettingsScreen(onNavigateToBluetooth = onNavigateToBluetooth)
         }

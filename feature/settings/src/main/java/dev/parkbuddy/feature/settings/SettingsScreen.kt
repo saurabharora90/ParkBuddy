@@ -127,7 +127,7 @@ private fun SettingsContent(
             iconBackgroundColor = Color.White,
             iconTint = SagePrimary,
             title = "Connected Car",
-            subtitle = uiState.bluetoothDeviceName ?: "My Main Vehicle",
+            subtitle = uiState.bluetoothDeviceName,
             subtitleColor = SagePrimary,
             onClick = onNavigateToBluetooth,
             modifier = Modifier.padding(16.dp),
@@ -262,7 +262,7 @@ private fun SettingsContentPreview() {
       uiState =
         SettingsUiState(
           isAutoTrackingEnabled = true,
-          bluetoothDeviceName = "My Car",
+          bluetoothDeviceName = "Tesla Model 3",
           appVersion = "V1.0",
         ),
       onAutoTrackingToggle = {},
