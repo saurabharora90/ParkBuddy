@@ -60,7 +60,8 @@ class ParkingRepositoryImpl(
   private data class UnifiedSegmentContext(
     val cnn: String,
     val side: StreetSide,
-    var geometry: Geometry? = null,
+    var centerline: Geometry? = null,
+    var curbsideGeometry: Geometry? = null,
     var streetName: String? = null,
     var blockLimits: String? = null,
     var neighborhood: String? = null,
@@ -112,11 +113,8 @@ class ParkingRepositoryImpl(
 
   companion object {
     private const val TAG = "ParkingRepository"
-
     /** Threshold for matching a regulation or meter to a street centerline segment. */
-    private const val MATCHING_THRESHOLD_METERS = 10.0
-
-    /** Number of records to fetch in a single API request. */
+    private const val MATCHING_THRESHOLD_METERS = 20.0
     private const val API_BATCH_LIMIT = 5000
   }
 
@@ -183,7 +181,7 @@ class ParkingRepositoryImpl(
         val matcher = CoordinateMatcher(sweepingData)
         val unifiedContexts = mutableMapOf<Pair<String, StreetSide>, UnifiedSegmentContext>()
 
-        // 1. Seed contexts from Sweeping Data (The "Physical" layer)
+        // 1. Seed contexts from Sweeping Data (The physical street network)
         for (sweeping in sweepingData) {
           val side = sweeping.cnnRightLeft.toStreetSide()
           val key = sweeping.cnn to side
@@ -191,29 +189,24 @@ class ParkingRepositoryImpl(
             unifiedContexts.getOrPut(key) { UnifiedSegmentContext(cnn = sweeping.cnn, side = side) }
 
           context.sweepingSchedules.add(sweeping)
-          if (context.geometry == null) {
-            context.geometry = parseGeometry(sweeping.geometry)
+          if (context.centerline == null) {
+            context.centerline = parseGeometry(sweeping.geometry)
             context.streetName = sweeping.streetName
             context.blockLimits = sweeping.limits
           }
         }
 
-        // 2. Merge Regulations (RPP, Time Limited)
+        // 2. Merge Regulations (RPP, Time Limited) - GREEDY MULTI-MATCH
         for (regulation in parkingRegulations) {
-          val geometry = parseGeometry(regulation.shape) ?: continue
-          val sweepingMatch = matcher.findMatch(geometry, MATCHING_THRESHOLD_METERS)
+          val poly = parseGeometry(regulation.shape) ?: continue
+          val overlappingSegments = matcher.matchPolyline(poly, MATCHING_THRESHOLD_METERS)
 
-          if (sweepingMatch != null) {
-            val side = sweepingMatch.side.toStreetSide()
-            val key = sweepingMatch.cnn to side
-            val context =
-              unifiedContexts.getOrPut(key) {
-                UnifiedSegmentContext(
-                  cnn = sweepingMatch.cnn,
-                  side = side,
-                  geometry = sweepingMatch.geometry,
-                )
-              }
+          for (match in overlappingSegments) {
+            val key = match.cnn to match.side
+            val context = unifiedContexts[key] ?: continue
+
+            // If the regulation is higher resolution, use its geometry
+            context.curbsideGeometry = poly
 
             context.regulation = regulation.regulation.toParkingRegulation()
             context.rppArea = regulation.rppArea1?.takeIf { it.isNotBlank() }
@@ -236,12 +229,8 @@ class ParkingRepositoryImpl(
         for ((cnn, meters) in metersByCnn) {
           val matches = matcher.findAllMatchesForCnn(cnn)
           for (match in matches) {
-            val side = match.side.toStreetSide()
-            val key = cnn to side
-            val context =
-              unifiedContexts.getOrPut(key) {
-                UnifiedSegmentContext(cnn = cnn, side = side, geometry = match.geometry)
-              }
+            val key = cnn to match.side
+            val context = unifiedContexts[key] ?: continue
 
             if (context.regulation == null) {
               context.regulation = ParkingRegulation.METERED
@@ -262,17 +251,30 @@ class ParkingRepositoryImpl(
         val meterSchedulesList = mutableListOf<MeterScheduleEntity>()
 
         for (context in unifiedContexts.values) {
-          val geometry = context.geometry ?: continue
+          // Skip segments that only have sweeping data but no parking regulation or meters.
+          // These are streets the city sweeps but has no parkable curb (e.g., Embarcadero,
+          // highway ramps). Storing them creates misleading "unrestricted" lines on the map.
+          if (context.regulation == null && context.meterSchedules.isEmpty()) continue
+
+          // RESOLVE Geometry: Prioritize Reg, then offset Centerline
+          val finalGeometry =
+            when {
+              context.curbsideGeometry != null -> context.curbsideGeometry
+              context.centerline != null ->
+                CoordinateMatcher.offsetGeometry(context.centerline!!, context.side)
+              else -> null
+            } ?: continue
+
           val spotId = "cnn_${context.cnn}_${context.side.name}"
 
           val spot =
             ParkingSpotEntity(
               objectId = spotId,
-              geometry = geometry,
+              geometry = finalGeometry,
               streetName = context.streetName,
               blockLimits = context.blockLimits,
               neighborhood = context.neighborhood,
-              regulation = context.regulation ?: ParkingRegulation.UNRESTRICTED,
+              regulation = context.regulation!!,
               rppArea = context.rppArea,
               timeLimitHours = context.timeLimitHours,
               enforcementDays = context.enforcementDays,
