@@ -338,11 +338,22 @@ class ParkingRepositoryImpl(
     responses: List<MeterScheduleResponse>,
     schedulesList: MutableList<MeterScheduleEntity>,
   ) {
+    // Phase 1: Deduplicate identical raw API responses (same string fields across meter posts).
     val uniqueSchedules =
       responses.groupBy {
         Triple(it.daysApplied, it.fromTime to it.toTime, it.timeLimit to it.scheduleType)
       }
 
+    // Phase 2: Parse into (days, start, end, limit, isTow) tuples.
+    data class Parsed(
+      val days: Set<DayOfWeek>,
+      val start: LocalTime,
+      val end: LocalTime,
+      val limit: Int,
+      val isTow: Boolean,
+    )
+
+    val parsed = mutableListOf<Parsed>()
     for ((_, schedules) in uniqueSchedules) {
       val first = schedules.first()
       val days = parseMeterDays(first.daysApplied)
@@ -350,15 +361,47 @@ class ParkingRepositoryImpl(
       val end = parseMeterTime(first.toTime) ?: continue
       val limit = first.timeLimit?.filter { it.isDigit() }?.toIntOrNull() ?: 0
       val isTow = first.scheduleType?.contains("Tow", ignoreCase = true) == true
+      parsed.add(Parsed(days, start, end, limit, isTow))
+    }
 
+    // Phase 3: Merge schedules that share the same time window, limit, and tow status
+    // by unioning their day sets. Then drop any schedule whose days are a strict subset
+    // of another with the same window and a <= limit (the broader one is more restrictive
+    // or equally restrictive, so the subset adds no information).
+    val merged =
+      parsed
+        .groupBy { Triple(it.start, it.end, it.limit to it.isTow) }
+        .flatMap { (key, group) ->
+          val (start, end, limitTow) = key
+          val (limit, isTow) = limitTow
+          val unionDays = group.fold(emptySet<DayOfWeek>()) { acc, p -> acc + p.days }
+          listOf(Parsed(unionDays, start, end, limit, isTow))
+        }
+        .toMutableList()
+
+    // Remove schedules whose days are a strict subset of another with the same window
+    // and equal-or-shorter time limit (the superset already covers those days).
+    merged.removeAll { candidate ->
+      merged.any { other ->
+        other !== candidate &&
+          other.start == candidate.start &&
+          other.end == candidate.end &&
+          other.isTow == candidate.isTow &&
+          other.limit <= candidate.limit &&
+          other.days.containsAll(candidate.days) &&
+          other.days.size > candidate.days.size
+      }
+    }
+
+    for (schedule in merged) {
       schedulesList.add(
         MeterScheduleEntity(
           parkingSpotId = spotId,
-          days = days,
-          startTime = start,
-          endTime = end,
-          timeLimitMinutes = limit,
-          isTowZone = isTow,
+          days = schedule.days,
+          startTime = schedule.start,
+          endTime = schedule.end,
+          timeLimitMinutes = schedule.limit,
+          isTowZone = schedule.isTow,
         )
       )
     }
@@ -544,6 +587,12 @@ class ParkingRepositoryImpl(
   }
 
   private fun PopulatedParkingSpot.toDomainModel(): ParkingSpot {
+    // SF publishes parking rules in two datasets: a regulation layer (timedRestriction)
+    // and a meter schedule layer. When both exist for the same spot, the meter schedules
+    // are strictly more granular, so drop the regulation-sourced timedRestriction to
+    // avoid double-reporting the same rule.
+    val hasMeters = meterSchedules.isNotEmpty()
+
     return ParkingSpot(
       objectId = spot.objectId,
       geometry = spot.geometry,
@@ -553,14 +602,16 @@ class ParkingRepositoryImpl(
       regulation = spot.regulation,
       rppArea = spot.rppArea,
       timedRestriction =
-        spot.timeLimitHours?.let { limitHours ->
-          TimedRestriction(
-            limitHours = limitHours,
-            days = spot.enforcementDays ?: emptySet(),
-            startTime = spot.enforcementStart,
-            endTime = spot.enforcementEnd,
-          )
-        },
+        if (hasMeters) null
+        else
+          spot.timeLimitHours?.let { limitHours ->
+            TimedRestriction(
+              limitHours = limitHours,
+              days = spot.enforcementDays ?: emptySet(),
+              startTime = spot.enforcementStart,
+              endTime = spot.enforcementEnd,
+            )
+          },
       sweepingCnn = spot.sweepingCnn,
       sweepingSide = spot.sweepingSide,
       sweepingSchedules =
