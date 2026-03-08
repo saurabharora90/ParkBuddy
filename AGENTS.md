@@ -9,11 +9,22 @@ understanding the codebase, architecture, and conventions.
 is **city-agnostic** with San Francisco as the initial implementation.
 
 * **Data Source**: City open data APIs (currently SF Open Data).
+    * Uses a **Four-Way Parallel Sync**: Fetches Regulations, Sweeping, Meter Inventory, and
+      Meter Operating Schedules concurrently via `ParkingRepositoryImpl`.
+    * Uses high-performance batching (`API_BATCH_LIMIT = 5000`) to maximize data throughput while
+      maintaining server stability.
     * Data includes parking spots (`geometry`), sweeping schedules (`weekday`, `fromHour`,
       `toHour`), and week flags (`week1`-`week5`, `holidays`).
-    * Parking regulations also include **Timed Restrictions** (e.g., "2-hour limit M-F 8am-6pm").
-    * Parking regulations are matched to sweeping schedules via coordinate proximity (
-      `CoordinateMatcher`).
+    * Metered parking includes specific **Operating Schedules** (hours, days) and
+      **Time Limits** (e.g., "60 minutes") from the city's meter database.
+    * **Tow Away Zones** are identified from meter schedules and treated as high-urgency
+      `Forbidden` states in the `ParkingRestrictionEvaluator`.
+* **Unified Segment Model**:
+    * Treats **CNN (Centerline ID) + Side (Left/Right)** as the unique "Single Source of Truth"
+      for every physical street block.
+    * Merges all data sources (RPP, Meters, Sweeping) into a single segment to ensure perfect
+      geometric alignment and zero duplicates on the map.
+    * Matching threshold is strictly set to **10 meters** for high-density accuracy.
 * **Parking Detection**:
     * Triggered by **Bluetooth Disconnection** from a user-selected device (Car Audio).
     * Implemented in `BluetoothConnectionReceiver` using `goAsync` for immediate execution.
@@ -26,6 +37,8 @@ is **city-agnostic** with San Francisco as the initial implementation.
         1. **Street Cleaning**: Before the next valid cleaning time.
         2. **Time Limits**: Before the current `ActiveTimed` restriction expires.
     * **Logic**: Handles 24h time formats, week specificity, and holidays (`HolidayUtils`).
+    * **Universal Safety Net**: Even on unrestricted (free) streets, the app identifies and
+      schedules reminders for street cleaning to prevent surprise tickets.
 
 ## Architecture
 
@@ -51,10 +64,11 @@ core/data/
 
 **SF-specific code** (`sf-impl`):
 
-- `SfOpenDataApi`: Retrofit client for SF Open Data endpoints
-- `ParkingRepositoryImpl`: Fetches parking regulations + sweeping schedules, matches via coordinates
-- `CoordinateMatcher`: Spatial matching using R-tree index
-- Room database with `ParkingSpotEntity`, `SweepingScheduleEntity`, `UserPreferencesEntity`
+- `SfOpenDataApi`: Retrofit client for SF Open Data endpoints.
+- `ParkingRepositoryImpl`: Standardized parallel fetch and merge logic using the Unified Segment Model.
+- `CoordinateMatcher`: Spatial matching using grid-based spatial index. Snaps points and
+  polylines to the nearest street centerline.
+- Room database with `ParkingSpotEntity`, `SweepingScheduleEntity`, `MeterScheduleEntity`, and
 
 ### Module Structure
 
@@ -84,7 +98,7 @@ core/
 | Language   | Kotlin                                      |
 | UI         | Jetpack Compose (Material3)                 |
 | Navigation | AndroidX Navigation 3                       |
-| DI         | [Metro](https://github.com/zacsweers/metro) |
+| DI         | [Metro](https://github.com/zacsweers.metro) |
 | Async      | Kotlin Coroutines & Flow                    |
 | Network    | Retrofit, OkHttp, Kotlinx Serialization     |
 | Database   | Room                                        |

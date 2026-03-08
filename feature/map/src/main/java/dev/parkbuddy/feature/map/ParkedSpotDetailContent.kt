@@ -426,18 +426,18 @@ private fun AlertsSection(
       ForbiddenAlertsSection(restrictionState.reason)
     }
     is ParkingRestrictionState.MeteredActive -> {
-      MeteredActiveAlertsSection()
+      MeteredActiveAlertsSection(spot)
     }
     is ParkingRestrictionState.ActiveTimed,
     is ParkingRestrictionState.PendingTimed -> {
       if (
         restrictionState is ParkingRestrictionState.ActiveTimed && restrictionState.paymentRequired
       ) {
-        MeteredActiveAlertsSection()
+        MeteredActiveAlertsSection(spot)
       } else if (
         restrictionState is ParkingRestrictionState.PendingTimed && restrictionState.paymentRequired
       ) {
-        MeteredActiveAlertsSection()
+        MeteredActiveAlertsSection(spot)
       }
       TimeLimitAlertsSection(restrictionState, now)
     }
@@ -449,7 +449,16 @@ private fun AlertsSection(
 }
 
 @Composable
-private fun MeteredActiveAlertsSection() {
+private fun MeteredActiveAlertsSection(spot: ParkingSpot? = null) {
+  val subtitle =
+    when {
+      spot?.regulation == dev.bongballe.parkbuddy.model.ParkingRegulation.PAID_PLUS_PERMIT ->
+        "Payment is required even with a Zone ${spot.rppArea} permit."
+      spot?.regulation == dev.bongballe.parkbuddy.model.ParkingRegulation.PAY_OR_PERMIT ->
+        "You lack a permit for Zone ${spot.rppArea}."
+      else -> "Check signs for time limits and rates."
+    }
+
   Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
     Text(
       text = "IMPORTANT INFO",
@@ -459,11 +468,7 @@ private fun MeteredActiveAlertsSection() {
       letterSpacing = 0.5.sp,
     )
 
-    AlertCard(
-      title = "PAY AT METER",
-      subtitle = "Check signs for time limits and rates.",
-      timeLabel = "INFO",
-    )
+    AlertCard(title = "PAY AT METER", subtitle = subtitle, timeLabel = "INFO")
   }
 }
 

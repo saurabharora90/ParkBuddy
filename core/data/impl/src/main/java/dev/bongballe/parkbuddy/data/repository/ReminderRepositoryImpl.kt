@@ -9,6 +9,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import dev.bongballe.parkbuddy.data.repository.utils.DateTimeUtils
 import dev.bongballe.parkbuddy.data.repository.utils.ParkingRestrictionEvaluator
+import dev.bongballe.parkbuddy.model.ParkingRegulation
 import dev.bongballe.parkbuddy.model.ParkingRestrictionState
 import dev.bongballe.parkbuddy.model.ParkingSpot
 import dev.bongballe.parkbuddy.model.ReminderMinutes
@@ -317,7 +318,7 @@ class ReminderRepositoryImpl(
     val now = clock.now()
     val zone = TimeZone.currentSystemDefault()
 
-    val title = buildTitle(streetName, spot, state)
+    val title = buildTitle(streetName, spot, state, now, zone)
 
     val reminderLines =
       if (remindersSet.isEmpty()) "No reminders set."
@@ -346,9 +347,14 @@ class ReminderRepositoryImpl(
         is ParkingRestrictionState.ActiveTimed -> {
           val expiryText = "Move by ${formatTime(state.expiry, zone)}"
           val paymentWarning =
-            if (state.paymentRequired)
-              "\n⚠️ PAY AT METER: You lack a permit for Zone ${spot.rppArea}."
-            else ""
+            when {
+              !state.paymentRequired -> ""
+              spot.regulation == ParkingRegulation.PAID_PLUS_PERMIT ->
+                "\n⚠️ PAY AT METER: Payment is required even with a Zone ${spot.rppArea} permit."
+              spot.regulation == ParkingRegulation.PAY_OR_PERMIT ->
+                "\n⚠️ PAY AT METER: You lack a permit for Zone ${spot.rppArea}."
+              else -> "\n⚠️ PAY AT METER: Standard metered parking."
+            }
           val contentText =
             if (state.paymentRequired) "⚠️ PAY AT METER. $expiryText" else expiryText
           contentText to "$expiryText$paymentWarning\n\n$reminderLines"
@@ -360,9 +366,14 @@ class ReminderRepositoryImpl(
             else "tomorrow"
           val expiryText = "Starts $dayName. Move by ${formatTime(state.expiry, zone)}"
           val paymentWarning =
-            if (state.paymentRequired)
-              "\n⚠️ PAY AT METER: You lack a permit for Zone ${spot.rppArea}."
-            else ""
+            when {
+              !state.paymentRequired -> ""
+              spot.regulation == ParkingRegulation.PAID_PLUS_PERMIT ->
+                "\n⚠️ PAY AT METER: Payment is required even with a Zone ${spot.rppArea} permit."
+              spot.regulation == ParkingRegulation.PAY_OR_PERMIT ->
+                "\n⚠️ PAY AT METER: You lack a permit for Zone ${spot.rppArea}."
+              else -> "\n⚠️ PAY AT METER: Standard metered parking."
+            }
           val contentText =
             if (state.paymentRequired) "⚠️ PAY AT METER. $expiryText" else expiryText
 
@@ -403,6 +414,8 @@ class ReminderRepositoryImpl(
     streetName: String,
     spot: ParkingSpot,
     state: ParkingRestrictionState,
+    now: Instant,
+    zone: TimeZone,
   ): String {
     val suffix =
       when (state) {
@@ -413,8 +426,22 @@ class ReminderRepositoryImpl(
         is ParkingRestrictionState.PermitSafe -> " (Permit zone)"
         is ParkingRestrictionState.ActiveTimed,
         is ParkingRestrictionState.PendingTimed -> {
-          val hours = spot.timedRestriction?.limitHours
-          if (hours != null) " (${hours}hr limit)" else ""
+          val limitDisplay =
+            if (spot.regulation == ParkingRegulation.METERED) {
+              // Find the active or next schedule to get the limit
+              val localNow = now.toLocalDateTime(zone)
+              val schedule =
+                spot.meterSchedules.firstOrNull { it.days.contains(localNow.dayOfWeek) }
+              val minutes = schedule?.timeLimitMinutes ?: 0
+              when {
+                minutes == 0 -> ""
+                minutes >= 60 -> "${minutes / 60}hr"
+                else -> "${minutes}min"
+              }
+            } else {
+              spot.timedRestriction?.limitHours?.let { "${it}hr" } ?: ""
+            }
+          if (limitDisplay.isNotEmpty()) " ($limitDisplay limit)" else ""
         }
 
         is ParkingRestrictionState.Unrestricted -> ""

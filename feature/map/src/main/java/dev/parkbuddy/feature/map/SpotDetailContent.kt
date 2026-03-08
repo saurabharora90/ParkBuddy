@@ -20,6 +20,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -120,10 +121,7 @@ internal fun SpotDetailContent(
             color = SageGreen,
           )
         }
-      } else if (
-        spot.regulation == ParkingRegulation.PAY_OR_PERMIT ||
-          spot.regulation == ParkingRegulation.METERED
-      ) {
+      } else if (spot.regulation.requiresPayment) {
         Row(
           verticalAlignment = Alignment.CenterVertically,
           horizontalArrangement = Arrangement.spacedBy(16.dp),
@@ -149,41 +147,35 @@ internal fun SpotDetailContent(
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
           )
-          spot.timedRestriction?.let { restriction ->
-            Row(
-              verticalAlignment = Alignment.CenterVertically,
-              horizontalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-              Icon(
-                imageVector = Icons.Default.AccessTime,
-                contentDescription = null,
-                tint = SageGreen,
-              )
 
-              val annotatedString = buildAnnotatedString {
-                append("Max ${restriction.limitHours} hrs:")
-                withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
-                  append(
-                    "${
-                      restriction.days.joinToString(
-                        prefix = " ",
-                        transform = { it.name.substring(0, 3) },
-                      )
-                    },  ${
-                      restriction.startTime?.hour?.let {
-                        DateTimeUtils.formatHour(it)
-                      }
-                    }-${
-                      restriction.endTime?.hour?.let {
-                        DateTimeUtils.formatHour(it)
-                      }
-                    }"
-                  )
-                }
+          // Show standard time restrictions
+          spot.timedRestriction?.let { restriction ->
+            RestrictionRow(
+              icon = Icons.Default.AccessTime,
+              label = "Max ${restriction.limitHours} hrs:",
+              days = restriction.days,
+              startTime = restriction.startTime,
+              endTime = restriction.endTime,
+            )
+          }
+
+          // Show meter schedules
+          spot.meterSchedules.forEach { schedule ->
+            val limitDisplay =
+              when {
+                schedule.timeLimitMinutes == 0 -> ""
+                schedule.timeLimitMinutes >= 60 -> "${schedule.timeLimitMinutes / 60} hrs"
+                else -> "${schedule.timeLimitMinutes} min"
               }
 
-              Text(text = annotatedString, style = MaterialTheme.typography.bodyMedium)
-            }
+            RestrictionRow(
+              icon = Icons.Default.AccessTime,
+              label = if (schedule.isTowZone) "TOW AWAY:" else "Max $limitDisplay:",
+              days = schedule.days,
+              startTime = schedule.startTime,
+              endTime = schedule.endTime,
+              tint = if (schedule.isTowZone) Terracotta else SageGreen,
+            )
           }
         }
 
@@ -192,6 +184,43 @@ internal fun SpotDetailContent(
     }
 
     ParkBuddyButton(label = "Park Here", onClick = onParkHere, modifier = Modifier.fillMaxWidth())
+  }
+}
+
+@Composable
+private fun RestrictionRow(
+  icon: ImageVector,
+  label: String,
+  days: Set<kotlinx.datetime.DayOfWeek>,
+  startTime: LocalTime?,
+  endTime: LocalTime?,
+  tint: Color = SageGreen,
+) {
+  Row(
+    verticalAlignment = Alignment.CenterVertically,
+    horizontalArrangement = Arrangement.spacedBy(16.dp),
+  ) {
+    Icon(imageVector = icon, contentDescription = null, tint = tint)
+
+    val annotatedString = buildAnnotatedString {
+      append(label)
+      withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
+        append(
+          "${
+            days.joinToString(
+              prefix = " ",
+              transform = { it.name.substring(0, 3) },
+            )
+          },  ${
+            startTime?.let { DateTimeUtils.formatHour(it.hour) } ?: "00:00"
+          }-${
+            endTime?.let { DateTimeUtils.formatHour(it.hour) } ?: "23:59"
+          }"
+        )
+      }
+    }
+
+    Text(text = annotatedString, style = MaterialTheme.typography.bodyMedium)
   }
 }
 
@@ -303,3 +332,55 @@ private fun WatchedSpotDetailContentPreview() {
 private fun NonWatchedSpotDetailContentPreview() {
   ParkBuddyTheme { SpotDetailContent(spot = spot, isInPermitZone = false, onParkHere = {}) }
 }
+
+@Preview(showBackground = true, name = "Metered Spot with Tow Zone")
+@Composable
+private fun MeteredSpotDetailContentPreview() {
+  ParkBuddyTheme { SpotDetailContent(spot = meteredSpot, isInPermitZone = false, onParkHere = {}) }
+}
+
+@VisibleForTesting
+internal val meteredSpot =
+  ParkingSpot(
+    objectId = "2",
+    geometry = Geometry(type = "Line", coordinates = listOf(listOf(1.0, 2.0), listOf(3.0, 4.0))),
+    streetName = "Post Street",
+    blockLimits = "Kearny - Montgomery",
+    neighborhood = "Financial District",
+    regulation = ParkingRegulation.METERED,
+    rppArea = null,
+    timedRestriction = null,
+    sweepingCnn = "54321",
+    sweepingSide = StreetSide.RIGHT,
+    sweepingSchedules = emptyList(),
+    meterSchedules =
+      listOf(
+        dev.bongballe.parkbuddy.model.MeterSchedule(
+          days =
+            setOf(
+              kotlinx.datetime.DayOfWeek.MONDAY,
+              kotlinx.datetime.DayOfWeek.TUESDAY,
+              kotlinx.datetime.DayOfWeek.WEDNESDAY,
+              kotlinx.datetime.DayOfWeek.THURSDAY,
+              kotlinx.datetime.DayOfWeek.FRIDAY,
+            ),
+          startTime = LocalTime(9, 0),
+          endTime = LocalTime(18, 0),
+          timeLimitMinutes = 60,
+        ),
+        dev.bongballe.parkbuddy.model.MeterSchedule(
+          days =
+            setOf(
+              kotlinx.datetime.DayOfWeek.MONDAY,
+              kotlinx.datetime.DayOfWeek.TUESDAY,
+              kotlinx.datetime.DayOfWeek.WEDNESDAY,
+              kotlinx.datetime.DayOfWeek.THURSDAY,
+              kotlinx.datetime.DayOfWeek.FRIDAY,
+            ),
+          startTime = LocalTime(7, 0),
+          endTime = LocalTime(9, 0),
+          timeLimitMinutes = 0,
+          isTowZone = true,
+        ),
+      ),
+  )
