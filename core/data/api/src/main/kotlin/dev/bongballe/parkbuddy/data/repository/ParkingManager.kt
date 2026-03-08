@@ -89,16 +89,27 @@ class ParkingManager(
     reminderRepository.clearAllReminders()
   }
 
+  /**
+   * Finds the best matching parking spot for the given location.
+   * 
+   * Implementation uses "Curbside Snapping" logic:
+   * 1. Find all candidate spots within 7m (standard street-width safety threshold).
+   * 2. Select the closest match.
+   * 
+   * Because the database contains distinct lines for each curb, the closest line
+   * is mathematically the correct side of the street.
+   */
   private fun findMatchingSpot(location: Location, spots: List<ParkingSpot>): ParkingSpot? {
-    val thresholdMeters = 10.0
+    val thresholdMeters = 7.0
+    
     return spots
       .map { spot ->
-        spot to
-          LocationUtils.calculateDistanceToPolyline(
+        val distance = LocationUtils.calculateDistanceToPolyline(
             location.latitude,
             location.longitude,
             spot.geometry,
-          )
+        )
+        spot to distance
       }
       .filter { (_, distance) -> distance < thresholdMeters }
       .minByOrNull { (_, distance) -> distance }

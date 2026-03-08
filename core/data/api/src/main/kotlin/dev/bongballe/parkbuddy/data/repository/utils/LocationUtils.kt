@@ -1,6 +1,7 @@
 package dev.bongballe.parkbuddy.data.repository.utils
 
 import dev.bongballe.parkbuddy.model.Geometry
+import dev.bongballe.parkbuddy.model.StreetSide
 import kotlin.math.cos
 import kotlin.math.sqrt
 
@@ -22,6 +23,33 @@ object LocationUtils {
       }
     }
     return minDistance
+  }
+
+  /**
+   * Determine which side of the line the point is on using cross product.
+   * Returns [StreetSide.LEFT] or [StreetSide.RIGHT].
+   */
+  fun determineSide(latitude: Double, longitude: Double, lineGeometry: Geometry): StreetSide {
+    val coords = lineGeometry.coordinates
+    if (coords.size < 2) return StreetSide.RIGHT
+
+    // Use first and last points for the general vector of the segment
+    val p1 = coords.first()
+    val p2 = coords.last()
+    if (p1.size < 2 || p2.size < 2) return StreetSide.RIGHT
+
+    // Cross product: (p2 - p1) × (point - p1)
+    // dx/dy must be adjusted by SF latitude for accurate orientation
+    val latFactor = 1.0
+    val lngFactor = cos(Math.toRadians(37.7749))
+    
+    val dx = (p2[0] - p1[0]) * lngFactor
+    val dy = (p2[1] - p1[1]) * latFactor
+    val px = (longitude - p1[0]) * lngFactor
+    val py = (latitude - p1[1]) * latFactor
+
+    val cross = dx * py - dy * px
+    return if (cross > 0) StreetSide.LEFT else StreetSide.RIGHT
   }
 
   private fun distanceToSegment(

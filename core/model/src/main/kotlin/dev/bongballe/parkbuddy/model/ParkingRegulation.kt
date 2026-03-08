@@ -45,9 +45,6 @@ enum class ParkingRegulation(
   /** Government vehicles only */
   GOVERNMENT_ONLY("Government Permit Only", false),
 
-  /** No restrictions found (free parking) */
-  UNRESTRICTED("Unrestricted", true),
-
   /** Unrecognized regulation type from API */
   UNKNOWN("Unknown", false),
 }
