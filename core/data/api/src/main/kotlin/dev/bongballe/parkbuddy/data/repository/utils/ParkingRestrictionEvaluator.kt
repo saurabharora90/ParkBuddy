@@ -77,7 +77,7 @@ object ParkingRestrictionEvaluator {
     val effectiveStart = findEnforceableWindow(parkedAt, restriction, zone)
       ?: return ParkingRestrictionState.Unrestricted(nextCleaning)
     val expiry = effectiveStart.plus(restriction.limitHours.hours)
-    val paymentRequired = spot.regulation == ParkingRegulation.PAY_OR_PERMIT
+    val paymentRequired = spot.regulation.requiresPayment
 
     return when {
       effectiveStart > currentTime -> ParkingRestrictionState.PendingTimed(

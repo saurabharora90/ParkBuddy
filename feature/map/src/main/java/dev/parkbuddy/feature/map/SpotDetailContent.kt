@@ -161,10 +161,16 @@ internal fun SpotDetailContent(
 
           // Show meter schedules
           spot.meterSchedules.forEach { schedule ->
+            val limitDisplay =
+              when {
+                schedule.timeLimitMinutes == 0 -> ""
+                schedule.timeLimitMinutes >= 60 -> "${schedule.timeLimitMinutes / 60} hrs"
+                else -> "${schedule.timeLimitMinutes} min"
+              }
+
             RestrictionRow(
               icon = Icons.Default.AccessTime,
-              label =
-                if (schedule.isTowZone) "TOW AWAY:" else "Max ${schedule.timeLimitMinutes} min:",
+              label = if (schedule.isTowZone) "TOW AWAY:" else "Max $limitDisplay:",
               days = schedule.days,
               startTime = schedule.startTime,
               endTime = schedule.endTime,
