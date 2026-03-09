@@ -12,10 +12,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccessTime
-import androidx.compose.material.icons.filled.Error
-import androidx.compose.material.icons.filled.SafetyCheck
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -48,6 +44,7 @@ import dev.bongballe.parkbuddy.theme.SageGreen
 import dev.bongballe.parkbuddy.theme.SagePrimary
 import dev.bongballe.parkbuddy.theme.Terracotta
 import dev.parkbuddy.core.ui.ParkBuddyButton
+import dev.parkbuddy.core.ui.ParkBuddyIcons
 import kotlin.time.Clock
 import kotlinx.datetime.LocalTime
 
@@ -122,7 +119,11 @@ internal fun SpotDetailContent(
           modifier =
             Modifier.fillMaxWidth().background(SagePrimary.copy(alpha = 0.2f)).padding(16.dp),
         ) {
-          Icon(imageVector = Icons.Default.SafetyCheck, contentDescription = null, tint = SageGreen)
+          Icon(
+            imageVector = ParkBuddyIcons.SafetyCheck,
+            contentDescription = null,
+            tint = SageGreen,
+          )
           Text(
             text = "PERMIT ${spot.rppArea} VALID. TIME LIMITS DO NOT APPLY.",
             style = MaterialTheme.typography.labelSmall,
@@ -136,7 +137,7 @@ internal fun SpotDetailContent(
           modifier =
             Modifier.fillMaxWidth().background(Terracotta.copy(alpha = 0.1f)).padding(16.dp),
         ) {
-          Icon(imageVector = Icons.Default.Error, contentDescription = null, tint = Terracotta)
+          Icon(imageVector = ParkBuddyIcons.Error, contentDescription = null, tint = Terracotta)
           Text(
             text = "PAY AT METER.",
             style = MaterialTheme.typography.labelSmall,
@@ -162,7 +163,7 @@ internal fun SpotDetailContent(
           // Show standard time restrictions
           spot.timedRestriction?.let { restriction ->
             RestrictionRow(
-              icon = Icons.Default.AccessTime,
+              icon = ParkBuddyIcons.AccessTime,
               label = "Max ${restriction.limitHours} hrs:",
               days = restriction.days,
               startTime = restriction.startTime,
@@ -181,7 +182,7 @@ internal fun SpotDetailContent(
               }
 
             RestrictionRow(
-              icon = Icons.Default.AccessTime,
+              icon = ParkBuddyIcons.AccessTime,
               label = if (schedule.isTowZone) "TOW AWAY:" else "Max $limitDisplay:",
               days = schedule.days,
               startTime = schedule.startTime,
@@ -269,7 +270,7 @@ private fun NoParkingInfo(schedule: SweepingSchedule, clock: Clock, modifier: Mo
     horizontalArrangement = Arrangement.spacedBy(16.dp),
     modifier = modifier.padding(horizontal = 16.dp, vertical = 8.dp),
   ) {
-    Icon(imageVector = Icons.Default.Error, contentDescription = null, tint = Terracotta)
+    Icon(imageVector = ParkBuddyIcons.Error, contentDescription = null, tint = Terracotta)
 
     Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
       val noParkingTiming = buildAnnotatedString {

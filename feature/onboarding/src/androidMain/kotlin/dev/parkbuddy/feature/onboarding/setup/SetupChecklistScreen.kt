@@ -36,10 +36,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.RadioButtonUnchecked
-import androidx.compose.material.icons.filled.RemoveCircleOutline
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -82,6 +78,7 @@ import dev.bongballe.parkbuddy.theme.SageContainer
 import dev.bongballe.parkbuddy.theme.SagePrimary
 import dev.parkbuddy.core.ui.ParkBuddyAlertDialog
 import dev.parkbuddy.core.ui.ParkBuddyButton
+import dev.parkbuddy.core.ui.ParkBuddyIcons
 import dev.parkbuddy.feature.onboarding.animations.AlertsAnimation
 import dev.parkbuddy.feature.onboarding.animations.BackgroundLocationAnimation
 import dev.parkbuddy.feature.onboarding.animations.BatteryAnimation
@@ -485,10 +482,10 @@ private fun ChecklistRow(step: SetupStep, status: StepStatus) {
   ) {
     val statusIcon =
       when (status) {
-        StepStatus.GRANTED -> Icons.Default.CheckCircle
-        StepStatus.SKIPPED -> Icons.Default.RemoveCircleOutline
-        StepStatus.CURRENT -> Icons.Default.RadioButtonUnchecked
-        StepStatus.PENDING -> Icons.Default.RadioButtonUnchecked
+        StepStatus.GRANTED -> ParkBuddyIcons.CheckCircle
+        StepStatus.SKIPPED -> ParkBuddyIcons.RemoveCircleOutline
+        StepStatus.CURRENT -> ParkBuddyIcons.RadioButtonUnchecked
+        StepStatus.PENDING -> ParkBuddyIcons.RadioButtonUnchecked
       }
     val statusTint =
       when (status) {

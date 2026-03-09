@@ -23,13 +23,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Bluetooth
-import androidx.compose.material.icons.filled.BluetoothConnected
-import androidx.compose.material.icons.filled.BluetoothDisabled
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.DirectionsCar
-import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -66,6 +59,7 @@ import dev.bongballe.parkbuddy.theme.SagePrimary
 import dev.bongballe.parkbuddy.theme.Terracotta
 import dev.parkbuddy.core.ui.ParkBuddyAlertDialog
 import dev.parkbuddy.core.ui.ParkBuddyButton
+import dev.parkbuddy.core.ui.ParkBuddyIcons
 import dev.parkbuddy.core.ui.SquircleIcon
 import dev.zacsweers.metrox.viewmodel.metroViewModel
 
@@ -174,7 +168,7 @@ private fun BluetoothPermissionContent(onGrantClick: () -> Unit, onSkipClick: ()
       Spacer(modifier = Modifier.height(32.dp))
 
       SquircleIcon(
-        icon = Icons.Default.BluetoothDisabled,
+        icon = ParkBuddyIcons.BluetoothDisabled,
         size = 72.dp,
         shape = RoundedCornerShape(16.dp),
         iconTint = Terracotta,
@@ -259,7 +253,7 @@ private fun BluetoothDeviceSelectionScreenContent(
       verticalArrangement = Arrangement.spacedBy(24.dp),
     ) {
       SquircleIcon(
-        icon = Icons.Default.DirectionsCar,
+        icon = ParkBuddyIcons.DirectionsCar,
         contentDescription = null,
         size = 72.dp,
         shape = RoundedCornerShape(16.dp),
@@ -353,7 +347,7 @@ private fun BluetoothDeviceCard(
       ) {
         Icon(
           imageVector =
-            if (isSelected) Icons.Default.BluetoothConnected else Icons.Default.Bluetooth,
+            if (isSelected) ParkBuddyIcons.BluetoothConnected else ParkBuddyIcons.Bluetooth,
           contentDescription = null,
           tint = if (isSelected) Color.White else SageGreen,
           modifier = Modifier.size(24.dp),
@@ -378,7 +372,7 @@ private fun BluetoothDeviceCard(
 
       Icon(
         imageVector =
-          if (isSelected) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
+          if (isSelected) ParkBuddyIcons.CheckCircle else ParkBuddyIcons.RadioButtonUnchecked,
         contentDescription = if (isSelected) "Selected" else "Not Selected",
         tint = if (isSelected) SageGreen else MaterialTheme.colorScheme.surfaceVariant,
         modifier = Modifier.size(24.dp),

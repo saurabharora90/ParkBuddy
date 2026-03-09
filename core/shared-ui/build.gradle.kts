@@ -11,12 +11,14 @@ kotlin {
   sourceSets {
     commonMain.dependencies {
       implementation(project(":core:theme"))
-      implementation(compose.material3)
-      implementation(compose.materialIconsExtended)
-      implementation(compose.ui)
-      implementation(compose.uiTooling)
+      implementation(libs.compose.components.resources)
+      implementation(libs.compose.material3)
+      implementation(libs.compose.ui)
+      implementation(libs.compose.ui.tooling.preview)
     }
   }
 }
+
+compose.resources { packageOfResClass = "dev.parkbuddy.core.ui.resources" }
 
 foundry { features { compose(multiplatform = true) } }

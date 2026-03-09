@@ -5,8 +5,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.EditRoad
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
@@ -18,6 +16,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import dev.bongballe.parkbuddy.data.repository.utils.formatSchedule
 import dev.bongballe.parkbuddy.model.ParkingSpot
+import dev.parkbuddy.core.ui.ParkBuddyIcons
 import dev.parkbuddy.core.ui.SquircleIcon
 
 @Composable
@@ -32,7 +31,7 @@ internal fun PermitStreetItem(spot: ParkingSpot) {
       horizontalArrangement = Arrangement.spacedBy(16.dp),
       verticalAlignment = Alignment.CenterVertically,
     ) {
-      SquircleIcon(icon = Icons.Default.EditRoad, contentDescription = null, size = 48.dp)
+      SquircleIcon(icon = ParkBuddyIcons.EditRoad, contentDescription = null, size = 48.dp)
       Column(modifier = Modifier.weight(1f)) {
         val title = spot.streetName ?: spot.neighborhood
         title?.let {

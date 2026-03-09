@@ -19,12 +19,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.OpenInNew
-import androidx.compose.material.icons.filled.DirectionsCar
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -49,6 +43,7 @@ import dev.bongballe.parkbuddy.theme.ParkBuddyTheme
 import dev.bongballe.parkbuddy.theme.SagePrimary
 import dev.bongballe.parkbuddy.theme.Terracotta
 import dev.parkbuddy.core.ui.NestedScaffold
+import dev.parkbuddy.core.ui.ParkBuddyIcons
 import dev.parkbuddy.core.ui.SquircleIcon
 import dev.zacsweers.metrox.viewmodel.metroViewModel
 
@@ -99,7 +94,7 @@ private fun SettingsContent(
       ) {
         Column {
           SettingRow(
-            icon = Icons.Default.LocationOn,
+            icon = ParkBuddyIcons.LocationOn,
             iconBackgroundColor = SagePrimary,
             iconTint = Color.White,
             title = "Car Tracking",
@@ -122,7 +117,7 @@ private fun SettingsContent(
           Divider(modifier = Modifier.padding(horizontal = 16.dp))
 
           SettingRow(
-            icon = Icons.Default.DirectionsCar,
+            icon = ParkBuddyIcons.DirectionsCar,
             iconBackgroundColor = Color.White,
             iconTint = SagePrimary,
             title = "Connected Car",
@@ -145,7 +140,7 @@ private fun SettingsContent(
       ) {
         Column {
           SettingRow(
-            icon = Icons.Default.Share,
+            icon = ParkBuddyIcons.Share,
             iconBackgroundColor = Terracotta,
             iconTint = Color.White,
             title = "Share ParkBuddy",
@@ -156,13 +151,13 @@ private fun SettingsContent(
           Divider(modifier = Modifier.padding(horizontal = 16.dp))
 
           SettingRow(
-            icon = Icons.Default.Favorite,
+            icon = ParkBuddyIcons.Favorite,
             iconBackgroundColor = Color.White,
             iconTint = Terracotta,
             title = "Buy me a coffee",
             trailingContent = {
               Icon(
-                imageVector = Icons.AutoMirrored.Filled.OpenInNew,
+                imageVector = ParkBuddyIcons.OpenInNew,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(24.dp),

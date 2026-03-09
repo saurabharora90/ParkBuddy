@@ -20,9 +20,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -68,6 +65,7 @@ import dev.bongballe.parkbuddy.theme.SagePrimary
 import dev.bongballe.parkbuddy.theme.WildIris
 import dev.parkbuddy.core.ui.BannerNudge
 import dev.parkbuddy.core.ui.ParkBuddyAlertDialog
+import dev.parkbuddy.core.ui.ParkBuddyIcons
 import dev.zacsweers.metrox.viewmodel.metroViewModel
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.debounce
@@ -241,7 +239,7 @@ fun MapScreen(
         onDismiss = { bannerDismissed = true },
         containerColor = MaterialTheme.colorScheme.errorContainer,
         contentColor = MaterialTheme.colorScheme.onErrorContainer,
-        leadingIcon = Icons.Default.Warning,
+        leadingIcon = ParkBuddyIcons.Warning,
       )
     }
 
@@ -273,7 +271,7 @@ fun MapScreen(
         ),
       modifier = Modifier.align(Alignment.BottomStart).padding(start = 8.dp, bottom = 8.dp),
     ) {
-      Icon(imageVector = Icons.Default.Info, contentDescription = "Map legend")
+      Icon(imageVector = ParkBuddyIcons.Info, contentDescription = "Map legend")
     }
 
     selectedSpot?.let {

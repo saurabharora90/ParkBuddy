@@ -13,10 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Map
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Visibility
+import dev.parkbuddy.core.ui.ParkBuddyIcons
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -160,21 +157,21 @@ private fun MainScreen(
       bottomBar = {
         NavigationBar(containerColor = Color.White) {
           NavigationBarItem(
-            icon = { Icon(imageVector = Icons.Default.Map, contentDescription = null) },
+            icon = { Icon(imageVector = ParkBuddyIcons.Map, contentDescription = null) },
             label = { Text("MAP") },
             selected = selectedTab == 0,
             onClick = { onTabSelected(0) },
           )
 
           NavigationBarItem(
-            icon = { Icon(imageVector = Icons.Default.Visibility, contentDescription = null) },
+            icon = { Icon(imageVector = ParkBuddyIcons.Visibility, contentDescription = null) },
             label = { Text("MY ZONE") },
             selected = selectedTab == 1,
             onClick = { onTabSelected(1) },
           )
 
           NavigationBarItem(
-            icon = { Icon(imageVector = Icons.Default.Person, contentDescription = null) },
+            icon = { Icon(imageVector = ParkBuddyIcons.Person, contentDescription = null) },
             label = { Text("ACCOUNT") },
             selected = selectedTab == 2,
             onClick = { onTabSelected(2) },

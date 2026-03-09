@@ -18,9 +18,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.LocationCity
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -52,6 +49,7 @@ import dev.bongballe.parkbuddy.model.Weekday
 import dev.bongballe.parkbuddy.theme.ParkBuddyTheme
 import dev.parkbuddy.core.ui.NestedScaffold
 import dev.parkbuddy.core.ui.ParkBuddyAlertDialog
+import dev.parkbuddy.core.ui.ParkBuddyIcons
 import dev.parkbuddy.core.ui.SquircleIcon
 import dev.zacsweers.metrox.viewmodel.metroViewModel
 import kotlinx.datetime.LocalTime
@@ -194,7 +192,7 @@ internal fun PermitZoneContent(
             )
             if (reminders.size < 5) {
               IconButton(onClick = { showAddReminderDialog = true }) {
-                Icon(Icons.Default.Add, contentDescription = "Add Reminder")
+                Icon(ParkBuddyIcons.Add, contentDescription = "Add Reminder")
               }
             }
           }
@@ -232,7 +230,7 @@ internal fun PermitZoneContent(
               modifier = Modifier.fillMaxWidth(),
             ) {
               SquircleIcon(
-                icon = Icons.Default.LocationCity,
+                icon = ParkBuddyIcons.LocationCity,
                 contentDescription = null,
                 size = 96.dp,
               )
