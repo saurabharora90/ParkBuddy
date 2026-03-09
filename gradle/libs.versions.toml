@@ -14,6 +14,7 @@ kotlin = "2.3.10"
 kotlinx-datetime = "0.7.1"
 kotlinx-serialization = "1.10.0"
 ksp = "2.3.6"
+kermit = "2.1.0"
 ktor = "3.4.1"
 ktfmt = "0.61" # read by Foundry
 jdk = "21" # read by Foundry
@@ -33,7 +34,7 @@ nav3Core = "1.0.0"
 slackFoundry = "0.34.1"
 sqlite = "2.6.2"
 sortDependencies = "0.16"
-spotless = "8.3.0"
+ktfmtGradle = "0.25.0"
 truth = "1.2.0"
 turbine = "1.2.0"
 workmanager = "2.11.0"
@@ -52,7 +53,6 @@ androidx-lifecycle-viewmodel-navigation3 = { module = "androidx.lifecycle:lifecy
 androidx-navigation3-runtime = { module = "androidx.navigation3:navigation3-runtime", version.ref = "nav3Core" }
 androidx-navigation3-ui = { module = "androidx.navigation3:navigation3-ui", version.ref = "nav3Core" }
 androidx-room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
-androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
 androidx-room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
 androidx-room-sqlite-bundled = { group = "androidx.sqlite", name = "sqlite-bundled", version.ref = "sqlite" }
 
@@ -80,6 +80,7 @@ kotlinx-serialization-core = { module = "org.jetbrains.kotlinx:kotlinx-serializa
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
 google-coreLibraryDesugaring = { group = "com.android.tools", name = "desugar_jdk_libs", version.ref = "google-coreLibraryDesugaring" } #read by Foundry
 junit = { group = "junit", name = "junit", version.ref = "junit" }
+kermit = { group = "co.touchlab", name = "kermit", version.ref = "kermit" }
 ktor-client-content-negotiation = { group = "io.ktor", name = "ktor-client-content-negotiation", version.ref = "ktor" }
 ktor-client-core = { group = "io.ktor", name = "ktor-client-core", version.ref = "ktor" }
 ktor-client-okhttp = { group = "io.ktor", name = "ktor-client-okhttp", version.ref = "ktor" }
@@ -102,6 +103,7 @@ kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-cor
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
+android-kmp-library = { id = "com.android.kotlin.multiplatform.library", version.ref = "agp" }
 android-library = { id = "com.android.library", version.ref = "agp" }
 detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
@@ -114,10 +116,11 @@ foundry-apk-versioning = { id = "com.slack.foundry.apk-versioning", version.ref 
 google-services = { id = "com.google.gms.google-services", version.ref = "googleServices" }
 firebase-crashlytics = { id = "com.google.firebase.crashlytics", version.ref = "firebaseCrashlytics" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
+androidx-room = { id = "androidx.room", version.ref = "room" }
 metro = { id = "dev.zacsweers.metro", version.ref = "metro" }
 roborazzi = { id = "io.github.takahirom.roborazzi", version.ref = "roborazzi" }
 sort-dependencies = { id = "com.squareup.sort-dependencies", version.ref = "sortDependencies" }
-spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }
+ktfmt = { id = "com.ncorti.ktfmt.gradle", version.ref = "ktfmtGradle" }
 
 [bundles]
 common-test = ["junit", "truth", "turbine"]

@@ -22,17 +22,14 @@ jobs:
       - name: Setup Project
         uses: ./.github/actions/setup-android
 
-      - name: Check formatting (ktfmt)
-        run: ./scripts/ktfmt.sh --check
-
-      - name: Run checks (sortDependencies, lint, detekt)
-        run: ./gradlew checkSortDependencies lintDebug ciDetekt
+      - name: Run checks (ktfmt, sortDependencies, lint, detekt)
+        run: ./gradlew ktfmtCheck checkSortDependencies lintDebug ciDetekt
 
       - name: Assemble debug build
         run: ./gradlew assembleDebug
 
       - name: Run unit tests
-        run: ./gradlew globalCiUnitTest
+        run: ./gradlew globalCiUnitTest :core:data:sf-impl:testAndroidHostTest
 
       - name: Verify screenshot tests
         run: ./gradlew globalCiVerifyRoborazzi

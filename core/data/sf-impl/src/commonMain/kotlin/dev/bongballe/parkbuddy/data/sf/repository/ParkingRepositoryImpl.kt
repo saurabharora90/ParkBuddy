@@ -1,6 +1,6 @@
 package dev.bongballe.parkbuddy.data.sf.repository
 
-import android.util.Log
+import co.touchlab.kermit.Logger
 import dev.bongballe.parkbuddy.DispatcherType
 import dev.bongballe.parkbuddy.analytics.AnalyticsTracker
 import dev.bongballe.parkbuddy.data.repository.ParkingRepository
@@ -113,7 +113,7 @@ class ParkingRepositoryImpl(
   }
 
   companion object {
-    private const val TAG = "ParkingRepository"
+    private val log = Logger.withTag("ParkingRepository")
 
     /** Threshold for matching a regulation or meter to a street centerline segment. */
     private const val MATCHING_THRESHOLD_METERS = 20.0
@@ -122,14 +122,14 @@ class ParkingRepositoryImpl(
 
   override fun getAllSpots(): Flow<List<ParkingSpot>> {
     return dao.getAllSpots().map { entities ->
-      Log.d(TAG, "getAllSpots: mapping ${entities.size} entities")
+      log.d { "getAllSpots: mapping ${entities.size} entities" }
       entities.map { it.toDomainModel() }
     }
   }
 
   override fun getSpotsByZone(zone: String): Flow<List<ParkingSpot>> {
     return dao.getSpotsByZone(zone).map { entities ->
-      Log.d(TAG, "getSpotsByZone($zone): mapping ${entities.size} entities")
+      log.d { "getSpotsByZone($zone): mapping ${entities.size} entities" }
       entities.map { it.toDomainModel() }
     }
   }
@@ -157,7 +157,7 @@ class ParkingRepositoryImpl(
   }
 
   override suspend fun refreshData(): Boolean = coroutineScope {
-    Log.d(TAG, "refreshData: starting parallel fetch")
+    log.d { "refreshData: starting parallel fetch" }
 
     // Fetch in parallel
     val parkingRegulationsJob = async { fetchAllParkingRegulations() }
@@ -170,10 +170,10 @@ class ParkingRepositoryImpl(
     val meterInventory = meterInventoryJob.await()
     val meterSchedulesRaw = meterSchedulesJob.await()
 
-    Log.d(TAG, "refreshData: fetch complete. Processing...")
+    log.d { "refreshData: fetch complete. Processing..." }
 
     if (parkingRegulations.isEmpty() && meterInventory.isEmpty()) {
-      Log.w(TAG, "refreshData: no parking data found, aborting")
+      log.w { "refreshData: no parking data found, aborting" }
       return@coroutineScope false
     }
 
@@ -295,7 +295,7 @@ class ParkingRepositoryImpl(
         Triple(spotsList, sweepingList, meterSchedulesList)
       }
 
-    Log.d(TAG, "refreshData: saving ${spots.size} segments to DB")
+    log.d { "refreshData: saving ${spots.size} segments to DB" }
     if (spots.isNotEmpty()) {
       dao.clearAllMeterSchedules()
       dao.clearAllSchedules()
@@ -303,7 +303,7 @@ class ParkingRepositoryImpl(
       dao.insertSpots(spots)
       dao.insertSchedules(sweepingSchedules)
       dao.insertMeterSchedules(meterSchedules)
-      Log.d(TAG, "refreshData: sync complete")
+      log.d { "refreshData: sync complete" }
     }
 
     return@coroutineScope true
@@ -441,7 +441,7 @@ class ParkingRepositoryImpl(
 
       LocalTime(hour % 24, minute % 60)
     } catch (e: NumberFormatException) {
-      Log.e(TAG, "parseMeterTime: invalid time format", e)
+      log.e(e) { "parseMeterTime: invalid time format" }
       null
     }
   }
@@ -455,14 +455,14 @@ class ParkingRepositoryImpl(
         try {
           api.getParkingRegulations(limit = API_BATCH_LIMIT, offset = offset)
         } catch (e: IOException) {
-          Log.e(TAG, "fetchAllParkingRegulations: API call failed at offset $offset", e)
+          log.e(e) { "fetchAllParkingRegulations: API call failed at offset $offset" }
           analyticsTracker.logNonFatal(
             e,
             "API failure: fetchAllParkingRegulations at offset $offset",
           )
           break
         }
-      Log.d(TAG, "fetchAllParkingRegulations: got ${batch.size} at offset $offset")
+      log.d { "fetchAllParkingRegulations: got ${batch.size} at offset $offset" }
       if (batch.isEmpty()) break
       allRegulations.addAll(batch)
       offset += API_BATCH_LIMIT
@@ -479,7 +479,7 @@ class ParkingRepositoryImpl(
         try {
           api.getStreetCleaningData(limit = API_BATCH_LIMIT, offset = offset)
         } catch (e: IOException) {
-          Log.e(TAG, "fetchAllSweepingData: API call failed at offset $offset", e)
+          log.e(e) { "fetchAllSweepingData: API call failed at offset $offset" }
           analyticsTracker.logNonFatal(e, "API failure: fetchAllSweepingData at offset $offset")
           break
         }
@@ -499,7 +499,7 @@ class ParkingRepositoryImpl(
         try {
           api.getParkingMeterInventory(limit = API_BATCH_LIMIT, offset = offset)
         } catch (e: IOException) {
-          Log.e(TAG, "fetchAllMeterInventory: API call failed at offset $offset", e)
+          log.e(e) { "fetchAllMeterInventory: API call failed at offset $offset" }
           analyticsTracker.logNonFatal(e, "API failure: fetchAllMeterInventory at offset $offset")
           break
         }
@@ -519,7 +519,7 @@ class ParkingRepositoryImpl(
         try {
           api.getMeterSchedules(limit = API_BATCH_LIMIT, offset = offset)
         } catch (e: IOException) {
-          Log.e(TAG, "fetchAllMeterSchedules: API call failed at offset $offset", e)
+          log.e(e) { "fetchAllMeterSchedules: API call failed at offset $offset" }
           analyticsTracker.logNonFatal(e, "API failure: fetchAllMeterSchedules at offset $offset")
           break
         }
