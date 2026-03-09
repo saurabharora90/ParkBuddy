@@ -28,3 +28,15 @@ subprojects {
     dependencies { detektPlugins(libs.detekt.compose.rules) }
   }
 }
+
+// Aggregate task for KMP Android host tests (modules using com.android.kotlin.multiplatform.library).
+// Foundry's globalCiUnitTest doesn't pick these up due to a bug with the KMP plugin.
+tasks.register("globalCiAndroidHostTest") {
+  description = "Runs testAndroidHostTest for all KMP Android library modules"
+  group = "verification"
+  subprojects.forEach { sub ->
+    sub.plugins.withId("com.android.kotlin.multiplatform.library") {
+      dependsOn("${sub.path}:testAndroidHostTest")
+    }
+  }
+}

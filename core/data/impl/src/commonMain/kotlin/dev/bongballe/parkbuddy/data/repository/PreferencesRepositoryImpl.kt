@@ -1,6 +1,7 @@
 package dev.bongballe.parkbuddy.data.repository
 
-import android.content.Context
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -16,8 +17,10 @@ import kotlinx.serialization.json.Json
 @ContributesBinding(AppScope::class)
 @SingleIn(AppScope::class)
 @Inject
-class PreferencesRepositoryImpl(private val context: Context, private val json: Json) :
-  PreferencesRepository {
+class PreferencesRepositoryImpl(
+  private val dataStore: DataStore<Preferences>,
+  private val json: Json,
+) : PreferencesRepository {
 
   private object Keys {
     val HAS_SEEN_ONBOARDING = booleanPreferencesKey("has_seen_onboarding")
@@ -30,31 +33,31 @@ class PreferencesRepositoryImpl(private val context: Context, private val json: 
   }
 
   override val isInitialSyncDone: Flow<Boolean> =
-    context.dataStore.data.map { preferences -> preferences[Keys.INITIAL_SYNC_DONE] ?: false }
+    dataStore.data.map { preferences -> preferences[Keys.INITIAL_SYNC_DONE] ?: false }
 
   override suspend fun setInitialSyncDone(isDone: Boolean) {
-    context.dataStore.edit { preferences -> preferences[Keys.INITIAL_SYNC_DONE] = isDone }
+    dataStore.edit { preferences -> preferences[Keys.INITIAL_SYNC_DONE] = isDone }
   }
 
   override val hasSeenOnboarding: Flow<Boolean> =
-    context.dataStore.data.map { preferences -> preferences[Keys.HAS_SEEN_ONBOARDING] ?: false }
+    dataStore.data.map { preferences -> preferences[Keys.HAS_SEEN_ONBOARDING] ?: false }
 
   override suspend fun setHasSeenOnboarding(hasSeen: Boolean) {
-    context.dataStore.edit { preferences -> preferences[Keys.HAS_SEEN_ONBOARDING] = hasSeen }
+    dataStore.edit { preferences -> preferences[Keys.HAS_SEEN_ONBOARDING] = hasSeen }
   }
 
   override val hasSeenMapNux: Flow<Boolean> =
-    context.dataStore.data.map { preferences -> preferences[Keys.HAS_SEEN_MAP_NUX] ?: false }
+    dataStore.data.map { preferences -> preferences[Keys.HAS_SEEN_MAP_NUX] ?: false }
 
   override suspend fun setHasSeenMapNux(hasSeen: Boolean) {
-    context.dataStore.edit { preferences -> preferences[Keys.HAS_SEEN_MAP_NUX] = hasSeen }
+    dataStore.edit { preferences -> preferences[Keys.HAS_SEEN_MAP_NUX] = hasSeen }
   }
 
   override val bluetoothDeviceAddress: Flow<String?> =
-    context.dataStore.data.map { preferences -> preferences[Keys.BLUETOOTH_DEVICE_ADDRESS] }
+    dataStore.data.map { preferences -> preferences[Keys.BLUETOOTH_DEVICE_ADDRESS] }
 
   override suspend fun setBluetoothDeviceAddress(address: String?) {
-    context.dataStore.edit { preferences ->
+    dataStore.edit { preferences ->
       if (address != null) {
         preferences[Keys.BLUETOOTH_DEVICE_ADDRESS] = address
       } else {
@@ -64,7 +67,7 @@ class PreferencesRepositoryImpl(private val context: Context, private val json: 
   }
 
   override val parkedLocation: Flow<ParkedLocation?> =
-    context.dataStore.data.map { preferences ->
+    dataStore.data.map { preferences ->
       preferences[Keys.PARKED_LOCATION]?.let { jsonString ->
         json.decodeFromString<ParkedLocation>(jsonString)
       }
@@ -72,24 +75,24 @@ class PreferencesRepositoryImpl(private val context: Context, private val json: 
 
   override suspend fun setParkedLocation(location: ParkedLocation) {
     val jsonString = json.encodeToString(ParkedLocation.serializer(), location)
-    context.dataStore.edit { preferences -> preferences[Keys.PARKED_LOCATION] = jsonString }
+    dataStore.edit { preferences -> preferences[Keys.PARKED_LOCATION] = jsonString }
   }
 
   override suspend fun clearParkedLocation() {
-    context.dataStore.edit { preferences -> preferences.remove(Keys.PARKED_LOCATION) }
+    dataStore.edit { preferences -> preferences.remove(Keys.PARKED_LOCATION) }
   }
 
   override val isAutoTrackingEnabled: Flow<Boolean> =
-    context.dataStore.data.map { preferences -> preferences[Keys.AUTO_TRACKING_ENABLED] ?: true }
+    dataStore.data.map { preferences -> preferences[Keys.AUTO_TRACKING_ENABLED] ?: true }
 
   override suspend fun setAutoTrackingEnabled(enabled: Boolean) {
-    context.dataStore.edit { preferences -> preferences[Keys.AUTO_TRACKING_ENABLED] = enabled }
+    dataStore.edit { preferences -> preferences[Keys.AUTO_TRACKING_ENABLED] = enabled }
   }
 
   override val hasSeenZoneNudge: Flow<Boolean> =
-    context.dataStore.data.map { preferences -> preferences[Keys.HAS_SEEN_ZONE_NUDGE] ?: false }
+    dataStore.data.map { preferences -> preferences[Keys.HAS_SEEN_ZONE_NUDGE] ?: false }
 
   override suspend fun setHasSeenZoneNudge(hasSeen: Boolean) {
-    context.dataStore.edit { preferences -> preferences[Keys.HAS_SEEN_ZONE_NUDGE] = hasSeen }
+    dataStore.edit { preferences -> preferences[Keys.HAS_SEEN_ZONE_NUDGE] = hasSeen }
   }
 }
