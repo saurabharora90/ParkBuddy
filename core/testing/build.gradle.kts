@@ -1,11 +1,15 @@
-plugins {
-  kotlin("jvm")
-}
+plugins { alias(libs.plugins.kotlin.multiplatform) }
 
-dependencies {
-  implementation(project(":core:base"))
-  implementation(project(":core:model"))
-  implementation(project(":core:data:api"))
-  implementation(project(":core:bluetooth:api"))
-  implementation(libs.kotlinx.coroutines.core)
+kotlin {
+  jvm()
+
+  sourceSets {
+    commonMain.dependencies {
+      implementation(project(":core:base"))
+      implementation(project(":core:model"))
+      implementation(project(":core:data:api"))
+      implementation(project(":core:bluetooth:api"))
+      implementation(libs.kotlinx.coroutines.core)
+    }
+  }
 }

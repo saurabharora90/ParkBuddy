@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Pre-commit hook using checksum approach (inspired by Foundry) with Spotless.
+# Pre-commit hook using checksum approach (inspired by Foundry) with ktfmt.
 # Avoids stash-related bugs by refusing to auto-stage files with unstaged hunks.
 
 set -e
@@ -18,6 +18,19 @@ git rev-parse -q --verify MERGE_HEAD > /dev/null && exit 0
 
 RED='\033[0;31m'
 NC='\033[0m'
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+KTFMT_VERSION="0.61"
+KTFMT_JAR="$PROJECT_DIR/config/bin/ktfmt-$KTFMT_VERSION-with-dependencies.jar"
+
+# Download ktfmt if missing
+if [ ! -f "$KTFMT_JAR" ]; then
+    echo "Downloading ktfmt $KTFMT_VERSION..."
+    mkdir -p "$(dirname "$KTFMT_JAR")"
+    curl -sL "https://repo1.maven.org/maven2/com/facebook/ktfmt/$KTFMT_VERSION/ktfmt-$KTFMT_VERSION-with-dependencies.jar" \
+        -o "$KTFMT_JAR"
+fi
 
 # Checksum function for partially-staged files (files with both staged and unstaged changes)
 partially_staged_chksum() {
@@ -39,11 +52,10 @@ if [[ -z "$kotlin_files" ]]; then
     exit 0
 fi
 
-echo "--- Pre-commit: Running Spotless ---"
+echo "--- Pre-commit: Running ktfmt ---"
 
-# Build regex pattern for spotlessFiles (escape special regex chars and prefix with .*/)
-pattern=$(echo "$kotlin_files" | sed 's/[.[\*^$()+?{|]/\\&/g' | sed 's|^|.*/|' | paste -sd '|' -)
-./gradlew spotlessApply -PspotlessFiles="$pattern" --quiet
+# Format staged Kotlin files with ktfmt
+echo "$kotlin_files" | xargs java -jar "$KTFMT_JAR" --google-style
 
 # Run sortDependencies for .kts files
 kts_files=$(echo "$kotlin_files" | grep -E "\.kts$" || true)
@@ -71,7 +83,7 @@ if [[ "$original_chksum" != "$new_chksum" ]]; then
     if [[ -n "$modified_files" ]]; then
         printf "%bCould not auto-stage: some files had unstaged changes:%b\n" "$RED" "$NC"
         echo "$modified_files"
-        echo "Spotless formatted these files but they have unstaged hunks."
+        echo "ktfmt formatted these files but they have unstaged hunks."
         echo "Manually stage the fixes and try again."
         exit 2
     fi

@@ -22,8 +22,11 @@ jobs:
       - name: Setup Project
         uses: ./.github/actions/setup-android
 
-      - name: Run checks (spotless, lint, detekt)
-        run: ./gradlew spotlessCheck lintDebug ciDetekt
+      - name: Check formatting (ktfmt)
+        run: ./scripts/ktfmt.sh --check
+
+      - name: Run checks (sortDependencies, lint, detekt)
+        run: ./gradlew checkSortDependencies lintDebug ciDetekt
 
       - name: Assemble debug build
         run: ./gradlew assembleDebug

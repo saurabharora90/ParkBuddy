@@ -30,6 +30,7 @@ import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesBinding
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
+import java.io.IOException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -450,19 +451,17 @@ class ParkingRepositoryImpl(
     var offset = 0
 
     while (true) {
-      val result = api.getParkingRegulations(limit = API_BATCH_LIMIT, offset = offset)
-      if (result.isFailure) {
-        val exception = result.exceptionOrNull()
-        Log.e(TAG, "fetchAllParkingRegulations: API call failed at offset $offset", exception)
-        exception?.let {
+      val batch =
+        try {
+          api.getParkingRegulations(limit = API_BATCH_LIMIT, offset = offset)
+        } catch (e: IOException) {
+          Log.e(TAG, "fetchAllParkingRegulations: API call failed at offset $offset", e)
           analyticsTracker.logNonFatal(
-            it,
+            e,
             "API failure: fetchAllParkingRegulations at offset $offset",
           )
+          break
         }
-        break
-      }
-      val batch = result.getOrNull() ?: emptyList()
       Log.d(TAG, "fetchAllParkingRegulations: got ${batch.size} at offset $offset")
       if (batch.isEmpty()) break
       allRegulations.addAll(batch)
@@ -476,16 +475,14 @@ class ParkingRepositoryImpl(
     var offset = 0
 
     while (true) {
-      val result = api.getStreetCleaningData(limit = API_BATCH_LIMIT, offset = offset)
-      if (result.isFailure) {
-        val exception = result.exceptionOrNull()
-        Log.e(TAG, "fetchAllSweepingData: API call failed at offset $offset", exception)
-        exception?.let {
-          analyticsTracker.logNonFatal(it, "API failure: fetchAllSweepingData at offset $offset")
+      val batch =
+        try {
+          api.getStreetCleaningData(limit = API_BATCH_LIMIT, offset = offset)
+        } catch (e: IOException) {
+          Log.e(TAG, "fetchAllSweepingData: API call failed at offset $offset", e)
+          analyticsTracker.logNonFatal(e, "API failure: fetchAllSweepingData at offset $offset")
+          break
         }
-        break
-      }
-      val batch = result.getOrNull() ?: emptyList()
       if (batch.isEmpty()) break
       allSweeping.addAll(batch.filter { it.cnn.isNotEmpty() && it.geometry != null })
       offset += API_BATCH_LIMIT
@@ -498,16 +495,14 @@ class ParkingRepositoryImpl(
     var offset = 0
 
     while (true) {
-      val result = api.getParkingMeterInventory(limit = API_BATCH_LIMIT, offset = offset)
-      if (result.isFailure) {
-        val exception = result.exceptionOrNull()
-        Log.e(TAG, "fetchAllMeterInventory: API call failed at offset $offset", exception)
-        exception?.let {
-          analyticsTracker.logNonFatal(it, "API failure: fetchAllMeterInventory at offset $offset")
+      val batch =
+        try {
+          api.getParkingMeterInventory(limit = API_BATCH_LIMIT, offset = offset)
+        } catch (e: IOException) {
+          Log.e(TAG, "fetchAllMeterInventory: API call failed at offset $offset", e)
+          analyticsTracker.logNonFatal(e, "API failure: fetchAllMeterInventory at offset $offset")
+          break
         }
-        break
-      }
-      val batch = result.getOrNull() ?: emptyList()
       if (batch.isEmpty()) break
       allMeters.addAll(batch)
       offset += API_BATCH_LIMIT
@@ -520,16 +515,14 @@ class ParkingRepositoryImpl(
     var offset = 0
 
     while (true) {
-      val result = api.getMeterSchedules(limit = API_BATCH_LIMIT, offset = offset)
-      if (result.isFailure) {
-        val exception = result.exceptionOrNull()
-        Log.e(TAG, "fetchAllMeterSchedules: API call failed at offset $offset", exception)
-        exception?.let {
-          analyticsTracker.logNonFatal(it, "API failure: fetchAllMeterSchedules at offset $offset")
+      val batch =
+        try {
+          api.getMeterSchedules(limit = API_BATCH_LIMIT, offset = offset)
+        } catch (e: IOException) {
+          Log.e(TAG, "fetchAllMeterSchedules: API call failed at offset $offset", e)
+          analyticsTracker.logNonFatal(e, "API failure: fetchAllMeterSchedules at offset $offset")
+          break
         }
-        break
-      }
-      val batch = result.getOrNull() ?: emptyList()
       if (batch.isEmpty()) break
       allSchedules.addAll(batch)
       offset += API_BATCH_LIMIT

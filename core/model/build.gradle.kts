@@ -1,15 +1,22 @@
 plugins {
-  kotlin("jvm")
+  alias(libs.plugins.kotlin.multiplatform)
   alias(libs.plugins.kotlin.serialization)
 }
 
-dependencies {
-  api(libs.kotlinx.datetime)
+kotlin {
+  jvm()
 
-  implementation(libs.kotlinx.coroutines.core)
-  implementation(libs.kotlinx.serialization.json)
+  sourceSets {
+    commonMain.dependencies {
+      api(libs.kotlinx.datetime)
 
-  testImplementation(libs.junit)
-  testImplementation(libs.truth)
-  testImplementation(kotlin("test"))
+      implementation(libs.kotlinx.coroutines.core)
+      implementation(libs.kotlinx.serialization.json)
+    }
+    commonTest.dependencies {
+      implementation(libs.junit)
+      implementation(libs.truth)
+      implementation(kotlin("test"))
+    }
+  }
 }

@@ -17,8 +17,8 @@ import dev.zacsweers.metro.binding
 class DataRefreshWorker(
   context: Context,
   private val repository: ParkingRepository,
-  @Assisted workerParams: WorkerParameters,
-) : CoroutineWorker(context, workerParams) {
+  @Assisted params: WorkerParameters,
+) : CoroutineWorker(context, params) {
 
   override suspend fun doWork(): Result {
     val result = repository.refreshData()
