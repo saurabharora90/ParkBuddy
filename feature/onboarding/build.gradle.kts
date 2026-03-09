@@ -1,40 +1,42 @@
 plugins {
-  alias(libs.plugins.android.library)
+  alias(libs.plugins.android.kmp.library)
+  alias(libs.plugins.compose.multiplatform)
   alias(libs.plugins.foundry.base)
+  alias(libs.plugins.kotlin.multiplatform)
   alias(libs.plugins.kotlin.serialization)
 }
 
-android { namespace = "com.parkbuddy.feature.onboarding" }
+kotlin {
+  androidLibrary { namespace = "com.parkbuddy.feature.onboarding" }
 
-foundry {
-  features {
-    compose()
-    metro()
+  sourceSets {
+    commonMain.dependencies {
+      implementation(project(":core:base"))
+      implementation(project(":core:bluetooth:api"))
+      implementation(project(":core:data:api"))
+      implementation(project(":core:model"))
+      implementation(project(":core:shared-ui"))
+      implementation(project(":core:theme"))
+      implementation(compose.animation)
+      implementation(compose.foundation)
+      implementation(compose.material3)
+      implementation(compose.materialIconsExtended)
+      implementation(compose.ui)
+      implementation(compose.uiTooling)
+      implementation(libs.metrox.viewmodel)
+      implementation(libs.metrox.viewmodel.compose)
+    }
+    androidMain.dependencies {
+      implementation(libs.accompanist.permissions)
+      implementation(libs.androidx.activity.compose)
+      implementation(libs.androidx.core.ktx)
+    }
   }
 }
 
-dependencies {
-  implementation(platform(libs.compose.bom))
-  implementation(project(":core:base"))
-  implementation(project(":core:bluetooth:api"))
-  implementation(project(":core:data:api"))
-  implementation(project(":core:model"))
-  implementation(project(":core:shared-ui"))
-  implementation(project(":core:theme"))
-  implementation(libs.accompanist.permissions)
-  implementation(libs.androidx.activity.compose)
-  implementation(libs.androidx.core.ktx)
-  implementation(libs.bundles.compose)
-  implementation(libs.bundles.compose.debug)
-  implementation(libs.compose.material.icons)
-  implementation(libs.compose.material.icons.extended)
-  implementation(libs.metrox.viewmodel)
-  implementation(libs.metrox.viewmodel.compose)
-
-  testImplementation(project(":core:testing"))
-  testImplementation(libs.junit)
-  testImplementation(libs.kotlinx.coroutines.test)
-  testImplementation(libs.robolectric)
-  testImplementation(libs.truth)
-  testImplementation(libs.turbine)
+foundry {
+  features {
+    compose(multiplatform = true)
+    metro()
+  }
 }

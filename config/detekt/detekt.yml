@@ -1,10 +1,7 @@
-build:
-  maxIssues: 0
-
 config:
   validation: true
   warningsAsErrors: true
-  excludes: ''
+  excludes: []
 
 naming:
   active: false
@@ -16,14 +13,19 @@ complexity:
   active: false
   LongMethod:
     active: true
-    threshold: 120
 
-style:
+empty-blocks:
   excludes: &generatedFolders
     - '**/generated/**'
+    - '**/build/**'
+
+style:
+  excludes: *generatedFolders
   MagicNumber:
     active: false
-  UnusedPrivateMember:
+  UnusedPrivateProperty:
+    ignoreAnnotated: [ 'Preview' ]
+  UnusedPrivateFunction:
     ignoreAnnotated: [ 'Preview' ]
   ReturnCount:
     active: false
@@ -32,7 +34,7 @@ style:
     excludeCommentStatements: true
   ForbiddenComment:
     comments: [ 'FIXME:', 'STOPSHIP:' ]
-  UnusedImports:
+  UnusedImport:
     active: true
   LoopWithTooManyJumpStatements:
     active: false
@@ -50,8 +52,7 @@ Compose:
     # treatAsLambda: MyLambdaType
   CompositionLocalAllowlist:
     active: true
-    # -- You can optionally define a list of CompositionLocals that are allowed here
-    # allowedCompositionLocals: LocalSomething,LocalSomethingElse
+    allowedCompositionLocals: LocalScaffoldContentPadding
   CompositionLocalNaming:
     active: true
   ContentEmitterReturningValues:

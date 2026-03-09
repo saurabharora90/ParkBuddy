@@ -225,7 +225,7 @@ class ParkingRepositoryImpl(
         val metersByCnn =
           meterInventory
             .filter { !it.streetSegCtrlnId.isNullOrBlank() }
-            .groupBy { it.streetSegCtrlnId!! }
+            .groupBy { it.streetSegCtrlnId.orEmpty() }
         val meterSchedulesByPostId = meterSchedulesRaw.groupBy { it.postId }
 
         for ((cnn, meters) in metersByCnn) {
@@ -263,7 +263,7 @@ class ParkingRepositoryImpl(
             when {
               context.curbsideGeometry != null -> context.curbsideGeometry
               context.centerline != null ->
-                CoordinateMatcher.offsetGeometry(context.centerline!!, context.side)
+                CoordinateMatcher.offsetGeometry(checkNotNull(context.centerline), context.side)
 
               else -> null
             } ?: continue
@@ -277,7 +277,7 @@ class ParkingRepositoryImpl(
               streetName = context.streetName,
               blockLimits = context.blockLimits,
               neighborhood = context.neighborhood,
-              regulation = context.regulation!!,
+              regulation = checkNotNull(context.regulation),
               rppArea = context.rppArea,
               timeLimitHours = context.timeLimitHours,
               enforcementDays = context.enforcementDays,
@@ -597,7 +597,7 @@ class ParkingRepositoryImpl(
           spot.timeLimitHours?.let { limitHours ->
             TimedRestriction(
               limitHours = limitHours,
-              days = spot.enforcementDays ?: emptySet(),
+              days = spot.enforcementDays.orEmpty(),
               startTime = spot.enforcementStart,
               endTime = spot.enforcementEnd,
             )

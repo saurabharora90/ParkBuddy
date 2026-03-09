@@ -7,7 +7,6 @@ import dev.bongballe.parkbuddy.model.StreetSide
 import dev.bongballe.parkbuddy.model.Weekday
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalTime
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
 class ParkBuddyTypeConverters {

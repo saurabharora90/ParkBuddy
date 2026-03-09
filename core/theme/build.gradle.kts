@@ -1,15 +1,25 @@
 plugins {
-  alias(libs.plugins.android.library)
+  alias(libs.plugins.android.kmp.library)
+  alias(libs.plugins.compose.multiplatform)
   alias(libs.plugins.foundry.base)
+  alias(libs.plugins.kotlin.multiplatform)
 }
 
-android { namespace = "dev.bongballe.parkbuddy.theme" }
+kotlin {
+  androidLibrary {
+    namespace = "dev.bongballe.parkbuddy.theme"
+    androidResources { enable = true }
+  }
 
-foundry { features { compose() } }
-
-dependencies {
-  implementation(platform(libs.compose.bom))
-  implementation(libs.androidx.core.ktx)
-  implementation(libs.compose.material3)
-  implementation(libs.compose.ui)
+  sourceSets {
+    commonMain.dependencies {
+      implementation(compose.material3)
+      implementation(compose.components.resources)
+    }
+    androidMain.dependencies { implementation(libs.androidx.core.ktx) }
+  }
 }
+
+compose.resources { packageOfResClass = "dev.bongballe.parkbuddy.theme.resources" }
+
+foundry { features { compose(multiplatform = true) } }

@@ -1,3 +1,5 @@
+@file:Suppress("InjectDispatcher")
+
 package dev.bongballe.parkbuddy.di
 
 import dev.bongballe.parkbuddy.DispatcherType

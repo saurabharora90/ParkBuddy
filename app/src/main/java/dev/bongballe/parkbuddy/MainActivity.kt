@@ -130,7 +130,7 @@ class MainActivity(
                 }
                 entry<RouteBluetoothDeviceSelection> {
                   BluetoothDeviceSelectionScreen(
-                    onDeviceSelected = {
+                    onDeviceSelect = {
                       backStack.clear()
                       backStack.add(Main)
                     }

@@ -1,42 +1,44 @@
 plugins {
-  alias(libs.plugins.android.library)
+  alias(libs.plugins.android.kmp.library)
+  alias(libs.plugins.compose.multiplatform)
   alias(libs.plugins.foundry.base)
+  alias(libs.plugins.kotlin.multiplatform)
   alias(libs.plugins.kotlin.serialization)
 }
 
-android { namespace = "com.parkbuddy.feature.map" }
+kotlin {
+  androidLibrary { namespace = "com.parkbuddy.feature.map" }
 
-foundry {
-  features {
-    compose()
-    metro()
+  sourceSets {
+    commonMain.dependencies {
+      implementation(project(":core:base"))
+      implementation(project(":core:data:api"))
+      implementation(project(":core:model"))
+      implementation(project(":core:shared-ui"))
+      implementation(project(":core:theme"))
+      implementation(libs.androidx.annotation)
+      implementation(compose.animation)
+      implementation(compose.material3)
+      implementation(compose.materialIconsExtended)
+      implementation(compose.ui)
+      implementation(compose.uiTooling)
+      implementation(libs.kotlinx.datetime)
+      implementation(libs.kotlinx.serialization.json)
+      implementation(libs.metrox.viewmodel)
+      implementation(libs.metrox.viewmodel.compose)
+    }
+    androidMain.dependencies {
+      implementation(libs.androidx.activity.compose)
+      implementation(libs.kotlinx.coroutines.play.services)
+      implementation(libs.maps.compose)
+      implementation(libs.play.services.location)
+    }
   }
 }
 
-dependencies {
-  implementation(platform(libs.compose.bom))
-  implementation(project(":core:base"))
-  implementation(project(":core:data:api"))
-  implementation(project(":core:model"))
-  implementation(project(":core:shared-ui"))
-  implementation(project(":core:theme"))
-  implementation(libs.androidx.activity.compose)
-  implementation(libs.bundles.compose)
-  implementation(libs.bundles.compose.debug)
-  implementation(libs.compose.material.icons)
-  implementation(libs.compose.material.icons.extended)
-  implementation(libs.kotlinx.coroutines.play.services)
-  implementation(libs.kotlinx.datetime)
-  implementation(libs.kotlinx.serialization.json)
-  implementation(libs.maps.compose)
-  implementation(libs.metrox.viewmodel)
-  implementation(libs.metrox.viewmodel.compose)
-  implementation(libs.play.services.location)
-
-  testImplementation(project(":core:testing"))
-  testImplementation(libs.junit)
-  testImplementation(libs.kotlinx.coroutines.test)
-  testImplementation(libs.robolectric)
-  testImplementation(libs.truth)
-  testImplementation(libs.turbine)
+foundry {
+  features {
+    compose(multiplatform = true)
+    metro()
+  }
 }
