@@ -4,7 +4,6 @@ plugins {
   alias(libs.plugins.android.application)
   alias(libs.plugins.foundry.base)
   alias(libs.plugins.foundry.apk.versioning)
-  alias(libs.plugins.kotlin.android)
   alias(libs.plugins.kotlin.serialization)
   alias(libs.plugins.google.services)
   alias(libs.plugins.firebase.crashlytics)
@@ -30,17 +29,12 @@ android {
     manifestPlaceholders["MAPS_API_KEY"] = getLocalProperty("MAPS_API_KEY")
   }
 
-  buildFeatures {
-    buildConfig = true
-  }
+  buildFeatures { buildConfig = true }
 
   buildTypes {
     release {
       isMinifyEnabled = false
-      proguardFiles(
-        getDefaultProguardFile("proguard-android-optimize.txt"),
-        "proguard-rules.pro",
-      )
+      proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
     }
   }
 }
@@ -53,9 +47,7 @@ foundry {
 }
 
 // Satisfy Foundry's ciUnitTest dependency
-tasks.register("testReleaseUnitTest") {
-  dependsOn("testDebugUnitTest")
-}
+tasks.register("testReleaseUnitTest") { dependsOn("testDebugUnitTest") }
 
 dependencies {
   implementation(platform(libs.compose.bom))

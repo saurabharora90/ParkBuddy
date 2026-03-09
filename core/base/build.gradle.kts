@@ -1,9 +1,11 @@
 plugins {
-  kotlin("jvm")
+  alias(libs.plugins.kotlin.multiplatform)
   alias(libs.plugins.foundry.base)
   alias(libs.plugins.metro)
 }
 
-dependencies {
-  api(libs.kotlinx.coroutines.core)
+kotlin {
+  jvm()
+
+  sourceSets { commonMain.dependencies { api(libs.kotlinx.coroutines.core) } }
 }

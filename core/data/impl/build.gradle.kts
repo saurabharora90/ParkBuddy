@@ -1,18 +1,11 @@
 plugins {
   alias(libs.plugins.android.library)
-  alias(libs.plugins.kotlin.android)
   alias(libs.plugins.foundry.base)
 }
 
-android {
-  namespace = "dev.bongballe.parkbuddy.data.impl"
-}
+android { namespace = "dev.bongballe.parkbuddy.data.impl" }
 
-foundry {
-  features {
-    metro()
-  }
-}
+foundry { features { metro() } }
 
 dependencies {
   implementation(project(":core:base"))

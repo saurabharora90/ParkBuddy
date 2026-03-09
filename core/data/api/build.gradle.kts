@@ -1,16 +1,23 @@
 plugins {
-  kotlin("jvm")
+  alias(libs.plugins.kotlin.multiplatform)
   alias(libs.plugins.metro)
 }
 
-dependencies {
-  implementation(project(":core:base"))
-  implementation(project(":core:model"))
-  implementation(libs.kotlinx.coroutines.core)
-  implementation(libs.kotlinx.serialization.core)
+kotlin {
+  jvm()
 
-  testImplementation(project(":core:testing"))
-  testImplementation(libs.junit)
-  testImplementation(libs.truth)
-  testImplementation(libs.kotlinx.coroutines.test)
+  sourceSets {
+    commonMain.dependencies {
+      implementation(project(":core:base"))
+      implementation(project(":core:model"))
+      implementation(libs.kotlinx.coroutines.core)
+      implementation(libs.kotlinx.serialization.core)
+    }
+    commonTest.dependencies {
+      implementation(project(":core:testing"))
+      implementation(libs.junit)
+      implementation(libs.truth)
+      implementation(libs.kotlinx.coroutines.test)
+    }
+  }
 }

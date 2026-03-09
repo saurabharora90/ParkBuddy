@@ -1,13 +1,10 @@
 plugins {
   alias(libs.plugins.android.library)
-  alias(libs.plugins.kotlin.android)
   alias(libs.plugins.foundry.base)
   alias(libs.plugins.kotlin.serialization)
 }
 
-android {
-  namespace = "com.parkbuddy.feature.onboarding"
-}
+android { namespace = "com.parkbuddy.feature.onboarding" }
 
 foundry {
   features {

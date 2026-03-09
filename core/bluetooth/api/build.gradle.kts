@@ -1,7 +1,7 @@
-plugins {
-  kotlin("jvm")
-}
+plugins { alias(libs.plugins.kotlin.multiplatform) }
 
-dependencies {
-  implementation(project(":core:model"))
+kotlin {
+  jvm()
+
+  sourceSets { commonMain.dependencies { implementation(project(":core:model")) } }
 }
