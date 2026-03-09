@@ -1,9 +1,9 @@
 package dev.bongballe.parkbuddy.data.repository
 
-import android.app.AlarmManager
-import android.content.Context
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.PreferenceDataStoreFactory
+import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
-import androidx.test.core.app.ApplicationProvider
 import com.google.common.truth.Truth.assertThat
 import dev.bongballe.parkbuddy.model.ParkedLocation
 import dev.bongballe.parkbuddy.model.ReminderMinutes
@@ -15,6 +15,7 @@ import dev.bongballe.parkbuddy.testing.FakePreferencesRepository
 import dev.bongballe.parkbuddy.testing.FakeReminderNotificationManager
 import dev.bongballe.parkbuddy.testing.createTestSpot
 import kotlin.time.Clock
+import kotlin.time.Instant
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.DateTimeUnit
@@ -23,29 +24,66 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.plus
 import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
+import okio.Path.Companion.toPath
+import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
-import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [31])
+@Config(sdk = [35])
 class ReminderRepositoryImplTest {
 
-  private class FakeClock(var instant: kotlin.time.Instant) : kotlin.time.Clock {
-    override fun now(): kotlin.time.Instant = instant
+  @get:Rule val tempFolder = TemporaryFolder()
+
+  private class FakeAlarmScheduler : AlarmScheduler {
+    data class ScheduledAlarm(
+      val index: Int,
+      val triggerAt: Instant,
+      val spotName: String,
+      val spotId: String,
+      val message: String,
+    )
+
+    val scheduledAlarms = mutableListOf<ScheduledAlarm>()
+    var cancelAllCalled = false
+
+    override fun setAlarm(
+      index: Int,
+      triggerAt: Instant,
+      spotName: String,
+      spotId: String,
+      message: String,
+    ) {
+      scheduledAlarms.add(ScheduledAlarm(index, triggerAt, spotName, spotId, message))
+    }
+
+    override fun cancelAll() {
+      cancelAllCalled = true
+      scheduledAlarms.clear()
+    }
   }
 
-  private class TestContext {
-    val context: Context = ApplicationProvider.getApplicationContext()
+  private class FakeClock(var instant: Instant) : Clock {
+    override fun now(): Instant = instant
+  }
+
+  private inner class TestContext {
+    val dataStore: DataStore<Preferences> =
+      PreferenceDataStoreFactory.createWithPath(
+        produceFile = { tempFolder.newFile("test.preferences_pb").absolutePath.toPath() }
+      )
+    val alarmScheduler = FakeAlarmScheduler()
     val notificationManager = FakeReminderNotificationManager()
     val preferencesRepository = FakePreferencesRepository()
     val parkingRepository = FakeParkingRepository()
     val clock = FakeClock(Clock.System.now())
     val repository =
       ReminderRepositoryImpl(
-        context,
+        dataStore,
+        alarmScheduler,
         notificationManager,
         preferencesRepository,
         parkingRepository,
@@ -53,7 +91,7 @@ class ReminderRepositoryImplTest {
       )
 
     init {
-      runBlocking { context.dataStore.edit { it.clear() } }
+      runBlocking { dataStore.edit { it.clear() } }
     }
   }
 
@@ -63,7 +101,6 @@ class ReminderRepositoryImplTest {
     val now = Clock.System.now()
     context.clock.instant = now
 
-    // Set up timed parking (default createTestSpot has a 2-hour timedRestriction)
     val spot = createTestSpot(id = "1")
     val parkedLocation =
       ParkedLocation(
@@ -75,22 +112,16 @@ class ReminderRepositoryImplTest {
 
     context.repository.scheduleReminders(spot, showNotification = true)
 
-    val alarmManager = context.context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-    val shadowAlarmManager = shadowOf(alarmManager)
-
-    // Should have 2 alarms: one 15-min warning and one final expiry
-    assertThat(shadowAlarmManager.scheduledAlarms).hasSize(2)
+    assertThat(context.alarmScheduler.scheduledAlarms).hasSize(2)
   }
 
   @Test
   fun `scheduleReminders for timed parking after hours sets future alarms`() = runTest {
     val context = TestContext()
-    // 7 PM on Monday Jan 1st
     val now =
       kotlinx.datetime.LocalDateTime(2024, 1, 1, 19, 0).toInstant(TimeZone.currentSystemDefault())
     context.clock.instant = now
 
-    // Set up timed parking with 8am-6pm enforcement
     val spot =
       createTestSpot(
         id = "1",
@@ -120,22 +151,16 @@ class ReminderRepositoryImplTest {
 
     context.repository.scheduleReminders(spot, showNotification = true)
 
-    val alarmManager = context.context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-    val shadowAlarmManager = shadowOf(alarmManager)
-
-    // Should have 2 alarms scheduled for tomorrow (warning at 9:45 AM, expiry at 10 AM)
-    assertThat(shadowAlarmManager.scheduledAlarms).hasSize(2)
+    assertThat(context.alarmScheduler.scheduledAlarms).hasSize(2)
   }
 
   @Test
   fun `scheduleReminders with showNotification true shows notification`() = runTest {
     val context = TestContext()
-    // Monday Jan 1st 2024
     val now =
       kotlinx.datetime.LocalDateTime(2024, 1, 1, 12, 0).toInstant(TimeZone.currentSystemDefault())
     context.clock.instant = now
 
-    // Set up parked location
     val parkedLocation =
       ParkedLocation(
         spotId = "1",
@@ -145,8 +170,6 @@ class ReminderRepositoryImplTest {
     context.preferencesRepository.setParkedLocation(parkedLocation)
 
     val localNow = now.toLocalDateTime(TimeZone.currentSystemDefault())
-
-    // Create a schedule for tomorrow
     val tomorrow = localNow.date.plus(1, DateTimeUnit.DAY)
     val schedule =
       SweepingSchedule(
@@ -190,7 +213,6 @@ class ReminderRepositoryImplTest {
   @Test
   fun `scheduleReminders sets alarms`() = runTest {
     val context = TestContext()
-    // Monday Jan 1st 2024
     val now =
       kotlinx.datetime.LocalDateTime(2024, 1, 1, 12, 0).toInstant(TimeZone.currentSystemDefault())
     context.clock.instant = now
@@ -204,8 +226,6 @@ class ReminderRepositoryImplTest {
     context.preferencesRepository.setParkedLocation(parkedLocation)
 
     val localNow = now.toLocalDateTime(TimeZone.currentSystemDefault())
-
-    // Create a schedule for tomorrow at 8 AM
     val tomorrow = localNow.date.plus(1, DateTimeUnit.DAY)
     val schedule =
       SweepingSchedule(
@@ -222,21 +242,15 @@ class ReminderRepositoryImplTest {
 
     val spot = createTestSpot(id = "1").copy(sweepingSchedules = listOf(schedule))
 
-    context.repository.addReminder(ReminderMinutes(60)) // 1 hour before 8 AM = 7 AM
+    context.repository.addReminder(ReminderMinutes(60))
     context.repository.scheduleReminders(spot, showNotification = false)
 
-    val alarmManager = context.context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-    val shadowAlarmManager = shadowOf(alarmManager)
-
-    // Verify an alarm was scheduled
-    val alarms = shadowAlarmManager.scheduledAlarms
-    assertThat(alarms).isNotEmpty()
+    assertThat(context.alarmScheduler.scheduledAlarms).isNotEmpty()
   }
 
   @Test
   fun `scheduleReminders for ActiveTimed skips cleaning reminders`() = runTest {
     val context = TestContext()
-    // Monday noon: enforcement active (default restriction is M-F, no start/end time)
     val now =
       kotlinx.datetime.LocalDateTime(2024, 1, 1, 12, 0).toInstant(TimeZone.currentSystemDefault())
     context.clock.instant = now
@@ -264,24 +278,17 @@ class ReminderRepositoryImplTest {
         holidays = true,
       )
 
-    // Timed spot with cleaning tomorrow
     val spot = createTestSpot(id = "1").copy(sweepingSchedules = listOf(cleaningSchedule))
 
-    // Add a cleaning reminder; it should be ignored for ActiveTimed
     context.repository.addReminder(ReminderMinutes(60))
     context.repository.scheduleReminders(spot, showNotification = false)
 
-    val alarmManager = context.context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-    val shadowAlarmManager = shadowOf(alarmManager)
-
-    // Should only have 2 alarms (15-min warning + expiry), NOT the cleaning reminder
-    assertThat(shadowAlarmManager.scheduledAlarms).hasSize(2)
+    assertThat(context.alarmScheduler.scheduledAlarms).hasSize(2)
   }
 
   @Test
   fun `scheduleReminders for PendingTimed includes cleaning when before enforcement`() = runTest {
     val context = TestContext()
-    // Monday 7 PM, enforcement 8am-6pm M-F
     val now =
       kotlinx.datetime.LocalDateTime(2024, 1, 1, 19, 0).toInstant(TimeZone.currentSystemDefault())
     context.clock.instant = now
@@ -294,7 +301,6 @@ class ReminderRepositoryImplTest {
       )
     context.preferencesRepository.setParkedLocation(parkedLocation)
 
-    // Cleaning tomorrow at 6 AM (before enforcement starts at 8 AM)
     val cleaningSchedule =
       SweepingSchedule(
         weekday = Weekday.Tues,
@@ -328,22 +334,16 @@ class ReminderRepositoryImplTest {
         )
         .copy(sweepingSchedules = listOf(cleaningSchedule))
 
-    // Add a cleaning reminder (1 hour before = 5 AM)
     context.repository.addReminder(ReminderMinutes(60))
     context.repository.scheduleReminders(spot, showNotification = false)
 
-    val alarmManager = context.context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-    val shadowAlarmManager = shadowOf(alarmManager)
-
-    // Should have 3 alarms: 1 cleaning + 2 expiry (15-min warning + expiry)
-    assertThat(shadowAlarmManager.scheduledAlarms).hasSize(3)
+    assertThat(context.alarmScheduler.scheduledAlarms).hasSize(3)
   }
 
   @Test
   fun `scheduleReminders for PendingTimed skips cleaning when after enforcement starts`() =
     runTest {
       val context = TestContext()
-      // Monday 7 PM, enforcement 8am-6pm M-F
       val now =
         kotlinx.datetime.LocalDateTime(2024, 1, 1, 19, 0).toInstant(TimeZone.currentSystemDefault())
       context.clock.instant = now
@@ -356,7 +356,6 @@ class ReminderRepositoryImplTest {
         )
       context.preferencesRepository.setParkedLocation(parkedLocation)
 
-      // Cleaning tomorrow at 9 AM (after enforcement starts at 8 AM)
       val cleaningSchedule =
         SweepingSchedule(
           weekday = Weekday.Tues,
@@ -393,11 +392,7 @@ class ReminderRepositoryImplTest {
       context.repository.addReminder(ReminderMinutes(60))
       context.repository.scheduleReminders(spot, showNotification = false)
 
-      val alarmManager = context.context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-      val shadowAlarmManager = shadowOf(alarmManager)
-
-      // Should only have 2 alarms (expiry reminders), cleaning skipped
-      assertThat(shadowAlarmManager.scheduledAlarms).hasSize(2)
+      assertThat(context.alarmScheduler.scheduledAlarms).hasSize(2)
     }
 
   @Test
@@ -406,6 +401,7 @@ class ReminderRepositoryImplTest {
     context.repository.clearAllReminders()
 
     assertThat(context.notificationManager.cancelAllCalled).isTrue()
+    assertThat(context.alarmScheduler.cancelAllCalled).isTrue()
   }
 
   private fun DayOfWeek.toWeekday(): Weekday =
