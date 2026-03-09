@@ -335,7 +335,9 @@ class ReminderRepositoryImpl(
             nextCleaning?.let { formattedCleaningText(it, now, zone) }
               ?: "No upcoming cleaning found"
           val urgencyWarning =
-            nextCleaning?.let { if ((it - now) < 6.hours) "\n⚠️ CLEANING IS TODAY!" else "" } ?: ""
+            nextCleaning
+              ?.let { if ((it - now) < 6.hours) "\n⚠️ CLEANING IS TODAY!" else "" }
+              .orEmpty()
           "Next cleaning: $cleaningText" to
             "Next cleaning: $cleaningText$urgencyWarning\n\n$reminderLines"
         }
@@ -377,7 +379,7 @@ class ReminderRepositoryImpl(
                 else -> "${minutes}min"
               }
             } else {
-              spot.timedRestriction?.limitHours?.let { "${it}hr" } ?: ""
+              spot.timedRestriction?.limitHours?.let { "${it}hr" }.orEmpty()
             }
           if (limitDisplay.isNotEmpty()) " ($limitDisplay limit)" else ""
         }

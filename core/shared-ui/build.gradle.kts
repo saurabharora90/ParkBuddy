@@ -1,17 +1,22 @@
 plugins {
-  alias(libs.plugins.android.library)
+  alias(libs.plugins.android.kmp.library)
+  alias(libs.plugins.compose.multiplatform)
   alias(libs.plugins.foundry.base)
+  alias(libs.plugins.kotlin.multiplatform)
 }
 
-android { namespace = "dev.parkbuddy.core.ui" }
+kotlin {
+  androidLibrary { namespace = "dev.parkbuddy.core.ui" }
 
-foundry { features { compose() } }
-
-dependencies {
-  implementation(platform(libs.compose.bom))
-  implementation(project(":core:theme"))
-  implementation(libs.bundles.compose)
-  implementation(libs.bundles.compose.debug)
-  implementation(libs.compose.material.icons)
-  implementation(libs.compose.material.icons.extended)
+  sourceSets {
+    commonMain.dependencies {
+      implementation(project(":core:theme"))
+      implementation(compose.material3)
+      implementation(compose.materialIconsExtended)
+      implementation(compose.ui)
+      implementation(compose.uiTooling)
+    }
+  }
 }
+
+foundry { features { compose(multiplatform = true) } }

@@ -31,5 +31,6 @@ class DataRefreshWorker(
     binding = binding<MetroWorkerFactory.WorkerInstanceFactory<*>>(),
   )
   @AssistedFactory
+  @Suppress("AbstractClassCanBeInterface")
   abstract class Factory : MetroWorkerFactory.WorkerInstanceFactory<DataRefreshWorker>
 }

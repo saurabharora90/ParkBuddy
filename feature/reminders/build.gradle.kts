@@ -1,42 +1,52 @@
 plugins {
-  alias(libs.plugins.android.library)
+  alias(libs.plugins.android.kmp.library)
+  alias(libs.plugins.compose.multiplatform)
   alias(libs.plugins.foundry.base)
+  alias(libs.plugins.kotlin.multiplatform)
 }
 
-android { namespace = "com.parkbuddy.feature.reminders" }
+kotlin {
+  androidLibrary {
+    namespace = "com.parkbuddy.feature.reminders"
+    withHostTestBuilder {}
+  }
 
-foundry {
-  features {
-    metro()
-    compose()
+  sourceSets {
+    commonMain.dependencies {
+      implementation(project(":core:base"))
+      implementation(project(":core:data:api"))
+      implementation(project(":core:model"))
+      implementation(project(":core:shared-ui"))
+      implementation(project(":core:theme"))
+      implementation(compose.material3)
+      implementation(compose.materialIconsExtended)
+      implementation(compose.ui)
+      implementation(compose.uiTooling)
+      implementation(libs.kotlinx.datetime)
+      implementation(libs.metrox.viewmodel)
+      implementation(libs.metrox.viewmodel.compose)
+    }
+    androidMain.dependencies {
+      implementation(project(":core:work-manager"))
+      implementation(libs.accompanist.permissions)
+      implementation(libs.androidx.activity.compose)
+      implementation(libs.androidx.core.ktx)
+      implementation(libs.metrox.android)
+    }
+    getByName("androidHostTest").dependencies {
+      implementation(project(":core:testing"))
+      implementation(libs.junit)
+      implementation(libs.kotlinx.coroutines.test)
+      implementation(libs.robolectric)
+      implementation(libs.truth)
+      implementation(libs.turbine)
+    }
   }
 }
 
-dependencies {
-  implementation(platform(libs.compose.bom))
-  implementation(project(":core:base"))
-  implementation(project(":core:data:api"))
-  implementation(project(":core:model"))
-  implementation(project(":core:shared-ui"))
-  implementation(project(":core:theme"))
-  implementation(project(":core:work-manager"))
-  implementation(libs.accompanist.permissions)
-  implementation(libs.androidx.activity.compose)
-  implementation(libs.androidx.core.ktx)
-  implementation(libs.androidx.lifecycle.runtime.ktx)
-  implementation(libs.bundles.compose)
-  implementation(libs.bundles.compose.debug)
-  implementation(libs.compose.material.icons)
-  implementation(libs.compose.material.icons.extended)
-  implementation(libs.kotlinx.datetime)
-  implementation(libs.metrox.android)
-  implementation(libs.metrox.viewmodel)
-  implementation(libs.metrox.viewmodel.compose)
-
-  testImplementation(project(":core:testing"))
-  testImplementation(libs.junit)
-  testImplementation(libs.kotlinx.coroutines.test)
-  testImplementation(libs.robolectric)
-  testImplementation(libs.truth)
-  testImplementation(libs.turbine)
+foundry {
+  features {
+    compose(multiplatform = true)
+    metro()
+  }
 }

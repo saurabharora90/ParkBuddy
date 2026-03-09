@@ -24,6 +24,7 @@ kotlin {
       implementation(project(":core:theme"))
       implementation(project(":core:work-manager"))
       implementation(libs.accompanist.permissions)
+      implementation(libs.androidx.core.ktx)
       implementation(libs.kotlinx.coroutines.play.services)
       implementation(libs.play.services.location)
     }
