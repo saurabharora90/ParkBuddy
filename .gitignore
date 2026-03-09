@@ -3,6 +3,7 @@
 .gradle/
 .cache/
 .agent
+.kotlin
 build/
 .claude
 

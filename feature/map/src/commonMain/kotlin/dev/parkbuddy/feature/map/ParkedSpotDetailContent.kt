@@ -10,12 +10,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccessTime
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.CleaningServices
-import androidx.compose.material.icons.filled.NotificationsActive
-import androidx.compose.material.icons.filled.NotificationsOff
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
@@ -43,6 +37,7 @@ import dev.bongballe.parkbuddy.theme.ParkBuddyTheme
 import dev.bongballe.parkbuddy.theme.SagePrimary
 import dev.bongballe.parkbuddy.theme.Terracotta
 import dev.parkbuddy.core.ui.ParkBuddyButton
+import dev.parkbuddy.core.ui.ParkBuddyIcons
 import dev.parkbuddy.core.ui.SquircleIcon
 import kotlin.time.Clock
 import kotlin.time.Duration
@@ -96,7 +91,7 @@ internal fun ParkedSpotDetailContent(
       ParkBuddyButton(
         label = "MOVED",
         onClick = onMovedCar,
-        icon = Icons.Default.Check,
+        icon = ParkBuddyIcons.Check,
         containerColor = SagePrimary,
         modifier = Modifier.weight(1f).heightIn(max = 52.dp),
       )
@@ -104,7 +99,7 @@ internal fun ParkedSpotDetailContent(
       ParkBuddyButton(
         label = "WRONG ?",
         onClick = onEndSession,
-        icon = Icons.Default.NotificationsOff,
+        icon = ParkBuddyIcons.NotificationsOff,
         containerColor = Terracotta,
         modifier = Modifier.weight(1f).heightIn(max = 52.dp),
       )
@@ -273,7 +268,7 @@ private fun TimeLimitCountdownCard(
         horizontalArrangement = Arrangement.spacedBy(16.dp),
       ) {
         SquircleIcon(
-          icon = Icons.Default.AccessTime,
+          icon = ParkBuddyIcons.AccessTime,
           size = 48.dp,
           shape = RoundedCornerShape(12.dp),
           iconTint = accentColor,
@@ -331,7 +326,7 @@ private fun CleaningCountdownCard(spot: ParkingSpot, nextCleaning: Instant?, now
           horizontalArrangement = Arrangement.spacedBy(16.dp),
         ) {
           SquircleIcon(
-            icon = Icons.Default.CleaningServices,
+            icon = ParkBuddyIcons.CleaningServices,
             size = 48.dp,
             shape = RoundedCornerShape(12.dp),
             iconTint = MaterialTheme.colorScheme.primary,
@@ -402,7 +397,7 @@ private fun SecondaryCleaningInfo(restrictionState: ParkingRestrictionState, now
       verticalAlignment = Alignment.CenterVertically,
     ) {
       SquircleIcon(
-        icon = Icons.Default.CleaningServices,
+        icon = ParkBuddyIcons.CleaningServices,
         size = 40.dp,
         iconTint = MaterialTheme.colorScheme.primary,
         backgroundTint = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
@@ -689,7 +684,7 @@ private fun AlertCard(title: String, subtitle: String, timeLabel: String) {
       verticalAlignment = Alignment.CenterVertically,
     ) {
       SquircleIcon(
-        icon = Icons.Default.NotificationsActive,
+        icon = ParkBuddyIcons.NotificationsActive,
         size = 48.dp,
         iconTint = Terracotta,
         backgroundTint = Terracotta.copy(alpha = 0.15f),
