@@ -39,6 +39,3 @@ google-services.json
 
 .gemini/
 gha-creds-*.json
-
-# Downloaded tool binaries
-config/bin/
