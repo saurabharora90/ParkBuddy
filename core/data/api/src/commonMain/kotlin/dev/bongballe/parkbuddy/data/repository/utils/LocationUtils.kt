@@ -2,8 +2,11 @@ package dev.bongballe.parkbuddy.data.repository.utils
 
 import dev.bongballe.parkbuddy.model.Geometry
 import dev.bongballe.parkbuddy.model.StreetSide
+import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sqrt
+
+private fun toRadians(degrees: Double): Double = degrees * PI / 180.0
 
 object LocationUtils {
   private const val EARTH_RADIUS = 6371000.0
@@ -41,7 +44,7 @@ object LocationUtils {
     // Cross product: (p2 - p1) × (point - p1)
     // dx/dy must be adjusted by SF latitude for accurate orientation
     val latFactor = 1.0
-    val lngFactor = cos(Math.toRadians(37.7749))
+    val lngFactor = cos(toRadians(37.7749))
 
     val dx = (p2[0] - p1[0]) * lngFactor
     val dy = (p2[1] - p1[1]) * latFactor
@@ -60,14 +63,14 @@ object LocationUtils {
     lat2: Double,
     lng2: Double,
   ): Double {
-    val rLat1 = Math.toRadians(lat1)
-    val rLat2 = Math.toRadians(lat2)
-    val rLat = Math.toRadians(lat)
+    val rLat1 = toRadians(lat1)
+    val rLat2 = toRadians(lat2)
+    val rLat = toRadians(lat)
 
-    val dx = (Math.toRadians(lng2) - Math.toRadians(lng1)) * cos((rLat1 + rLat2) / 2)
-    val dy = Math.toRadians(lat2) - rLat1
-    val x = (Math.toRadians(lng) - Math.toRadians(lng1)) * cos((rLat1 + rLat) / 2)
-    val y = Math.toRadians(lat) - rLat1
+    val dx = (toRadians(lng2) - toRadians(lng1)) * cos((rLat1 + rLat2) / 2)
+    val dy = toRadians(lat2) - rLat1
+    val x = (toRadians(lng) - toRadians(lng1)) * cos((rLat1 + rLat) / 2)
+    val y = toRadians(lat) - rLat1
 
     val dot = x * dx + y * dy
     val lenSq = dx * dx + dy * dy

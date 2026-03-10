@@ -1,6 +1,5 @@
 package dev.bongballe.parkbuddy.data.repository.utils
 
-import com.sun.org.apache.xalan.internal.lib.ExsltDatetime.dayName
 import dev.bongballe.parkbuddy.data.repository.utils.DateTimeUtils.formatHour
 import dev.bongballe.parkbuddy.model.SweepingSchedule
 import kotlin.time.Instant

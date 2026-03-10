@@ -6,7 +6,10 @@ plugins {
 }
 
 kotlin {
-  androidLibrary { namespace = "dev.parkbuddy.core.ui" }
+  androidLibrary {
+    namespace = "dev.parkbuddy.core.ui"
+    androidResources { enable = true }
+  }
 
   sourceSets {
     commonMain.dependencies {

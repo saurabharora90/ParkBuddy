@@ -26,6 +26,16 @@ subprojects {
   configure<com.ncorti.ktfmt.gradle.KtfmtExtension> { googleStyle() }
 
   val catalog = rootProject.extensions.getByType<VersionCatalogsExtension>().named("libs")
+
+  // Compose Multiplatform preview tooling for KMP Android library modules (AGP 9.0+).
+  // Uses androidRuntimeClasspath instead of debugImplementation per:
+  // https://kotlinlang.org/docs/multiplatform/compose-previews.html
+  pluginManager.withPlugin("com.android.kotlin.multiplatform.library") {
+    afterEvaluate {
+      dependencies { "androidRuntimeClasspath"(catalog.findLibrary("compose-ui-tooling").get()) }
+    }
+  }
+
   val applyDetekt = {
     apply(plugin = "dev.detekt")
     configure<dev.detekt.gradle.extensions.DetektExtension> {

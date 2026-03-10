@@ -19,7 +19,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import dev.bongballe.parkbuddy.theme.ParkBuddyTheme
 
 @Composable
 fun BannerNudge(
@@ -63,5 +65,22 @@ fun BannerNudge(
     }
     TextButton(onClick = onAction) { Text(actionLabel, color = contentColor) }
     TextButton(onClick = onDismiss) { Text(dismissLabel, color = contentColor.copy(alpha = 0.6f)) }
+  }
+}
+
+@Preview
+@Composable
+private fun BannerNudgePreview() {
+  ParkBuddyTheme {
+    BannerNudge(
+      title = "Permission Required",
+      subtitle = "We need your location to find parking spots near you.",
+      actionLabel = "Allow",
+      onAction = {},
+      dismissLabel = "Dismiss",
+      onDismiss = {},
+      containerColor = MaterialTheme.colorScheme.primaryContainer,
+      contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+    )
   }
 }
