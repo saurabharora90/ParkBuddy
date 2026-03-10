@@ -36,8 +36,11 @@ import dev.bongballe.parkbuddy.theme.OnSurfaceVariant
 import dev.bongballe.parkbuddy.theme.SageContainer
 import dev.bongballe.parkbuddy.theme.SageOnPrimary
 import dev.bongballe.parkbuddy.theme.SagePrimary
+import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
+
+private fun toRadians(degrees: Double): Double = degrees * PI / 180.0
 
 private val PIN_WIDTH = 24.dp
 private val PIN_HEIGHT = 34.dp
@@ -150,7 +153,7 @@ fun LocationAnimation(modifier: Modifier = Modifier) {
       val orbitCenterY = pinTopY + pinHeightPx * 0.35f
       for (i in 0 until 3) {
         val angleDeg = orbitAngle + i * 120f
-        val angleRad = Math.toRadians(angleDeg.toDouble())
+        val angleRad = toRadians(angleDeg.toDouble())
         val iconX = cx + orbitRadiusPx * cos(angleRad).toFloat()
         val iconY = orbitCenterY + orbitRadiusPx * sin(angleRad).toFloat()
         val iconCenter = Offset(iconX, iconY)
@@ -264,7 +267,7 @@ private fun DrawScope.drawClockSymbol(center: Offset, radius: Float) {
   )
 
   // Hour hand pointing at ~10 o'clock (-60 degrees from 12)
-  val hourAngle = Math.toRadians(-60.0)
+  val hourAngle = toRadians(-60.0)
   val hourLength = faceRadius * 0.5f
   drawLine(
     color = OnSurfaceVariant,

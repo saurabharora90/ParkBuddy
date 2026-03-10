@@ -5,6 +5,7 @@ import dev.bongballe.parkbuddy.data.sf.model.StreetCleaningResponse
 import dev.bongballe.parkbuddy.data.sf.model.toStreetSide
 import dev.bongballe.parkbuddy.model.Geometry
 import dev.bongballe.parkbuddy.model.StreetSide
+import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.floor
 import kotlin.math.sqrt
@@ -207,11 +208,13 @@ class CoordinateMatcher(sweepingData: List<StreetCleaningResponse>) {
   }
 
   companion object {
+    private fun toRadians(degrees: Double): Double = degrees * PI / 180.0
+
     fun offsetGeometry(geometry: Geometry, side: StreetSide, offsetMeters: Double = 5.0): Geometry {
       val coords = geometry.coordinates
       if (coords.size < 2) return geometry
       val latFactor = 111111.0
-      val lngFactor = 111111.0 * cos(Math.toRadians(37.7749))
+      val lngFactor = 111111.0 * cos(toRadians(37.7749))
       val offset = if (side == StreetSide.LEFT) offsetMeters else -offsetMeters
       val newCoords = mutableListOf<List<Double>>()
       for (i in coords.indices) {
