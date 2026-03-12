@@ -39,6 +39,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import dev.bongballe.parkbuddy.core.navigation.BluetoothDeviceSelectionRoute
+import dev.bongballe.parkbuddy.core.navigation.Navigator
 import dev.bongballe.parkbuddy.theme.ParkBuddyTheme
 import dev.bongballe.parkbuddy.theme.SagePrimary
 import dev.bongballe.parkbuddy.theme.Terracotta
@@ -49,7 +51,7 @@ import dev.zacsweers.metrox.viewmodel.metroViewModel
 
 @Composable
 fun SettingsScreen(
-  onNavigateToBluetooth: () -> Unit,
+  navigator: Navigator,
   modifier: Modifier = Modifier,
   viewModel: SettingsViewModel = metroViewModel(),
 ) {
@@ -58,7 +60,7 @@ fun SettingsScreen(
   SettingsContent(
     uiState = uiState,
     onAutoTrackingToggle = viewModel::setAutoTrackingEnabled,
-    onNavigateToBluetooth = onNavigateToBluetooth,
+    onNavigateToBluetooth = { navigator.goTo(BluetoothDeviceSelectionRoute) },
     onBuyMeACoffee = viewModel::buyMeACoffee,
     modifier = modifier,
   )

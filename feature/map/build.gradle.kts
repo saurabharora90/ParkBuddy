@@ -27,6 +27,7 @@ kotlin {
       implementation(libs.metrox.viewmodel.compose)
     }
     androidMain.dependencies {
+      implementation(project(":core:navigation"))
       implementation(libs.androidx.activity.compose)
       implementation(libs.kotlinx.coroutines.play.services)
       implementation(libs.maps.compose)

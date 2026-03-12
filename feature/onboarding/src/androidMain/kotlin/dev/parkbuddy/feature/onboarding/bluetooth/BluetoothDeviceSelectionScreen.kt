@@ -52,6 +52,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import dev.bongballe.parkbuddy.core.bluetooth.BluetoothDeviceUiModel
+import dev.bongballe.parkbuddy.core.navigation.Navigator
 import dev.bongballe.parkbuddy.theme.ParkBuddyTheme
 import dev.bongballe.parkbuddy.theme.SageContainer
 import dev.bongballe.parkbuddy.theme.SageGreen
@@ -65,8 +66,8 @@ import dev.zacsweers.metrox.viewmodel.metroViewModel
 
 @Composable
 fun BluetoothDeviceSelectionScreen(
+  navigator: Navigator,
   viewModel: BluetoothDeviceSelectionViewModel = metroViewModel(),
-  onDeviceSelect: () -> Unit,
 ) {
   val context = LocalContext.current
 
@@ -132,7 +133,7 @@ fun BluetoothDeviceSelectionScreen(
       },
       onSkipClick = {
         viewModel.clearDeviceSelection()
-        onDeviceSelect()
+        navigator.goBack()
       },
     )
   } else {
@@ -141,11 +142,8 @@ fun BluetoothDeviceSelectionScreen(
     BluetoothDeviceSelectionScreenContent(
       uiState = uiState,
       onDeviceSelect = viewModel::selectDevice,
-      onContinueClick = onDeviceSelect,
-      onSkipClick = {
-        viewModel.clearDeviceSelection()
-        onDeviceSelect()
-      },
+      onContinueClick = navigator::goBack,
+      onSkipClick = { navigator.goBack() },
     )
   }
 }
@@ -304,8 +302,10 @@ private fun BluetoothDeviceSelectionScreenContent(
           enabled = uiState.selectedDevice != null,
         )
 
-        TextButton(onClick = { showSkipDialog = true }) {
-          Text("Skip for now", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        if (uiState.selectedDevice == null) {
+          TextButton(onClick = { showSkipDialog = true }) {
+            Text("Skip for now", color = MaterialTheme.colorScheme.onSurfaceVariant)
+          }
         }
       }
     }
