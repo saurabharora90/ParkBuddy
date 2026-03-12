@@ -13,6 +13,7 @@ import kotlinx.serialization.json.Json
 interface NetworkProvider {
 
   @Provides
+  @SingleIn(AppScope::class)
   fun provideJson(): Json {
     return Json { ignoreUnknownKeys = true }
   }

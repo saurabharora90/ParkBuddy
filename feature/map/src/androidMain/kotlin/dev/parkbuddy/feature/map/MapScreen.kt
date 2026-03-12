@@ -57,6 +57,8 @@ import com.google.maps.android.compose.Marker
 import com.google.maps.android.compose.MarkerState
 import com.google.maps.android.compose.Polyline
 import com.google.maps.android.compose.rememberCameraPositionState
+import dev.bongballe.parkbuddy.core.navigation.MainRoute
+import dev.bongballe.parkbuddy.core.navigation.Navigator
 import dev.bongballe.parkbuddy.model.Geometry
 import dev.bongballe.parkbuddy.model.ParkingSpot
 import dev.bongballe.parkbuddy.theme.Goldenrod
@@ -79,7 +81,7 @@ import kotlinx.coroutines.tasks.await
 @Composable
 fun MapScreen(
   modifier: Modifier = Modifier,
-  onNavigateToZone: () -> Unit = {},
+  navigator: Navigator,
   viewModel: MapViewModel = metroViewModel(),
 ) {
   val state by viewModel.stateFlow.collectAsState()
@@ -302,7 +304,7 @@ fun MapScreen(
         title = "Live in a permit zone?",
         subtitle = "Set it up so we know when you're exempt from time limits.",
         actionLabel = "Set up",
-        onAction = onNavigateToZone,
+        onAction = { navigator.goTo(MainRoute(MainRoute.Tab.MY_ZONE)) },
         dismissLabel = "Dismiss",
         onDismiss = { viewModel.dismissZoneNudge() },
         containerColor = MaterialTheme.colorScheme.secondaryContainer,

@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import dev.parkbuddy.core.ui.ParkBuddyIcons
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -23,11 +22,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -43,12 +38,18 @@ import com.airbnb.lottie.compose.LottieAnimation
 import com.airbnb.lottie.compose.LottieCompositionSpec
 import com.airbnb.lottie.compose.LottieConstants
 import com.airbnb.lottie.compose.rememberLottieComposition
-import dev.bongballe.parkbuddy.data.repository.PreferencesRepository
+import dev.bongballe.parkbuddy.core.navigation.BluetoothDeviceSelectionRoute
+import dev.bongballe.parkbuddy.core.navigation.LocalResultEventBus
+import dev.bongballe.parkbuddy.core.navigation.MainRoute
+import dev.bongballe.parkbuddy.core.navigation.NavEntryItem
+import dev.bongballe.parkbuddy.core.navigation.Navigator
+import dev.bongballe.parkbuddy.core.navigation.OnboardingRoute
+import dev.bongballe.parkbuddy.core.navigation.ResultEffect
+import dev.bongballe.parkbuddy.core.navigation.ResultEventBus
 import dev.bongballe.parkbuddy.theme.ParkBuddyTheme
+import dev.parkbuddy.core.ui.ParkBuddyIcons
 import dev.parkbuddy.feature.map.MapScreen
 import dev.parkbuddy.feature.map.PermissionChecker
-import dev.parkbuddy.feature.onboarding.bluetooth.BluetoothDeviceSelectionScreen
-import dev.parkbuddy.feature.onboarding.setup.SetupChecklistScreen
 import dev.parkbuddy.feature.reminders.permitzone.PermitZoneScreen
 import dev.parkbuddy.feature.settings.SettingsScreen
 import dev.zacsweers.metro.AppScope
@@ -59,82 +60,60 @@ import dev.zacsweers.metrox.android.ActivityKey
 import dev.zacsweers.metrox.viewmodel.LocalMetroViewModelFactory
 import dev.zacsweers.metrox.viewmodel.MetroViewModelFactory
 import dev.zacsweers.metrox.viewmodel.metroViewModel
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.runBlocking
-
-data object RouteOnboarding
-
-data object RouteBluetoothDeviceSelection
-
-data object Main
 
 @ContributesIntoMap(AppScope::class, binding<Activity>())
 @ActivityKey(MainActivity::class)
 @Inject
 class MainActivity(
   private val viewModelFactory: MetroViewModelFactory,
-  private val preferencesRepository: PreferencesRepository,
+  private val entryBuilders: Set<@JvmSuppressWildcards NavEntryItem>,
+  private val navigator: NavigatorImpl,
 ) : ComponentActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
     enableEdgeToEdge()
 
     setContent {
-      CompositionLocalProvider(LocalMetroViewModelFactory provides viewModelFactory) {
+      val resultBus = remember { ResultEventBus() }
+
+      CompositionLocalProvider(
+        LocalMetroViewModelFactory provides viewModelFactory,
+        LocalResultEventBus provides resultBus,
+      ) {
         val vm: MainActivityViewModel = metroViewModel()
         val state by vm.stateFlow.collectAsStateWithLifecycle()
 
         ParkBuddyTheme {
-          val hasSeenOnboarding = runBlocking { preferencesRepository.hasSeenOnboarding.first() }
-          val initialRoute =
-            when {
-              !hasSeenOnboarding -> RouteOnboarding
-              else -> Main
-            }
-
-          var mainPageSelectedTab by rememberSaveable { mutableIntStateOf(0) }
-
-          val backStack = remember(initialRoute) { mutableStateListOf(initialRoute) }
           NavDisplay(
-            backStack = backStack,
-            onBack = { backStack.removeLastOrNull() },
+            backStack = navigator.backStack,
+            onBack = { navigator.goBack() },
             entryDecorators =
               listOf(
                 rememberSaveableStateHolderNavEntryDecorator(),
                 rememberViewModelStoreNavEntryDecorator(),
               ),
-            entryProvider =
-              entryProvider {
-                entry<RouteOnboarding> {
-                  SetupChecklistScreen(
-                    onSetupComplete = {
-                      backStack.clear()
-                      val hasBluetooth =
-                        PermissionChecker.areBluetoothPermissionsGranted(this@MainActivity)
-                      backStack.add(if (hasBluetooth) RouteBluetoothDeviceSelection else Main)
-                    }
+            entryProvider = entryProvider {
+              entryBuilders.forEach { builder -> this.builder() }
+              entry<MainRoute> { key ->
+                if (state != null) {
+                  MainScreen(
+                    isSyncing = state is MainActivityViewModel.State.Loading,
+                    selectedTab = key.tab,
+                    navigator = navigator,
                   )
                 }
-                entry<Main> {
-                  if (state != null) {
-                    MainScreen(
-                      isSyncing = state is MainActivityViewModel.State.Loading,
-                      selectedTab = mainPageSelectedTab,
-                      onTabSelected = { mainPageSelectedTab = it },
-                      onNavigateToBluetooth = { backStack.add(RouteBluetoothDeviceSelection) },
-                    )
-                  }
-                }
-                entry<RouteBluetoothDeviceSelection> {
-                  BluetoothDeviceSelectionScreen(
-                    onDeviceSelect = {
-                      backStack.clear()
-                      backStack.add(Main)
-                    }
-                  )
-                }
-              },
+              }
+            },
           )
+        }
+
+        ResultEffect<OnboardingRoute> { result ->
+          if (result is OnboardingRoute.Complete) {
+            val hasBluetooth =
+              PermissionChecker.areBluetoothPermissionsGranted(this@MainActivity)
+            if (hasBluetooth)
+              navigator.goTo(BluetoothDeviceSelectionRoute)
+          }
         }
       }
     }
@@ -144,9 +123,8 @@ class MainActivity(
 @Composable
 private fun MainScreen(
   isSyncing: Boolean,
-  selectedTab: Int,
-  onTabSelected: (Int) -> Unit,
-  onNavigateToBluetooth: () -> Unit,
+  selectedTab: MainRoute.Tab,
+  navigator: Navigator,
   modifier: Modifier = Modifier,
 ) {
   if (isSyncing) {
@@ -159,31 +137,41 @@ private fun MainScreen(
           NavigationBarItem(
             icon = { Icon(imageVector = ParkBuddyIcons.Map, contentDescription = null) },
             label = { Text("MAP") },
-            selected = selectedTab == 0,
-            onClick = { onTabSelected(0) },
+            selected = selectedTab == MainRoute.Tab.MAP,
+            onClick = {
+              navigator.goTo(MainRoute(MainRoute.Tab.MAP))
+            },
           )
 
           NavigationBarItem(
             icon = { Icon(imageVector = ParkBuddyIcons.Visibility, contentDescription = null) },
             label = { Text("MY ZONE") },
-            selected = selectedTab == 1,
-            onClick = { onTabSelected(1) },
+            selected = selectedTab == MainRoute.Tab.MY_ZONE,
+            onClick = {
+              navigator.goTo(MainRoute(MainRoute.Tab.MY_ZONE))
+            },
           )
 
           NavigationBarItem(
             icon = { Icon(imageVector = ParkBuddyIcons.Person, contentDescription = null) },
             label = { Text("ACCOUNT") },
-            selected = selectedTab == 2,
-            onClick = { onTabSelected(2) },
+            selected = selectedTab == MainRoute.Tab.ACCOUNT,
+            onClick = {
+              navigator.goTo(MainRoute(MainRoute.Tab.ACCOUNT))
+            },
           )
         }
       },
     ) { paddingValues ->
-      Box(modifier = Modifier.padding(paddingValues).consumeWindowInsets(paddingValues)) {
+      Box(
+        modifier = Modifier
+          .padding(paddingValues)
+          .consumeWindowInsets(paddingValues),
+      ) {
         when (selectedTab) {
-          0 -> MapScreen(onNavigateToZone = { onTabSelected(1) })
-          1 -> PermitZoneScreen()
-          2 -> SettingsScreen(onNavigateToBluetooth = onNavigateToBluetooth)
+          MainRoute.Tab.MAP -> MapScreen(navigator = navigator)
+          MainRoute.Tab.MY_ZONE -> PermitZoneScreen()
+          MainRoute.Tab.ACCOUNT -> SettingsScreen(navigator)
         }
       }
     }

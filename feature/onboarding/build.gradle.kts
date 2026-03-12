@@ -26,6 +26,7 @@ kotlin {
       implementation(libs.metrox.viewmodel.compose)
     }
     androidMain.dependencies {
+      implementation(project(":core:navigation"))
       implementation(libs.accompanist.permissions)
       implementation(libs.androidx.activity.compose)
       implementation(libs.androidx.core.ktx)

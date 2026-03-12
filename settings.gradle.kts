@@ -46,6 +46,8 @@ include(":core:data:impl")
 
 include(":core:data:sf-impl")
 
+include(":core:navigation")
+
 include(":core:testing")
 
 include(":feature:map")
