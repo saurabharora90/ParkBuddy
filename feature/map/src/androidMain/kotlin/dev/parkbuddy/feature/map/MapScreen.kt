@@ -68,6 +68,8 @@ import dev.bongballe.parkbuddy.theme.WildIris
 import dev.parkbuddy.core.ui.BannerNudge
 import dev.parkbuddy.core.ui.ParkBuddyAlertDialog
 import dev.parkbuddy.core.ui.ParkBuddyIcons
+import dev.parkbuddy.feature.map.model.GeoBounds
+import dev.parkbuddy.feature.map.model.MapViewport
 import dev.zacsweers.metrox.viewmodel.metroViewModel
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.debounce
@@ -85,15 +87,16 @@ fun MapScreen(
   viewModel: MapViewModel = metroViewModel(),
 ) {
   val state by viewModel.stateFlow.collectAsState()
-  val spots = state.spots
   val permitSpots = state.permitSpots
   val parkedState = state.parkedState
 
   val permitSpotIds = remember(permitSpots) { permitSpots.map { it.objectId }.toSet() }
 
-  // Pre-compute LatLng points for all spots once
-  val spotsWithPoints =
-    remember(spots) { spots.map { spot -> spot to parseLocationData(spot.geometry) } }
+  // Pre-compute LatLng points for visible spots
+  val visibleSpotsWithPoints =
+    remember(state.visibleSpots) {
+      state.visibleSpots.map { spot -> spot to parseLocationData(spot.geometry) }
+    }
 
   val sfBounds = LatLngBounds(LatLng(37.703397, -122.519967), LatLng(37.832396, -122.354979))
   val context = LocalContext.current
@@ -121,12 +124,7 @@ fun MapScreen(
     }
   }
 
-  // Use state + LaunchedEffect with debounce instead of derivedStateOf
-  var visibleSpots by remember {
-    mutableStateOf<List<Pair<ParkingSpot, List<LatLng>>>>(emptyList())
-  }
-
-  LaunchedEffect(spotsWithPoints) {
+  LaunchedEffect(Unit) {
     snapshotFlow {
         Triple(
           cameraPositionState.isMoving,
@@ -138,12 +136,20 @@ fun MapScreen(
       .debounce(100)
       .distinctUntilChanged()
       .collect { (_, zoom, bounds) ->
-        visibleSpots =
-          if (zoom < 15f || bounds == null) {
-            emptyList()
-          } else {
-            spotsWithPoints.filter { (_, points) -> points.any { bounds.contains(it) } }
-          }
+        if (bounds != null) {
+          viewModel.updateViewport(
+            MapViewport(
+              bounds =
+                GeoBounds(
+                  north = bounds.northeast.latitude,
+                  south = bounds.southwest.latitude,
+                  east = bounds.northeast.longitude,
+                  west = bounds.southwest.longitude,
+                ),
+              zoom = zoom,
+            )
+          )
+        }
       }
   }
 
@@ -183,7 +189,7 @@ fun MapScreen(
           maxZoomPreference = 18f,
         ),
     ) {
-      visibleSpots.forEach { (spot, points) ->
+      visibleSpotsWithPoints.forEach { (spot, points) ->
         if (points.isNotEmpty()) {
           val isInPermitZone = spot.objectId in permitSpotIds
           val isPaid = spot.regulation.requiresPayment
