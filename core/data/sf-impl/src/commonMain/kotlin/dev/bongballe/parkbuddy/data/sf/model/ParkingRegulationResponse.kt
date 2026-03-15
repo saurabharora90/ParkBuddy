@@ -40,6 +40,8 @@ data class ParkingRegulationResponse(
   @SerialName("hrs_begin") val hrsBegin: String? = null,
   @SerialName("hrs_end") val hrsEnd: String? = null,
   @SerialName("rpparea1") val rppArea1: String? = null,
+  @SerialName("rpparea2") val rppArea2: String? = null,
+  @SerialName("rpparea3") val rppArea3: String? = null,
   @SerialName("hrlimit") val hrLimit: String? = null,
   @SerialName("analysis_neighborhood") val neighborhood: String? = null,
   val shape: JsonElement? = null,

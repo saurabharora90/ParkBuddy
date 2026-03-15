@@ -50,7 +50,7 @@ interface ParkingDao {
    * @param zone RPP zone letter (e.g., "N", "A")
    */
   @Transaction
-  @Query("SELECT * FROM parking_spots WHERE rppArea = :zone")
+  @Query("SELECT * FROM parking_spots WHERE ',' || rppAreas || ',' LIKE '%,' || :zone || ',%'")
   fun getSpotsByZone(zone: String): Flow<List<PopulatedParkingSpot>>
 
   /** Get a single parking spot by ID with its sweeping schedules. */
@@ -62,18 +62,20 @@ interface ParkingDao {
    * Get parking spot entities only (without schedules) for a zone. Lighter query when schedules
    * aren't needed.
    */
-  @Query("SELECT * FROM parking_spots WHERE rppArea = :zone")
+  @Query("SELECT * FROM parking_spots WHERE ',' || rppAreas || ',' LIKE '%,' || :zone || ',%'")
   fun getSpotEntitiesByZone(zone: String): Flow<List<ParkingSpotEntity>>
 
   /** Count spots in a zone. Used for "X streets managed" display. */
-  @Query("SELECT COUNT(*) FROM parking_spots WHERE rppArea = :zone")
+  @Query(
+    "SELECT COUNT(*) FROM parking_spots WHERE ',' || rppAreas || ',' LIKE '%,' || :zone || ',%'"
+  )
   fun countSpotsByZone(zone: String): Flow<Int>
 
   /**
    * Get all unique RPP zone letters that have parking spots. Used to populate zone picker dropdown.
    */
-  @Query("SELECT DISTINCT rppArea FROM parking_spots WHERE rppArea IS NOT NULL ORDER BY rppArea")
-  fun getAllRppZones(): Flow<List<String>>
+  @Query("SELECT rppAreas FROM parking_spots WHERE rppAreas != ''")
+  fun getAllRppZonesInternal(): Flow<List<String>>
 
   /** Insert or replace parking spots. Called during data refresh. */
   @Insert(onConflict = OnConflictStrategy.REPLACE)

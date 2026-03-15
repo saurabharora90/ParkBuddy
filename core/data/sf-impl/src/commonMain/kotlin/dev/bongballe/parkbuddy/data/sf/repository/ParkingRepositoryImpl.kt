@@ -12,8 +12,6 @@ import dev.bongballe.parkbuddy.data.sf.database.entity.SweepingScheduleEntity
 import dev.bongballe.parkbuddy.data.sf.database.entity.UserPreferencesEntity
 import dev.bongballe.parkbuddy.data.sf.database.model.PopulatedParkingSpot
 import dev.bongballe.parkbuddy.data.sf.model.MeterScheduleResponse
-import dev.bongballe.parkbuddy.data.sf.model.ParkingMeterResponse
-import dev.bongballe.parkbuddy.data.sf.model.ParkingRegulationResponse
 import dev.bongballe.parkbuddy.data.sf.model.StreetCleaningResponse
 import dev.bongballe.parkbuddy.data.sf.model.toParkingRegulation
 import dev.bongballe.parkbuddy.data.sf.model.toStreetSide
@@ -31,7 +29,6 @@ import dev.zacsweers.metro.ContributesBinding
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
 import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -67,7 +64,7 @@ class ParkingRepositoryImpl(
     var blockLimits: String? = null,
     var neighborhood: String? = null,
     var regulation: ParkingRegulation? = null,
-    var rppArea: String? = null,
+    val rppAreas: MutableSet<String> = mutableSetOf(),
     var timeLimitHours: Int? = null,
     var enforcementDays: Set<DayOfWeek>? = null,
     var enforcementStart: LocalTime? = null,
@@ -139,7 +136,9 @@ class ParkingRepositoryImpl(
   }
 
   override fun getAllPermitZones(): Flow<List<String>> {
-    return dao.getAllRppZones()
+    return dao.getAllRppZonesInternal().map { rppAreaStrings ->
+      rppAreaStrings.flatMap { it.split(",") }.filter { it.isNotBlank() }.distinct().sorted()
+    }
   }
 
   override fun getUserPermitZone(): Flow<String?> {
@@ -156,34 +155,35 @@ class ParkingRepositoryImpl(
     return dao.getUserPreferences().first() ?: UserPreferencesEntity(id = 1, rppZone = null)
   }
 
+  private data class ProcessingResult(
+    val spots: List<ParkingSpotEntity>,
+    val sweepingSchedules: List<SweepingScheduleEntity>,
+    val meterSchedules: List<MeterScheduleEntity>,
+    val hasParkingData: Boolean,
+  )
+
   override suspend fun refreshData(): Boolean = coroutineScope {
-    log.d { "refreshData: starting parallel fetch" }
+    log.d { "refreshData: starting memory-efficient fetch" }
 
-    // Fetch in parallel
-    val parkingRegulationsJob = async { fetchAllParkingRegulations() }
-    val sweepingDataJob = async { fetchAllSweepingData() }
-    val meterInventoryJob = async { fetchAllMeterInventory() }
-    val meterSchedulesJob = async { fetchAllMeterSchedules() }
-
-    val parkingRegulations = parkingRegulationsJob.await()
-    val sweepingData = sweepingDataJob.await()
-    val meterInventory = meterInventoryJob.await()
-    val meterSchedulesRaw = meterSchedulesJob.await()
-
-    log.d { "refreshData: fetch complete. Processing..." }
-
-    if (parkingRegulations.isEmpty() && meterInventory.isEmpty()) {
-      log.w { "refreshData: no parking data found, aborting" }
+    // 1. Fetch Sweeping Data (The Backbone)
+    // We need this entire dataset to build the CoordinateMatcher and unifiedContexts.
+    // It's the smallest layer (~35k records) and is the physical street network.
+    val sweepingData = fetchAllSweepingData()
+    if (sweepingData.isEmpty()) {
+      log.w { "refreshData: no sweeping data found, aborting" }
       return@coroutineScope false
     }
 
+    log.d { "refreshData: sweeping data loaded. Building matcher..." }
+
     // Heavy processing on background thread
-    val (spots, sweepingSchedules, meterSchedules) =
+    val result =
       withContext(defaultDispatcher) {
+        var hasMatchedParking = false
         val matcher = CoordinateMatcher(sweepingData)
         val unifiedContexts = mutableMapOf<Pair<String, StreetSide>, UnifiedSegmentContext>()
 
-        // 1. Seed contexts from Sweeping Data (The physical street network)
+        // Seed contexts from Sweeping Data
         for (sweeping in sweepingData) {
           val side = sweeping.cnnRightLeft.toStreetSide()
           val key = sweeping.cnn to side
@@ -198,53 +198,87 @@ class ParkingRepositoryImpl(
           }
         }
 
-        // 2. Merge Regulations (RPP, Time Limited) - GREEDY MULTI-MATCH
-        for (regulation in parkingRegulations) {
-          val poly = parseGeometry(regulation.shape) ?: continue
-          val overlappingSegments = matcher.matchPolyline(poly, MATCHING_THRESHOLD_METERS)
+        // 2. Fetch and Match Parking Regulations in Batches
+        log.d { "refreshData: fetching parking regulations in batches" }
+        fetchInBatches(
+          fetch = { limit, offset -> api.getParkingRegulations(limit = limit, offset = offset) },
+          process = { batch ->
+            for (regulation in batch) {
+              val poly = parseGeometry(regulation.shape) ?: continue
+              val overlappingSegments = matcher.matchPolyline(poly, MATCHING_THRESHOLD_METERS)
 
-          for (match in overlappingSegments) {
-            val key = match.cnn to match.side
-            val context = unifiedContexts[key] ?: continue
+              for (match in overlappingSegments) {
+                val key = match.cnn to match.side
+                val context = unifiedContexts[key] ?: continue
 
-            // If the regulation is higher resolution, use its geometry
-            context.curbsideGeometry = poly
+                hasMatchedParking = true
+                // If the regulation is higher resolution, use its geometry
+                context.curbsideGeometry = poly
 
-            context.regulation = regulation.regulation.toParkingRegulation()
-            context.rppArea = regulation.rppArea1?.takeIf { it.isNotBlank() }
-            context.neighborhood = regulation.neighborhood
-            context.timeLimitHours = parseTimeLimit(regulation.hrLimit)
-            context.enforcementDays = parseEnforcementDays(regulation.days)
-            context.enforcementStart = parseTime(regulation.hrsBegin)?.let { timeToLocalTime(it) }
-            context.enforcementEnd = parseTime(regulation.hrsEnd)?.let { timeToLocalTime(it) }
-            context.originalObjectId = regulation.objectId
-          }
-        }
-
-        // 3. Merge Meter Inventory
-        val metersByCnn =
-          meterInventory
-            .filter { !it.streetSegCtrlnId.isNullOrBlank() }
-            .groupBy { it.streetSegCtrlnId.orEmpty() }
-        val meterSchedulesByPostId = meterSchedulesRaw.groupBy { it.postId }
-
-        for ((cnn, meters) in metersByCnn) {
-          val matches = matcher.findAllMatchesForCnn(cnn)
-          for (match in matches) {
-            val key = cnn to match.side
-            val context = unifiedContexts[key] ?: continue
-
-            if (context.regulation == null) {
-              context.regulation = ParkingRegulation.METERED
-              context.neighborhood = meters.firstOrNull()?.neighborhood
-              context.streetName = context.streetName ?: meters.firstOrNull()?.streetName
+                context.regulation = regulation.regulation.toParkingRegulation()
+                regulation.rppArea1?.takeIf { it.isNotBlank() }?.let { context.rppAreas.add(it) }
+                regulation.rppArea2?.takeIf { it.isNotBlank() }?.let { context.rppAreas.add(it) }
+                regulation.rppArea3?.takeIf { it.isNotBlank() }?.let { context.rppAreas.add(it) }
+                context.neighborhood = regulation.neighborhood
+                context.timeLimitHours = parseTimeLimit(regulation.hrLimit)
+                context.enforcementDays = parseEnforcementDays(regulation.days)
+                context.enforcementStart =
+                  parseTime(regulation.hrsBegin)?.let { timeToLocalTime(it) }
+                context.enforcementEnd = parseTime(regulation.hrsEnd)?.let { timeToLocalTime(it) }
+                context.originalObjectId = regulation.objectId
+              }
             }
+          },
+        )
 
-            val postIds = meters.map { it.postId }.toSet()
-            postIds.forEach { postId ->
-              meterSchedulesByPostId[postId]?.let { context.meterSchedules.addAll(it) }
+        // 3. Fetch all Meter Schedules (Needed for Inventory matching)
+        // Grouped by Post ID to keep memory usage manageable.
+        log.d { "refreshData: fetching meter schedules" }
+        val meterSchedulesByPostId = mutableMapOf<String, MutableList<MeterScheduleResponse>>()
+        fetchInBatches(
+          fetch = { limit, offset -> api.getMeterSchedules(limit = limit, offset = offset) },
+          process = { batch ->
+            for (schedule in batch) {
+              val postId = schedule.postId ?: continue
+              meterSchedulesByPostId.getOrPut(postId) { mutableListOf() }.add(schedule)
             }
-          }
+          },
+        )
+
+        // 4. Fetch and Match Meter Inventory in Batches
+        log.d { "refreshData: fetching meter inventory in batches" }
+        fetchInBatches(
+          fetch = { limit, offset -> api.getParkingMeterInventory(limit = limit, offset = offset) },
+          process = { batch ->
+            val metersByCnn =
+              batch
+                .filter { !it.streetSegCtrlnId.isNullOrBlank() }
+                .groupBy { it.streetSegCtrlnId.orEmpty() }
+
+            for ((cnn, meters) in metersByCnn) {
+              val matches = matcher.findAllMatchesForCnn(cnn)
+              for (match in matches) {
+                val key = cnn to match.side
+                val context = unifiedContexts[key] ?: continue
+
+                hasMatchedParking = true
+                if (context.regulation == null) {
+                  context.regulation = ParkingRegulation.METERED
+                  context.neighborhood = meters.firstOrNull()?.neighborhood
+                  context.streetName = context.streetName ?: meters.firstOrNull()?.streetName
+                }
+
+                val postIds = meters.map { it.postId }.toSet()
+                postIds.forEach { postId ->
+                  meterSchedulesByPostId[postId]?.let { context.meterSchedules.addAll(it) }
+                }
+              }
+            }
+          },
+        )
+
+        if (!hasMatchedParking) {
+          return@withContext ProcessingResult(emptyList(), emptyList(), emptyList(), false)
         }
 
         // Finalize Entities
@@ -254,8 +288,6 @@ class ParkingRepositoryImpl(
 
         for (context in unifiedContexts.values) {
           // Skip segments that only have sweeping data but no parking regulation or meters.
-          // These are streets the city sweeps but has no parkable curb (e.g., Embarcadero,
-          // highway ramps). Storing them creates misleading "unrestricted" lines on the map.
           if (context.regulation == null && context.meterSchedules.isEmpty()) continue
 
           // RESOLVE Geometry: Prioritize Reg, then offset Centerline
@@ -278,7 +310,7 @@ class ParkingRepositoryImpl(
               blockLimits = context.blockLimits,
               neighborhood = context.neighborhood,
               regulation = checkNotNull(context.regulation),
-              rppArea = context.rppArea,
+              rppAreas = context.rppAreas.toList().sorted(),
               timeLimitHours = context.timeLimitHours,
               enforcementDays = context.enforcementDays,
               enforcementStart = context.enforcementStart,
@@ -292,21 +324,40 @@ class ParkingRepositoryImpl(
           addMeterSchedules(spotId, context.meterSchedules, meterSchedulesList)
         }
 
-        Triple(spotsList, sweepingList, meterSchedulesList)
+        ProcessingResult(spotsList, sweepingList, meterSchedulesList, hasMatchedParking)
       }
 
-    log.d { "refreshData: saving ${spots.size} segments to DB" }
-    if (spots.isNotEmpty()) {
+    log.d { "refreshData: saving ${result.spots.size} segments to DB" }
+    if (result.hasParkingData && result.spots.isNotEmpty()) {
       dao.clearAllMeterSchedules()
       dao.clearAllSchedules()
       dao.clearAllSpots()
-      dao.insertSpots(spots)
-      dao.insertSchedules(sweepingSchedules)
-      dao.insertMeterSchedules(meterSchedules)
+      dao.insertSpots(result.spots)
+      dao.insertSchedules(result.sweepingSchedules)
+      dao.insertMeterSchedules(result.meterSchedules)
       log.d { "refreshData: sync complete" }
     }
 
-    return@coroutineScope true
+    return@coroutineScope result.hasParkingData
+  }
+
+  private suspend fun <T> fetchInBatches(
+    fetch: suspend (limit: Int, offset: Int) -> List<T>,
+    process: suspend (List<T>) -> Unit,
+  ) {
+    var offset = 0
+    while (true) {
+      val batch =
+        try {
+          fetch(API_BATCH_LIMIT, offset)
+        } catch (e: Exception) {
+          log.e(e) { "fetchInBatches: API call failed at offset $offset" }
+          break
+        }
+      if (batch.isEmpty()) break
+      process(batch)
+      offset += API_BATCH_LIMIT
+    }
   }
 
   private fun addSweepingSchedules(
@@ -446,30 +497,6 @@ class ParkingRepositoryImpl(
     }
   }
 
-  private suspend fun fetchAllParkingRegulations(): List<ParkingRegulationResponse> {
-    val allRegulations = mutableListOf<ParkingRegulationResponse>()
-    var offset = 0
-
-    while (true) {
-      val batch =
-        try {
-          api.getParkingRegulations(limit = API_BATCH_LIMIT, offset = offset)
-        } catch (e: IOException) {
-          log.e(e) { "fetchAllParkingRegulations: API call failed at offset $offset" }
-          analyticsTracker.logNonFatal(
-            e,
-            "API failure: fetchAllParkingRegulations at offset $offset",
-          )
-          break
-        }
-      log.d { "fetchAllParkingRegulations: got ${batch.size} at offset $offset" }
-      if (batch.isEmpty()) break
-      allRegulations.addAll(batch)
-      offset += API_BATCH_LIMIT
-    }
-    return allRegulations
-  }
-
   private suspend fun fetchAllSweepingData(): List<StreetCleaningResponse> {
     val allSweeping = mutableListOf<StreetCleaningResponse>()
     var offset = 0
@@ -488,46 +515,6 @@ class ParkingRepositoryImpl(
       offset += API_BATCH_LIMIT
     }
     return allSweeping
-  }
-
-  private suspend fun fetchAllMeterInventory(): List<ParkingMeterResponse> {
-    val allMeters = mutableListOf<ParkingMeterResponse>()
-    var offset = 0
-
-    while (true) {
-      val batch =
-        try {
-          api.getParkingMeterInventory(limit = API_BATCH_LIMIT, offset = offset)
-        } catch (e: IOException) {
-          log.e(e) { "fetchAllMeterInventory: API call failed at offset $offset" }
-          analyticsTracker.logNonFatal(e, "API failure: fetchAllMeterInventory at offset $offset")
-          break
-        }
-      if (batch.isEmpty()) break
-      allMeters.addAll(batch)
-      offset += API_BATCH_LIMIT
-    }
-    return allMeters
-  }
-
-  private suspend fun fetchAllMeterSchedules(): List<MeterScheduleResponse> {
-    val allSchedules = mutableListOf<MeterScheduleResponse>()
-    var offset = 0
-
-    while (true) {
-      val batch =
-        try {
-          api.getMeterSchedules(limit = API_BATCH_LIMIT, offset = offset)
-        } catch (e: IOException) {
-          log.e(e) { "fetchAllMeterSchedules: API call failed at offset $offset" }
-          analyticsTracker.logNonFatal(e, "API failure: fetchAllMeterSchedules at offset $offset")
-          break
-        }
-      if (batch.isEmpty()) break
-      allSchedules.addAll(batch)
-      offset += API_BATCH_LIMIT
-    }
-    return allSchedules
   }
 
   private fun parseGeometry(shape: JsonElement?): Geometry? {
@@ -590,7 +577,7 @@ class ParkingRepositoryImpl(
       blockLimits = spot.blockLimits,
       neighborhood = spot.neighborhood,
       regulation = spot.regulation,
-      rppArea = spot.rppArea,
+      rppAreas = spot.rppAreas,
       timedRestriction =
         if (hasMeters) null
         else

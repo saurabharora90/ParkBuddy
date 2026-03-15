@@ -40,7 +40,7 @@ fun createTestSpot(
     blockLimits = "100-200",
     neighborhood = "Test Neighborhood",
     regulation = regulation,
-    rppArea = zone,
+    rppAreas = zone?.let { listOf(it) } ?: emptyList(),
     timedRestriction = timedRestriction,
     sweepingCnn = "123",
     sweepingSide = side,

@@ -288,9 +288,9 @@ class ReminderRepositoryImpl(
             when {
               !state.paymentRequired -> ""
               spot.regulation == ParkingRegulation.PAID_PLUS_PERMIT ->
-                "\n⚠️ PAY AT METER: Payment is required even with a Zone ${spot.rppArea} permit."
+                "\n⚠️ PAY AT METER: Payment is required even with a Zone ${spot.rppAreas.joinToString(" or ")} permit."
               spot.regulation == ParkingRegulation.PAY_OR_PERMIT ->
-                "\n⚠️ PAY AT METER: You lack a permit for Zone ${spot.rppArea}."
+                "\n⚠️ PAY AT METER: You lack a permit for Zone ${spot.rppAreas.joinToString(" or ")}."
               else -> "\n⚠️ PAY AT METER: Standard metered parking."
             }
           val contentText =
@@ -307,9 +307,9 @@ class ReminderRepositoryImpl(
             when {
               !state.paymentRequired -> ""
               spot.regulation == ParkingRegulation.PAID_PLUS_PERMIT ->
-                "\n⚠️ PAY AT METER: Payment is required even with a Zone ${spot.rppArea} permit."
+                "\n⚠️ PAY AT METER: Payment is required even with a Zone ${spot.rppAreas.joinToString(" or ")} permit."
               spot.regulation == ParkingRegulation.PAY_OR_PERMIT ->
-                "\n⚠️ PAY AT METER: You lack a permit for Zone ${spot.rppArea}."
+                "\n⚠️ PAY AT METER: You lack a permit for Zone ${spot.rppAreas.joinToString(" or ")}."
               else -> "\n⚠️ PAY AT METER: Standard metered parking."
             }
           val contentText =
