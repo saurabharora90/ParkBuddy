@@ -7,13 +7,15 @@ plugins {
 
 kotlin {
   androidLibrary { namespace = "com.parkbuddy.feature.settings" }
+  iosArm64()
+  iosSimulatorArm64()
 
   sourceSets {
     commonMain.dependencies {
       implementation(project(":core:base"))
-      implementation(project(":core:bluetooth:api"))
       implementation(project(":core:data:api"))
       implementation(project(":core:model"))
+      implementation(project(":core:navigation"))
       implementation(project(":core:shared-ui"))
       implementation(project(":core:theme"))
       implementation(libs.compose.material3)
@@ -22,6 +24,7 @@ kotlin {
       implementation(libs.metrox.viewmodel)
       implementation(libs.metrox.viewmodel.compose)
     }
+    androidMain.dependencies { implementation(project(":core:bluetooth:api")) }
   }
 }
 

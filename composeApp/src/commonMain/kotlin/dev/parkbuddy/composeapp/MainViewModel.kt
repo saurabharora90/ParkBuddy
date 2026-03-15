@@ -1,4 +1,4 @@
-package dev.bongballe.parkbuddy
+package dev.parkbuddy.composeapp
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -17,9 +17,9 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 @ContributesIntoMap(AppScope::class)
-@ViewModelKey(MainActivityViewModel::class)
+@ViewModelKey(MainViewModel::class)
 @Inject
-class MainActivityViewModel(
+class MainViewModel(
   private val repository: ParkingRepository,
   private val preferencesRepository: PreferencesRepository,
 ) : ViewModel() {

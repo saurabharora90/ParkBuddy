@@ -6,6 +6,13 @@ plugins {
 
 kotlin {
   jvm()
+  iosArm64()
+  iosSimulatorArm64()
 
-  sourceSets { commonMain.dependencies { api(libs.kotlinx.coroutines.core) } }
+  sourceSets {
+    commonMain.dependencies {
+      api(libs.kotlinx.coroutines.core)
+      api(libs.kermit)
+    }
+  }
 }

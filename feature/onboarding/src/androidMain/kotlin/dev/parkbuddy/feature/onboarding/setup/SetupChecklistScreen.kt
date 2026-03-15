@@ -50,7 +50,6 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -73,6 +72,9 @@ import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
 import com.google.accompanist.permissions.rememberPermissionState
+import dev.bongballe.parkbuddy.core.navigation.LocalResultEventBus
+import dev.bongballe.parkbuddy.core.navigation.Navigator
+import dev.bongballe.parkbuddy.core.navigation.OnboardingRoute
 import dev.bongballe.parkbuddy.theme.Goldenrod
 import dev.bongballe.parkbuddy.theme.SageContainer
 import dev.bongballe.parkbuddy.theme.SagePrimary
@@ -90,12 +92,11 @@ import dev.zacsweers.metrox.viewmodel.metroViewModel
 @OptIn(ExperimentalPermissionsApi::class)
 @Composable
 fun SetupChecklistScreen(
-  onSetupComplete: () -> Unit,
+  navigator: Navigator,
   modifier: Modifier = Modifier,
   viewModel: SetupChecklistViewModel = metroViewModel(),
 ) {
   val context = LocalContext.current
-  val currentOnSetupComplete by rememberUpdatedState(onSetupComplete)
   val isSyncDone by viewModel.isSyncDone.collectAsState()
 
   var currentStepIndex by rememberSaveable { mutableIntStateOf(0) }
@@ -239,10 +240,12 @@ fun SetupChecklistScreen(
 
   val allStepsDone = currentStepIndex >= steps.size
 
+  val resultEventBus = LocalResultEventBus.current
   LaunchedEffect(allStepsDone, isSyncDone) {
     if (allStepsDone && isSyncDone) {
       viewModel.markOnboardingComplete()
-      currentOnSetupComplete()
+      resultEventBus.sendResult<OnboardingRoute>(result = OnboardingRoute.Complete)
+      navigator.goBack()
     }
   }
 

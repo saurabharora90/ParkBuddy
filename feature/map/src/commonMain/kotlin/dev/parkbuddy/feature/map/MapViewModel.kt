@@ -2,6 +2,7 @@ package dev.parkbuddy.feature.map
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dev.bongballe.parkbuddy.DispatcherType
 import dev.bongballe.parkbuddy.analytics.AnalyticsTracker
 import dev.bongballe.parkbuddy.data.repository.ParkingManager
 import dev.bongballe.parkbuddy.data.repository.ParkingRepository
@@ -12,12 +13,16 @@ import dev.bongballe.parkbuddy.model.ParkedLocation
 import dev.bongballe.parkbuddy.model.ParkingRestrictionState
 import dev.bongballe.parkbuddy.model.ParkingSpot
 import dev.bongballe.parkbuddy.model.ReminderMinutes
+import dev.bongballe.parkbuddy.qualifier.WithDispatcherType
+import dev.parkbuddy.feature.map.model.MapViewport
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesIntoMap
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metrox.viewmodel.ViewModelKey
 import kotlin.time.Clock
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -25,14 +30,16 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalCoroutinesApi::class)
+@OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
 @ContributesIntoMap(AppScope::class)
 @ViewModelKey(MapViewModel::class)
 @Inject
@@ -42,6 +49,7 @@ class MapViewModel(
   private val preferencesRepository: PreferencesRepository,
   private val reminderRepository: ReminderRepository,
   private val analyticsTracker: AnalyticsTracker,
+  @WithDispatcherType(DispatcherType.DEFAULT) private val defaultDispatcher: CoroutineDispatcher,
 ) : ViewModel() {
 
   data class ParkedState(
@@ -52,7 +60,7 @@ class MapViewModel(
   )
 
   data class State(
-    val spots: List<ParkingSpot>,
+    val visibleSpots: List<ParkingSpot>,
     val permitSpots: List<ParkingSpot>,
     val parkedState: ParkedState?,
     val shouldShowParkedLocationBottomSheet: Boolean,
@@ -63,6 +71,8 @@ class MapViewModel(
 
   private val shouldShowParkedLocationBottomSheet: MutableStateFlow<Boolean> =
     MutableStateFlow(false)
+
+  private val viewportState: MutableStateFlow<MapViewport?> = MutableStateFlow(null)
 
   private val parkedStateFlow: Flow<ParkedState?> =
     preferencesRepository.parkedLocation.flatMapLatest { parkedLocation ->
@@ -91,29 +101,51 @@ class MapViewModel(
 
   private val permitZoneFlow = repository.getUserPermitZone()
 
+  private val spotsFlow =
+    repository.getAllSpots().map { spots -> spots.filter { it.regulation.isParkable } }
+
   val stateFlow: StateFlow<State> =
     combine(
-        repository.getAllSpots().map { spots -> spots.filter { it.regulation.isParkable } },
-        permitZoneFlow.flatMapLatest { zone ->
-          if (zone == null) flowOf(emptyList()) else repository.getSpotsByZone(zone)
-        },
-        parkedStateFlow,
-        shouldShowParkedLocationBottomSheet,
         combine(
-          preferencesRepository.hasSeenMapNux,
-          permitZoneFlow,
-          preferencesRepository.hasSeenZoneNudge,
-        ) { nux, zone, seenNudge ->
-          Triple(nux, zone, seenNudge)
+          spotsFlow,
+          permitZoneFlow.flatMapLatest { zone ->
+            if (zone == null) flowOf(emptyList()) else repository.getSpotsByZone(zone)
+          },
+          parkedStateFlow,
+        ) { spots, permit, parked ->
+          Triple(spots, permit, parked)
         },
-      ) {
-        parkingSpots,
-        permitSpots,
-        parkedState,
-        shouldShowSheet,
-        (hasSeenNux, permitZone, seenNudge) ->
+        combine(
+          shouldShowParkedLocationBottomSheet,
+          combine(
+            preferencesRepository.hasSeenMapNux,
+            permitZoneFlow,
+            preferencesRepository.hasSeenZoneNudge,
+          ) { nux, zone, seenNudge ->
+            Triple(nux, zone, seenNudge)
+          },
+          viewportState.debounce(100),
+        ) { sheet, nuxInfo, viewport ->
+          Triple(sheet, nuxInfo, viewport)
+        },
+      ) { mainInfo, extraInfo ->
+        val (parkingSpots, permitSpots, parkedState) = mainInfo
+        val (shouldShowSheet, nuxInfo, viewport) = extraInfo
+        val (hasSeenNux, permitZone, seenNudge) = nuxInfo
+
+        val visibleSpots =
+          if (viewport == null || viewport.zoom < 15f) {
+            emptyList()
+          } else {
+            parkingSpots.filter { spot ->
+              spot.geometry.coordinates.any { point ->
+                viewport.bounds.contains(latitude = point[1], longitude = point[0])
+              }
+            }
+          }
+
         State(
-          spots = parkingSpots,
+          visibleSpots = visibleSpots,
           permitSpots = permitSpots,
           parkedState = parkedState,
           shouldShowParkedLocationBottomSheet = shouldShowSheet,
@@ -122,12 +154,13 @@ class MapViewModel(
           hasSeenZoneNudge = seenNudge,
         )
       }
+      .flowOn(defaultDispatcher)
       .stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
         initialValue =
           State(
-            spots = emptyList(),
+            visibleSpots = emptyList(),
             permitSpots = emptyList(),
             parkedState = null,
             shouldShowParkedLocationBottomSheet = false,
@@ -174,6 +207,10 @@ class MapViewModel(
   fun reportWrongLocation() {
     analyticsTracker.logEvent("report_wrong_location")
     clearParkedLocation()
+  }
+
+  fun updateViewport(viewport: MapViewport) {
+    viewportState.value = viewport
   }
 }
 

@@ -8,11 +8,12 @@ plugins {
 
 kotlin {
   androidLibrary { namespace = "com.parkbuddy.feature.onboarding" }
+  iosArm64()
+  iosSimulatorArm64()
 
   sourceSets {
     commonMain.dependencies {
       implementation(project(":core:base"))
-      implementation(project(":core:bluetooth:api"))
       implementation(project(":core:data:api"))
       implementation(project(":core:model"))
       implementation(project(":core:shared-ui"))
@@ -26,6 +27,8 @@ kotlin {
       implementation(libs.metrox.viewmodel.compose)
     }
     androidMain.dependencies {
+      implementation(project(":core:bluetooth:api"))
+      implementation(project(":core:navigation"))
       implementation(libs.accompanist.permissions)
       implementation(libs.androidx.activity.compose)
       implementation(libs.androidx.core.ktx)

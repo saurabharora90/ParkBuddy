@@ -46,6 +46,8 @@ include(":core:data:impl")
 
 include(":core:data:sf-impl")
 
+include(":core:navigation")
+
 include(":core:testing")
 
 include(":feature:map")
@@ -55,3 +57,5 @@ include(":feature:reminders")
 include(":feature:onboarding")
 
 include(":feature:settings")
+
+include(":composeApp")

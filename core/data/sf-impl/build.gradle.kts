@@ -12,6 +12,8 @@ kotlin {
     namespace = "dev.bongballe.parkbuddy.data.sf"
     withHostTestBuilder {}
   }
+  iosArm64()
+  iosSimulatorArm64()
 
   sourceSets {
     commonMain.dependencies {
@@ -44,4 +46,8 @@ foundry { features { metro() } }
 
 room { schemaDirectory("$projectDir/schemas") }
 
-dependencies { add("kspAndroid", libs.androidx.room.compiler) }
+dependencies {
+  add("kspAndroid", libs.androidx.room.compiler)
+  add("kspIosArm64", libs.androidx.room.compiler)
+  add("kspIosSimulatorArm64", libs.androidx.room.compiler)
+}

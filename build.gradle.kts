@@ -18,6 +18,7 @@ plugins {
   alias(libs.plugins.ksp) apply false
   alias(libs.plugins.metro) apply false
   alias(libs.plugins.roborazzi) apply false
+  alias(libs.plugins.skie) apply false
   alias(libs.plugins.sort.dependencies) apply true
 }
 
