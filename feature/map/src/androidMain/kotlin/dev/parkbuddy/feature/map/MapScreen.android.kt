@@ -82,7 +82,7 @@ private val SF_BOUNDS = LatLngBounds(LatLng(37.703397, -122.519967), LatLng(37.8
 @SuppressLint("MissingPermission")
 @OptIn(ExperimentalMaterial3Api::class, MapsComposeExperimentalApi::class, FlowPreview::class)
 @Composable
-actual fun MapScreen(modifier: Modifier, navigator: Navigator, viewModel: MapViewModel) {
+actual fun MapScreen(navigator: Navigator, modifier: Modifier, viewModel: MapViewModel) {
   val state by viewModel.stateFlow.collectAsState()
   val permitSpots = state.permitSpots
   val parkedState = state.parkedState

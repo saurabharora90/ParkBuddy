@@ -1,7 +1,7 @@
 config:
   validation: true
   warningsAsErrors: true
-  excludes: []
+  excludes: [ ]
 
 naming:
   active: false
@@ -52,7 +52,7 @@ Compose:
     # treatAsLambda: MyLambdaType
   CompositionLocalAllowlist:
     active: true
-    allowedCompositionLocals: LocalScaffoldContentPadding
+    allowedCompositionLocals: LocalScaffoldContentPadding, LocalResultEventBus
   CompositionLocalNaming:
     active: true
   ContentEmitterReturningValues:
