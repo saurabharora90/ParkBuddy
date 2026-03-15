@@ -10,6 +10,8 @@ kotlin {
     namespace = "com.parkbuddy.feature.reminders"
     withHostTestBuilder {}
   }
+  iosArm64()
+  iosSimulatorArm64()
 
   sourceSets {
     commonMain.dependencies {

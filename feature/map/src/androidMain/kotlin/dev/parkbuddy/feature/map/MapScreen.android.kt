@@ -70,7 +70,6 @@ import dev.parkbuddy.core.ui.ParkBuddyAlertDialog
 import dev.parkbuddy.core.ui.ParkBuddyIcons
 import dev.parkbuddy.feature.map.model.GeoBounds
 import dev.parkbuddy.feature.map.model.MapViewport
-import dev.zacsweers.metrox.viewmodel.metroViewModel
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -78,14 +77,12 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
+private val SF_BOUNDS = LatLngBounds(LatLng(37.703397, -122.519967), LatLng(37.832396, -122.354979))
+
 @SuppressLint("MissingPermission")
 @OptIn(ExperimentalMaterial3Api::class, MapsComposeExperimentalApi::class, FlowPreview::class)
 @Composable
-fun MapScreen(
-  modifier: Modifier = Modifier,
-  navigator: Navigator,
-  viewModel: MapViewModel = metroViewModel(),
-) {
+actual fun MapScreen(modifier: Modifier, navigator: Navigator, viewModel: MapViewModel) {
   val state by viewModel.stateFlow.collectAsState()
   val permitSpots = state.permitSpots
   val parkedState = state.parkedState
@@ -98,7 +95,6 @@ fun MapScreen(
       state.visibleSpots.map { spot -> spot to parseLocationData(spot.geometry) }
     }
 
-  val sfBounds = LatLngBounds(LatLng(37.703397, -122.519967), LatLng(37.832396, -122.354979))
   val context = LocalContext.current
   val coroutineScope = rememberCoroutineScope()
   val cameraPositionState = rememberCameraPositionState {
@@ -112,7 +108,7 @@ fun MapScreen(
         }
 
       val startPosition =
-        if (location != null && sfBounds.contains(LatLng(location.latitude, location.longitude))) {
+        if (location != null && SF_BOUNDS.contains(LatLng(location.latitude, location.longitude))) {
           LatLng(location.latitude, location.longitude)
         } else {
           LatLng(37.7749, -122.4194) // Fallback to SF center
@@ -184,7 +180,7 @@ fun MapScreen(
       properties =
         MapProperties(
           isMyLocationEnabled = true,
-          latLngBoundsForCameraTarget = sfBounds,
+          latLngBoundsForCameraTarget = SF_BOUNDS,
           minZoomPreference = 15f,
           maxZoomPreference = 18f,
         ),

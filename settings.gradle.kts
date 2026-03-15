@@ -57,3 +57,5 @@ include(":feature:reminders")
 include(":feature:onboarding")
 
 include(":feature:settings")
+
+include(":composeApp")

@@ -1,11 +1,5 @@
 package dev.parkbuddy.feature.reminders.permitzone
 
-import android.app.AlarmManager
-import android.content.Context
-import android.content.Intent
-import android.net.Uri
-import android.os.Build
-import android.provider.Settings
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,109 +19,27 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.google.accompanist.permissions.ExperimentalPermissionsApi
-import dev.bongballe.parkbuddy.model.Geometry
-import dev.bongballe.parkbuddy.model.ParkingRegulation
 import dev.bongballe.parkbuddy.model.ParkingSpot
 import dev.bongballe.parkbuddy.model.ReminderMinutes
-import dev.bongballe.parkbuddy.model.StreetSide
-import dev.bongballe.parkbuddy.model.SweepingSchedule
-import dev.bongballe.parkbuddy.model.Weekday
-import dev.bongballe.parkbuddy.theme.ParkBuddyTheme
 import dev.parkbuddy.core.ui.NestedScaffold
-import dev.parkbuddy.core.ui.ParkBuddyAlertDialog
 import dev.parkbuddy.core.ui.ParkBuddyIcons
 import dev.parkbuddy.core.ui.SquircleIcon
 import dev.zacsweers.metrox.viewmodel.metroViewModel
-import kotlinx.datetime.LocalTime
 
-@OptIn(ExperimentalPermissionsApi::class)
 @Composable
-fun PermitZoneScreen(
+expect fun PermitZoneScreen(
   modifier: Modifier = Modifier,
   viewModel: PermitZoneViewModel = metroViewModel(),
-) {
-  val context = LocalContext.current
-  val availableZones by viewModel.availableZones.collectAsState()
-  val selectedZone by viewModel.selectedZone.collectAsState()
-  val permitSpotCount by viewModel.permitSpotCount.collectAsState()
-  val permitSpots by viewModel.permitSpots.collectAsState()
-  val reminders by viewModel.reminders.collectAsState()
-  val isZonePickerExpanded by viewModel.isZonePickerExpanded.collectAsState()
-
-  var showPermissionRationale by remember { mutableStateOf(false) }
-  var lastKnownZoneWasNull by remember { mutableStateOf(selectedZone == null) }
-
-  LaunchedEffect(selectedZone) {
-    if (selectedZone != null && lastKnownZoneWasNull) {
-      val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-      val needsAlarmPermission =
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-          !alarmManager.canScheduleExactAlarms()
-        } else {
-          false
-        }
-
-      if (needsAlarmPermission) {
-        showPermissionRationale = true
-      }
-    }
-    lastKnownZoneWasNull = selectedZone == null
-  }
-
-  if (showPermissionRationale) {
-    ParkBuddyAlertDialog(
-      title = "One quick thing",
-      text =
-        "Your phone sometimes delays notifications to save battery. " +
-          "Toggle on \"Allow setting alarms and reminders\" on the next screen " +
-          "so your street cleaning reminders arrive exactly on time.",
-      confirmLabel = "Open Settings",
-      dismissLabel = null,
-      onConfirm = {
-        showPermissionRationale = false
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-          val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-          if (!alarmManager.canScheduleExactAlarms()) {
-            context.startActivity(
-              Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
-                data = Uri.fromParts("package", context.packageName, null)
-              }
-            )
-          }
-        }
-      },
-      onDismiss = { showPermissionRationale = false },
-    )
-  }
-
-  PermitZoneContent(
-    availableZones = availableZones,
-    selectedZone = selectedZone,
-    permitSpotCount = permitSpotCount,
-    permitSpots = permitSpots,
-    reminders = reminders,
-    isZonePickerExpanded = isZonePickerExpanded,
-    onZonePickerExpandedChange = viewModel::setZonePickerExpanded,
-    onZoneSelect = viewModel::selectZone,
-    onAddReminder = viewModel::addReminder,
-    onRemoveReminder = viewModel::removeReminder,
-    modifier = modifier,
-  )
-}
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -259,84 +171,5 @@ internal fun PermitZoneContent(
         }
       }
     }
-  }
-}
-
-@Preview(showBackground = true)
-@Composable
-private fun PermitZoneContentPreview() {
-  val sampleSpot =
-    ParkingSpot(
-      objectId = "1",
-      geometry = Geometry(type = "Line", coordinates = listOf(listOf(1.0, 2.0), listOf(3.0, 4.0))),
-      streetName = "Market Street",
-      blockLimits = "1st Ave - 2nd Ave",
-      neighborhood = "Downtown",
-      regulation = ParkingRegulation.TIME_LIMITED,
-      rppArea = "A",
-      timedRestriction =
-        dev.bongballe.parkbuddy.model.TimedRestriction(
-          limitHours = 2,
-          days =
-            setOf(
-              kotlinx.datetime.DayOfWeek.MONDAY,
-              kotlinx.datetime.DayOfWeek.TUESDAY,
-              kotlinx.datetime.DayOfWeek.WEDNESDAY,
-              kotlinx.datetime.DayOfWeek.THURSDAY,
-              kotlinx.datetime.DayOfWeek.FRIDAY,
-            ),
-          startTime = LocalTime(8, 0),
-          endTime = LocalTime(18, 0),
-        ),
-      sweepingCnn = "12345",
-      sweepingSide = StreetSide.LEFT,
-      sweepingSchedules =
-        listOf(
-          SweepingSchedule(
-            weekday = Weekday.Mon,
-            fromHour = 8,
-            toHour = 10,
-            week1 = true,
-            week2 = true,
-            week3 = true,
-            week4 = true,
-            week5 = true,
-            holidays = false,
-          )
-        ),
-    )
-
-  ParkBuddyTheme {
-    PermitZoneContent(
-      availableZones = listOf("A", "B", "C"),
-      selectedZone = "A",
-      permitSpotCount = 5,
-      permitSpots = listOf(sampleSpot),
-      reminders = listOf(ReminderMinutes(60)),
-      isZonePickerExpanded = false,
-      onZonePickerExpandedChange = {},
-      onZoneSelect = {},
-      onAddReminder = { _, _ -> },
-      onRemoveReminder = {},
-    )
-  }
-}
-
-@Preview(showBackground = true)
-@Composable
-private fun PermitZoneContentEmptyPreview() {
-  ParkBuddyTheme {
-    PermitZoneContent(
-      availableZones = listOf("A", "B", "C"),
-      selectedZone = null,
-      permitSpotCount = 0,
-      permitSpots = emptyList(),
-      reminders = emptyList(),
-      isZonePickerExpanded = false,
-      onZonePickerExpandedChange = {},
-      onZoneSelect = {},
-      onAddReminder = { _, _ -> },
-      onRemoveReminder = {},
-    )
   }
 }
