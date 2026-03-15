@@ -38,8 +38,8 @@ data class ParkingSpotEntity(
   /** Type of parking regulation (stored as enum name via TypeConverter) */
   val regulation: ParkingRegulation,
 
-  /** Residential Parking Permit zone identifier, null if not in permit zone */
-  val rppArea: String?,
+  /** Residential Parking Permit zone identifiers (e.g., ["A", "B"]) */
+  val rppAreas: List<String>,
 
   /** Max parking hours, null if unlimited */
   val timeLimitHours: Int?,

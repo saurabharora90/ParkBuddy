@@ -40,4 +40,10 @@ class ParkBuddyTypeConverters {
   @TypeConverter fun fromWeekday(weekday: Weekday): String = weekday.name
 
   @TypeConverter fun toWeekday(value: String): Weekday = Weekday.valueOf(value)
+
+  @TypeConverter fun fromStringList(value: List<String>): String = value.joinToString(",")
+
+  @TypeConverter
+  fun toStringList(value: String): List<String> =
+    if (value.isBlank()) emptyList() else value.split(",")
 }

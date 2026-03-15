@@ -92,9 +92,11 @@ internal fun SpotDetailContent(
         }
       }
 
-      spot.rppArea?.let { zone ->
+      if (spot.rppAreas.isNotEmpty()) {
         Text(
-          text = "Zone $zone",
+          text =
+            if (spot.rppAreas.size > 1) "Zones ${spot.rppAreas.joinToString(" or ")}"
+            else "Zone ${spot.rppAreas.first()}",
           style = MaterialTheme.typography.labelLarge,
           color = MaterialTheme.colorScheme.primary,
           modifier =
@@ -125,7 +127,7 @@ internal fun SpotDetailContent(
             tint = SageGreen,
           )
           Text(
-            text = "PERMIT ${spot.rppArea} VALID. TIME LIMITS DO NOT APPLY.",
+            text = "PERMIT ${spot.rppAreas.joinToString(" or ")} VALID. TIME LIMITS DO NOT APPLY.",
             style = MaterialTheme.typography.labelSmall,
             color = SageGreen,
           )
@@ -324,7 +326,7 @@ internal val spot =
     blockLimits = "1st Ave - 2nd Ave",
     neighborhood = "Downtown",
     regulation = ParkingRegulation.TIME_LIMITED,
-    rppArea = "A",
+    rppAreas = listOf("A"),
     timedRestriction =
       dev.bongballe.parkbuddy.model.TimedRestriction(
         limitHours = 2,
@@ -384,7 +386,7 @@ internal val meteredSpot =
     blockLimits = "Kearny - Montgomery",
     neighborhood = "Financial District",
     regulation = ParkingRegulation.METERED,
-    rppArea = null,
+    rppAreas = emptyList(),
     timedRestriction = null,
     sweepingCnn = "54321",
     sweepingSide = StreetSide.RIGHT,

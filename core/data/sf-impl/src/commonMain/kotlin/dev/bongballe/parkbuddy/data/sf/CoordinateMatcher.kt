@@ -22,7 +22,7 @@ data class SweepingMatch(
 )
 
 private data class ParsedSweeping(
-  val response: StreetCleaningResponse,
+  val cnn: String,
   val geometry: Geometry,
   val center: Pair<Double, Double>,
 )
@@ -34,18 +34,24 @@ class CoordinateMatcher(sweepingData: List<StreetCleaningResponse>) {
   private val spatialIndex: Map<String, List<Int>>
 
   init {
-    parsedSweepingData =
-      sweepingData.mapNotNull { sweeping ->
-        val geometry = parseGeometry(sweeping.geometry) ?: return@mapNotNull null
-        val center = geometry.center() ?: return@mapNotNull null
-        ParsedSweeping(sweeping, geometry, center)
-      }
-
+    // 1. Group schedules by CNN and Side
     schedulesByCnnAndSide =
       sweepingData
         .filter { it.cnn.isNotEmpty() && it.cnnRightLeft.isNotEmpty() }
         .groupBy { "${it.cnn}:${it.cnnRightLeft}" }
 
+    // 2. Extract unique geometries per CNN
+    // We only need one geometry per CNN for matching.
+    val uniqueGeometries = mutableMapOf<String, ParsedSweeping>()
+    for (sweeping in sweepingData) {
+      if (sweeping.cnn.isEmpty() || uniqueGeometries.containsKey(sweeping.cnn)) continue
+      val geometry = parseGeometry(sweeping.geometry) ?: continue
+      val center = geometry.center() ?: continue
+      uniqueGeometries[sweeping.cnn] = ParsedSweeping(sweeping.cnn, geometry, center)
+    }
+    parsedSweepingData = uniqueGeometries.values.toList()
+
+    // 3. Build spatial index using unique geometries
     val cellSize = 0.001
     val index = mutableMapOf<String, MutableList<Int>>()
     parsedSweepingData.forEachIndexed { idx, parsed ->
@@ -89,7 +95,7 @@ class CoordinateMatcher(sweepingData: List<StreetCleaningResponse>) {
           bestDist = distToCenter
           // Determine side relative to centerline
           val side = LocationUtils.determineSide(lat, lng, parsed.geometry)
-          bestMatch = parsed.response.cnn to side
+          bestMatch = parsed.cnn to side
         }
       }
 
@@ -99,7 +105,7 @@ class CoordinateMatcher(sweepingData: List<StreetCleaningResponse>) {
     return matches.mapNotNull { (cnn, side) ->
       val sideStr = if (side == StreetSide.LEFT) "L" else "R"
       val schedules = schedulesByCnnAndSide["$cnn:$sideStr"]
-      val parsed = parsedSweepingData.firstOrNull { it.response.cnn == cnn }
+      val parsed = parsedSweepingData.firstOrNull { it.cnn == cnn }
       if (parsed != null && schedules != null) {
         SweepingMatch(cnn, side, parsed.geometry, schedules)
       } else null
@@ -133,9 +139,9 @@ class CoordinateMatcher(sweepingData: List<StreetCleaningResponse>) {
 
     if (bestMatch == null) return null
 
-    val cnn = bestMatch.response.cnn
+    val cnn = bestMatch.cnn
     val sideStr = if (bestSide == StreetSide.LEFT) "L" else "R"
-    val schedules = schedulesByCnnAndSide["$cnn:$sideStr"] ?: listOf(bestMatch.response)
+    val schedules = schedulesByCnnAndSide["$cnn:$sideStr"] ?: emptyList()
 
     return SweepingMatch(
       cnn = cnn,
@@ -148,19 +154,18 @@ class CoordinateMatcher(sweepingData: List<StreetCleaningResponse>) {
   /** Finds all available sweeping segments (Left and Right sides) for a given CNN. */
   fun findAllMatchesForCnn(cnn: String): List<SweepingMatch> {
     val results = mutableListOf<SweepingMatch>()
+    val parsed = parsedSweepingData.firstOrNull { it.cnn == cnn } ?: return emptyList()
+
     listOf("L", "R").forEach { sideStr ->
       schedulesByCnnAndSide["$cnn:$sideStr"]?.let { schedules ->
-        val parsed = parsedSweepingData.firstOrNull { it.response.cnn == cnn }
-        if (parsed != null) {
-          results.add(
-            SweepingMatch(
-              cnn = cnn,
-              side = sideStr.toStreetSide(),
-              geometry = parsed.geometry,
-              schedules = schedules,
-            )
+        results.add(
+          SweepingMatch(
+            cnn = cnn,
+            side = sideStr.toStreetSide(),
+            geometry = parsed.geometry,
+            schedules = schedules,
           )
-        }
+        )
       }
     }
     return results

@@ -12,7 +12,7 @@ class FakeParkingRepository : ParkingRepository {
   override fun getAllSpots(): Flow<List<ParkingSpot>> = _spots
 
   override fun getSpotsByZone(zone: String): Flow<List<ParkingSpot>> {
-    return _spots.map { spots -> spots.filter { it.rppArea == zone } }
+    return _spots.map { spots -> spots.filter { zone in it.rppAreas } }
   }
 
   override fun countSpotsByZone(zone: String): Flow<Int> {
@@ -20,7 +20,7 @@ class FakeParkingRepository : ParkingRepository {
   }
 
   override fun getAllPermitZones(): Flow<List<String>> {
-    return _spots.map { spots -> spots.mapNotNull { it.rppArea }.distinct() }
+    return _spots.map { spots -> spots.flatMap { it.rppAreas }.distinct().sorted() }
   }
 
   private val _userPermitZone = MutableStateFlow<String?>(null)

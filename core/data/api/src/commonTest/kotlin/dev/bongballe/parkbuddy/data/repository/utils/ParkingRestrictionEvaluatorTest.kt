@@ -235,4 +235,22 @@ class ParkingRestrictionEvaluatorTest {
     assertThat(active.expiry).isEqualTo(dateTime(2024, 1, 1, 11, 0)) // 10 AM + 60 min
     assertThat(active.paymentRequired).isTrue()
   }
+
+  @Test
+  fun `evaluate returns PermitSafe when spot has multiple zones and user has one of them`() {
+    val now = dateTime(2024, 1, 1, 12, 0)
+    val spot = createTestSpot(id = "1").copy(rppAreas = listOf("A", "B", "C"))
+
+    // User has permit for A
+    val stateA = ParkingRestrictionEvaluator.evaluate(spot, "A", now, now)
+    assertThat(stateA).isInstanceOf(ParkingRestrictionState.PermitSafe::class.java)
+
+    // User has permit for B
+    val stateB = ParkingRestrictionEvaluator.evaluate(spot, "B", now, now)
+    assertThat(stateB).isInstanceOf(ParkingRestrictionState.PermitSafe::class.java)
+
+    // User has permit for D (none of the zones)
+    val stateD = ParkingRestrictionEvaluator.evaluate(spot, "D", now, now)
+    assertThat(stateD).isNotInstanceOf(ParkingRestrictionState.PermitSafe::class.java)
+  }
 }

@@ -52,7 +52,7 @@ data class TimedRestriction(
  * @property blockLimits Cross streets defining the block (e.g., "1st Ave - 2nd Ave")
  * @property neighborhood Neighborhood or district name
  * @property regulation Type of parking allowed (time-limited, permit, etc.)
- * @property rppArea Residential Parking Permit zone identifier, null if not in a permit zone
+ * @property rppAreas Residential Parking Permit zone identifiers, empty if not in a permit zone
  * @property timedRestriction Time limit and enforcement window, null if no time limit
  * @property sweepingCnn Street segment identifier used for matching sweeping schedules
  * @property sweepingSide Which side of the street (LEFT/RIGHT) this spot is on
@@ -65,7 +65,7 @@ data class ParkingSpot(
   val blockLimits: String?,
   val neighborhood: String?,
   val regulation: ParkingRegulation,
-  val rppArea: String?,
+  val rppAreas: List<String>,
   val timedRestriction: TimedRestriction?,
   val sweepingCnn: String?,
   val sweepingSide: StreetSide?,

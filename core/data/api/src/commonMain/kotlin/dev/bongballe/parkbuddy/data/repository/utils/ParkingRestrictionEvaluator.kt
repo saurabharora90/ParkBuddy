@@ -46,7 +46,7 @@ object ParkingRestrictionEvaluator {
     }
 
     // 2. Check if user has permit
-    if (spot.rppArea != null && spot.rppArea == userPermitZone) {
+    if (userPermitZone != null && userPermitZone in spot.rppAreas) {
       return ParkingRestrictionState.PermitSafe(nextCleaning)
     }
 

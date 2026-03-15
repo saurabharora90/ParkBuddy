@@ -2,11 +2,11 @@
   "formatVersion": 1,
   "database": {
     "version": 1,
-    "identityHash": "fee102cd7f280b9784759838bd169c44",
+    "identityHash": "3b3f0a10f5c66a37455382184c968ba7",
     "entities": [
       {
         "tableName": "parking_spots",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`objectId` TEXT NOT NULL, `geometry` TEXT NOT NULL, `streetName` TEXT, `blockLimits` TEXT, `neighborhood` TEXT, `regulation` TEXT NOT NULL, `rppArea` TEXT, `timeLimitHours` INTEGER, `enforcementDays` TEXT, `enforcementStart` TEXT, `enforcementEnd` TEXT, `sweepingCnn` TEXT, `sweepingSide` TEXT, PRIMARY KEY(`objectId`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`objectId` TEXT NOT NULL, `geometry` TEXT NOT NULL, `streetName` TEXT, `blockLimits` TEXT, `neighborhood` TEXT, `regulation` TEXT NOT NULL, `rppAreas` TEXT NOT NULL, `timeLimitHours` INTEGER, `enforcementDays` TEXT, `enforcementStart` TEXT, `enforcementEnd` TEXT, `sweepingCnn` TEXT, `sweepingSide` TEXT, PRIMARY KEY(`objectId`))",
         "fields": [
           {
             "fieldPath": "objectId",
@@ -42,9 +42,10 @@
             "notNull": true
           },
           {
-            "fieldPath": "rppArea",
-            "columnName": "rppArea",
-            "affinity": "TEXT"
+            "fieldPath": "rppAreas",
+            "columnName": "rppAreas",
+            "affinity": "TEXT",
+            "notNull": true
           },
           {
             "fieldPath": "timeLimitHours",
@@ -285,7 +286,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'fee102cd7f280b9784759838bd169c44')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '3b3f0a10f5c66a37455382184c968ba7')"
     ]
   }
 }

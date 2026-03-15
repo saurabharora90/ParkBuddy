@@ -173,11 +173,49 @@ class ParkingRepositoryImplTest {
         val spots = awaitItem()
         // Only the side matching the regulation is stored; the other is sweeping-only.
         assertThat(spots).hasSize(1)
-        assertThat(spots[0].rppArea).isEqualTo("Y")
+        assertThat(spots[0].rppAreas).containsExactly("Y")
         assertThat(spots[0].regulation).isEqualTo(ParkingRegulation.TIME_LIMITED)
         assertThat(spots[0].sweepingSchedules).hasSize(1)
       }
     }
+
+  @Test
+  fun `refreshData - maps multiple RPP areas correctly`() = runRepoTest { repository, api, _, _ ->
+    val geometryJson = Json.encodeToJsonElement(delanceyCenterline)
+
+    api.streetCleaningData =
+      listOf(
+        StreetCleaningResponse(
+          cnn = "115001",
+          streetName = "Delancey St",
+          cnnRightLeft = "R",
+          weekday = Weekday.Fri,
+          fromhour = "0",
+          tohour = "6",
+          geometry = geometryJson,
+        )
+      )
+
+    api.parkingRegulations =
+      listOf(
+        ParkingRegulationResponse(
+          objectId = "1017",
+          regulation = "Time limited",
+          rppArea1 = "N",
+          rppArea2 = "A",
+          rppArea3 = "BB",
+          shape = delanceyRegulationShapeJson,
+        )
+      )
+
+    repository.refreshData()
+
+    repository.getAllSpots().test {
+      val spots = awaitItem()
+      assertThat(spots).hasSize(1)
+      assertThat(spots[0].rppAreas).containsExactly("A", "BB", "N").inOrder()
+    }
+  }
 
   @Test
   fun `De Haro - sweeping-only street excluded entirely`() = runRepoTest { repository, api, _, _ ->
