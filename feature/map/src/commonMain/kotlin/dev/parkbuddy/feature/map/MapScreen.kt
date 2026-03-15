@@ -7,7 +7,7 @@ import dev.zacsweers.metrox.viewmodel.metroViewModel
 
 @Composable
 expect fun MapScreen(
-  modifier: Modifier = Modifier,
   navigator: Navigator,
+  modifier: Modifier = Modifier,
   viewModel: MapViewModel = metroViewModel(),
 )
