@@ -36,7 +36,7 @@ interface DispatcherProvider {
 
   @WithDispatcherType(DispatcherType.IO)
   @Provides
-  fun providesIoDispatcher(): CoroutineDispatcher = Dispatchers.IO
+  fun providesIoDispatcher(): CoroutineDispatcher = ioDispatcher()
 
   @WithDispatcherType(DispatcherType.IO)
   @Provides

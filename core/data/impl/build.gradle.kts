@@ -10,6 +10,8 @@ kotlin {
     namespace = "dev.bongballe.parkbuddy.data.impl"
     withHostTestBuilder {}
   }
+  iosArm64()
+  iosSimulatorArm64()
 
   sourceSets {
     commonMain.dependencies {

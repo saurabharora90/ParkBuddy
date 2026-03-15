@@ -1,4 +1,4 @@
-package dev.bongballe.parkbuddy
+package dev.parkbuddy.composeapp
 
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.snapshots.SnapshotStateList
@@ -17,17 +17,13 @@ import kotlinx.coroutines.runBlocking
 @ContributesBinding(AppScope::class)
 @SingleIn(AppScope::class)
 @Inject
-class NavigatorImpl(
-  private val preferencesRepository: PreferencesRepository,
-) : Navigator {
+class NavigatorImpl(private val preferencesRepository: PreferencesRepository) : Navigator {
 
-  internal val backStack: SnapshotStateList<NavKey> =
-    mutableStateListOf(MainRoute(tab = MainRoute.Tab.MAP))
+  val backStack: SnapshotStateList<NavKey> = mutableStateListOf(MainRoute(tab = MainRoute.Tab.MAP))
 
   init {
     val hasSeenOnboarding = runBlocking { preferencesRepository.hasSeenOnboarding.first() }
-    if (!hasSeenOnboarding)
-      backStack.add(OnboardingRoute)
+    if (!hasSeenOnboarding) backStack.add(OnboardingRoute)
   }
 
   override fun goTo(destination: NavKey) {

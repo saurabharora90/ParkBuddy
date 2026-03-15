@@ -1,4 +1,4 @@
-package dev.bongballe.parkbuddy.di
+package dev.parkbuddy.composeapp.di
 
 import androidx.lifecycle.ViewModel
 import dev.zacsweers.metro.AppScope

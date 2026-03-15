@@ -8,10 +8,13 @@ plugins {
 
 kotlin {
   androidLibrary { namespace = "com.parkbuddy.feature.map" }
+  iosArm64()
+  iosSimulatorArm64()
 
   sourceSets {
     commonMain.dependencies {
       implementation(project(":core:base"))
+      implementation(project(":core:navigation"))
       implementation(project(":core:data:api"))
       implementation(project(":core:model"))
       implementation(project(":core:shared-ui"))
@@ -27,7 +30,6 @@ kotlin {
       implementation(libs.metrox.viewmodel.compose)
     }
     androidMain.dependencies {
-      implementation(project(":core:navigation"))
       implementation(libs.androidx.activity.compose)
       implementation(libs.kotlinx.coroutines.play.services)
       implementation(libs.maps.compose)
