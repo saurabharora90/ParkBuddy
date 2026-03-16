@@ -8,6 +8,7 @@ import dev.bongballe.parkbuddy.data.repository.utils.DateTimeUtils
 import dev.bongballe.parkbuddy.data.repository.utils.ParkingRestrictionEvaluator
 import dev.bongballe.parkbuddy.model.ParkingRestrictionState
 import dev.bongballe.parkbuddy.model.ParkingSpot
+import dev.bongballe.parkbuddy.model.ProhibitionReason
 import dev.bongballe.parkbuddy.model.ReminderMinutes
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesBinding
@@ -291,8 +292,9 @@ class ReminderRepositoryImpl(
     val (contentText, bigText) =
       when (state) {
         is ParkingRestrictionState.Forbidden -> {
-          "⚠️ DO NOT PARK HERE: ${state.reason.uppercase()}" to
-            "⚠️ DO NOT PARK HERE!\nReason: ${state.reason}\n\nT" +
+          val reasonText = prohibitionReasonText(state.reason)
+          "⚠️ DO NOT PARK HERE: ${reasonText.uppercase()}" to
+            "⚠️ DO NOT PARK HERE!\nReason: $reasonText\n\nT" +
               "his is a restricted zone. MOVE YOUR CAR IMMEDIATELY."
         }
 
@@ -441,6 +443,18 @@ class ReminderRepositoryImpl(
       "$day, $month $date at $timeText"
     }
   }
+
+  private fun prohibitionReasonText(reason: ProhibitionReason): String =
+    when (reason) {
+      ProhibitionReason.TOW_AWAY -> "Tow Away Zone"
+      ProhibitionReason.NO_PARKING -> "No Parking"
+      ProhibitionReason.NO_STOPPING -> "No Stopping"
+      ProhibitionReason.NO_OVERNIGHT -> "No Overnight Parking"
+      ProhibitionReason.STREET_CLEANING -> "Street Cleaning"
+      ProhibitionReason.COMMERCIAL -> "Commercial Only"
+      ProhibitionReason.LOADING_ZONE -> "Loading Zone"
+      ProhibitionReason.RESIDENTIAL_PERMIT -> "Residential Permit"
+    }
 
   companion object {
     private val REMINDER_MINUTES = stringSetPreferencesKey("reminder_minutes")

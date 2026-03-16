@@ -10,10 +10,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
+import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
+import androidx.navigation3.scene.SinglePaneSceneStrategy
 import androidx.navigation3.ui.NavDisplay
 import dev.bongballe.parkbuddy.core.navigation.BluetoothDeviceSelectionRoute
+import dev.bongballe.parkbuddy.core.navigation.BottomSheetSceneStrategy
 import dev.bongballe.parkbuddy.core.navigation.LocalResultEventBus
 import dev.bongballe.parkbuddy.core.navigation.MainRoute
 import dev.bongballe.parkbuddy.core.navigation.NavEntryItem
@@ -61,6 +64,9 @@ class MainActivity(
           NavDisplay(
             backStack = navigator.backStack,
             onBack = { navigator.goBack() },
+            sceneStrategy =
+              BottomSheetSceneStrategy<NavKey>() then
+                SinglePaneSceneStrategy(),
             entryDecorators =
               listOf(
                 rememberSaveableStateHolderNavEntryDecorator(),

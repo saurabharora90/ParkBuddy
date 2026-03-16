@@ -7,7 +7,10 @@ plugins {
 }
 
 kotlin {
-  androidLibrary { namespace = "com.parkbuddy.feature.map" }
+  androidLibrary {
+    namespace = "com.parkbuddy.feature.map"
+    withHostTestBuilder {}
+  }
   iosArm64()
   iosSimulatorArm64()
 
@@ -28,6 +31,14 @@ kotlin {
       implementation(libs.kotlinx.serialization.json)
       implementation(libs.metrox.viewmodel)
       implementation(libs.metrox.viewmodel.compose)
+    }
+    getByName("androidHostTest").dependencies {
+      implementation(project(":core:testing"))
+      implementation(libs.junit)
+      implementation(libs.kotlinx.coroutines.test)
+      implementation(libs.robolectric)
+      implementation(libs.truth)
+      implementation(libs.turbine)
     }
     androidMain.dependencies {
       implementation(libs.androidx.activity.compose)

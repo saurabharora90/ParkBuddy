@@ -60,6 +60,7 @@ import com.google.maps.android.compose.Polyline
 import com.google.maps.android.compose.rememberCameraPositionState
 import dev.bongballe.parkbuddy.core.navigation.MainRoute
 import dev.bongballe.parkbuddy.core.navigation.Navigator
+import dev.bongballe.parkbuddy.core.navigation.SpotDetailRoute
 import dev.bongballe.parkbuddy.model.Geometry
 import dev.bongballe.parkbuddy.model.IntervalType
 import dev.bongballe.parkbuddy.model.ParkingSpot
@@ -168,7 +169,6 @@ actual fun MapScreen(navigator: Navigator, modifier: Modifier, viewModel: MapVie
 
   var bannerDismissed by remember { mutableStateOf(false) }
 
-  var selectedSpot by remember { mutableStateOf<ParkingSpot?>(null) }
   val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
   var showLegendSheet by remember { mutableStateOf(false) }
@@ -194,7 +194,9 @@ actual fun MapScreen(navigator: Navigator, modifier: Modifier, viewModel: MapVie
             color = dominantColor,
             width = if (isInPermitZone) 12f else 8f,
             clickable = true,
-            onClick = { selectedSpot = spot },
+            onClick = {
+              navigator.goTo(SpotDetailRoute(spot = spot, permitZone = state.permitZone))
+            },
           )
         }
       }
@@ -276,23 +278,6 @@ actual fun MapScreen(navigator: Navigator, modifier: Modifier, viewModel: MapVie
       modifier = Modifier.align(Alignment.BottomStart).padding(start = 8.dp, bottom = 8.dp),
     ) {
       Icon(imageVector = ParkBuddyIcons.Info, contentDescription = "Map legend")
-    }
-
-    selectedSpot?.let {
-      ModalBottomSheet(
-        onDismissRequest = { selectedSpot = null },
-        sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.background,
-      ) {
-        SpotDetailContent(
-          spot = it,
-          isInPermitZone = it.rppAreas.contains(state.permitZone),
-          onParkHere = {
-            viewModel.parkHere(it)
-            selectedSpot = null
-          },
-        )
-      }
     }
 
     // Zone setup nudge (one-off, persisted)

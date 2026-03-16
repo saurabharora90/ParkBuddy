@@ -4,6 +4,7 @@ import dev.bongballe.parkbuddy.model.IntervalType
 import dev.bongballe.parkbuddy.model.ParkingInterval
 import dev.bongballe.parkbuddy.model.ParkingRestrictionState
 import dev.bongballe.parkbuddy.model.ParkingSpot
+import dev.bongballe.parkbuddy.model.ProhibitionReason
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
@@ -58,17 +59,18 @@ object ParkingRestrictionEvaluator {
       if (nextInterval != null) {
         val (startInstant, interval) = nextInterval
         return when (val type = interval.type) {
-          // Upcoming Forbidden/Restricted: warn the user about impending no-parking
           is IntervalType.Forbidden ->
             ParkingRestrictionState.Forbidden(
-              "${type.reason} starts at ${formatHourMinute(interval.startTime)}",
-              nextCleaning,
+              reason = type.reason,
+              startsAt = startInstant,
+              nextCleaning = nextCleaning,
             )
 
           is IntervalType.Restricted ->
             ParkingRestrictionState.Forbidden(
-              "${type.reason} starts at ${formatHourMinute(interval.startTime)}",
-              nextCleaning,
+              reason = type.reason,
+              startsAt = startInstant,
+              nextCleaning = nextCleaning,
             )
           // Upcoming timed enforcement: PendingTimed
           is IntervalType.Metered,
@@ -93,8 +95,20 @@ object ParkingRestrictionEvaluator {
       return ParkingRestrictionState.Unrestricted(nextCleaning)
     }
 
-    // 3. Permit exemption: if the user holds a permit for one of the exempt zones, they're safe
-    if (userPermitZone != null && userPermitZone in activeInterval.exemptPermitZones) {
+    // 3. Permit exemption: if the user holds a permit for one of the exempt zones, they're safe.
+    // Forbidden and non-RPP restricted intervals (commercial, loading) are never permit-exempt,
+    // even if exemptPermitZones is populated (defense against upstream data issues).
+    val permitExemptible =
+      activeInterval.type is IntervalType.Limited ||
+        activeInterval.type is IntervalType.Metered ||
+        (activeInterval.type is IntervalType.Restricted &&
+          (activeInterval.type as IntervalType.Restricted).reason ==
+            ProhibitionReason.RESIDENTIAL_PERMIT)
+    if (
+      permitExemptible &&
+        userPermitZone != null &&
+        userPermitZone in activeInterval.exemptPermitZones
+    ) {
       return ParkingRestrictionState.PermitSafe(nextCleaning)
     }
 
@@ -102,9 +116,11 @@ object ParkingRestrictionEvaluator {
     return when (val type = activeInterval.type) {
       is IntervalType.Open -> ParkingRestrictionState.Unrestricted(nextCleaning)
 
-      is IntervalType.Forbidden -> ParkingRestrictionState.Forbidden(type.reason, nextCleaning)
+      is IntervalType.Forbidden ->
+        ParkingRestrictionState.Forbidden(reason = type.reason, nextCleaning = nextCleaning)
 
-      is IntervalType.Restricted -> ParkingRestrictionState.Forbidden(type.reason, nextCleaning)
+      is IntervalType.Restricted ->
+        ParkingRestrictionState.Forbidden(reason = type.reason, nextCleaning = nextCleaning)
 
       is IntervalType.Metered,
       is IntervalType.Limited ->
@@ -259,18 +275,5 @@ object ParkingRestrictionEvaluator {
     }
 
     return candidates.minOrNull() ?: limitExpiry
-  }
-
-  private fun formatHourMinute(time: LocalTime): String {
-    val hour = time.hour
-    val ampm = if (hour < 12) "AM" else "PM"
-    val displayHour =
-      when {
-        hour == 0 -> 12
-        hour > 12 -> hour - 12
-        else -> hour
-      }
-    return if (time.minute == 0) "$displayHour $ampm"
-    else "$displayHour:${time.minute.toString().padStart(2, '0')} $ampm"
   }
 }

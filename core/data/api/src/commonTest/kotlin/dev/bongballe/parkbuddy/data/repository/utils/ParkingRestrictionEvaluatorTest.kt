@@ -5,6 +5,7 @@ import dev.bongballe.parkbuddy.model.IntervalSource
 import dev.bongballe.parkbuddy.model.IntervalType
 import dev.bongballe.parkbuddy.model.ParkingInterval
 import dev.bongballe.parkbuddy.model.ParkingRestrictionState
+import dev.bongballe.parkbuddy.model.ProhibitionReason
 import dev.bongballe.parkbuddy.model.SweepingSchedule
 import dev.bongballe.parkbuddy.model.Weekday
 import dev.bongballe.parkbuddy.testing.createTestSpot
@@ -52,7 +53,7 @@ class ParkingRestrictionEvaluatorTest {
   /** M-Tu 7am-9am, Tow Away Zone. */
   private val towAway =
     ParkingInterval(
-      type = IntervalType.Forbidden("Tow Away Zone"),
+      type = IntervalType.Forbidden(ProhibitionReason.TOW_AWAY),
       days = setOf(DayOfWeek.MONDAY, DayOfWeek.TUESDAY),
       startTime = LocalTime(7, 0),
       endTime = LocalTime(9, 0),
@@ -220,7 +221,8 @@ class ParkingRestrictionEvaluatorTest {
     val state = ParkingRestrictionEvaluator.evaluate(spot, null, now, now, zone)
 
     assertThat(state).isInstanceOf(ParkingRestrictionState.Forbidden::class.java)
-    assertThat((state as ParkingRestrictionState.Forbidden).reason).isEqualTo("Tow Away Zone")
+    assertThat((state as ParkingRestrictionState.Forbidden).reason)
+      .isEqualTo(ProhibitionReason.TOW_AWAY)
   }
 
   @Test
@@ -228,7 +230,7 @@ class ParkingRestrictionEvaluatorTest {
     val now = dateTime(2024, 1, 1, 12, 0)
     val restricted =
       ParkingInterval(
-        type = IntervalType.Restricted("Commercial Vehicles Only"),
+        type = IntervalType.Restricted(ProhibitionReason.COMMERCIAL),
         days = weekdays,
         startTime = LocalTime(8, 0),
         endTime = LocalTime(18, 0),
@@ -240,7 +242,7 @@ class ParkingRestrictionEvaluatorTest {
 
     assertThat(state).isInstanceOf(ParkingRestrictionState.Forbidden::class.java)
     assertThat((state as ParkingRestrictionState.Forbidden).reason)
-      .isEqualTo("Commercial Vehicles Only")
+      .isEqualTo(ProhibitionReason.COMMERCIAL)
   }
 
   // ---------------------------------------------------------------------------
@@ -324,7 +326,7 @@ class ParkingRestrictionEvaluatorTest {
       )
     val forbidden =
       ParkingInterval(
-        type = IntervalType.Forbidden("Tow Away Zone"),
+        type = IntervalType.Forbidden(ProhibitionReason.TOW_AWAY),
         days = setOf(DayOfWeek.MONDAY),
         startTime = LocalTime(7, 0),
         endTime = LocalTime(9, 0),
@@ -353,7 +355,7 @@ class ParkingRestrictionEvaluatorTest {
       )
     val forbidden =
       ParkingInterval(
-        type = IntervalType.Forbidden("Tow Away Zone"),
+        type = IntervalType.Forbidden(ProhibitionReason.TOW_AWAY),
         days = setOf(DayOfWeek.MONDAY),
         startTime = LocalTime(18, 0),
         endTime = LocalTime(20, 0),
@@ -398,7 +400,8 @@ class ParkingRestrictionEvaluatorTest {
     val state = ParkingRestrictionEvaluator.evaluate(spot, null, now, now, zone)
 
     assertThat(state).isInstanceOf(ParkingRestrictionState.Forbidden::class.java)
-    assertThat((state as ParkingRestrictionState.Forbidden).reason).isEqualTo("Tow Away Zone")
+    assertThat((state as ParkingRestrictionState.Forbidden).reason)
+      .isEqualTo(ProhibitionReason.TOW_AWAY)
   }
 
   // ---------------------------------------------------------------------------
@@ -423,5 +426,80 @@ class ParkingRestrictionEvaluatorTest {
     assertThat(state).isInstanceOf(ParkingRestrictionState.ActiveTimed::class.java)
     val active = state as ParkingRestrictionState.ActiveTimed
     assertThat(active.expiry).isEqualTo(dateTime(2024, 1, 1, 12, 30))
+  }
+
+  // ---------------------------------------------------------------------------
+  // Commercial zones and permit exemptions
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun `commercial zone is NOT permit-exempt even if exemptPermitZones is populated`() {
+    val now = dateTime(2024, 1, 1, 10, 0) // Monday 10 AM
+    val commercial =
+      ParkingInterval(
+        type = IntervalType.Restricted(ProhibitionReason.COMMERCIAL),
+        days = weekdays,
+        startTime = LocalTime(7, 0),
+        endTime = LocalTime(22, 0),
+        exemptPermitZones = listOf("Y"),
+        source = IntervalSource.REGULATION,
+      )
+    val spot =
+      createTestSpot(id = "1", zone = "Y", limitMinutes = null, timeline = listOf(commercial))
+
+    val state = ParkingRestrictionEvaluator.evaluate(spot, "Y", now, now, zone)
+
+    assertThat(state).isInstanceOf(ParkingRestrictionState.Forbidden::class.java)
+    val forbidden = state as ParkingRestrictionState.Forbidden
+    assertThat(forbidden.reason).isEqualTo(ProhibitionReason.COMMERCIAL)
+  }
+
+  @Test
+  fun `loading zone is NOT permit-exempt`() {
+    val now = dateTime(2024, 1, 1, 10, 0)
+    val loading =
+      ParkingInterval(
+        type = IntervalType.Restricted(ProhibitionReason.LOADING_ZONE),
+        days = weekdays,
+        startTime = LocalTime(7, 0),
+        endTime = LocalTime(18, 0),
+        exemptPermitZones = listOf("A"),
+        source = IntervalSource.REGULATION,
+      )
+    val spot = createTestSpot(id = "1", zone = "A", limitMinutes = null, timeline = listOf(loading))
+
+    val state = ParkingRestrictionEvaluator.evaluate(spot, "A", now, now, zone)
+
+    assertThat(state).isInstanceOf(ParkingRestrictionState.Forbidden::class.java)
+  }
+
+  @Test
+  fun `RPP-only zone IS permit-exempt`() {
+    val now = dateTime(2024, 1, 1, 10, 0)
+    val rppOnly =
+      ParkingInterval(
+        type = IntervalType.Restricted(ProhibitionReason.RESIDENTIAL_PERMIT),
+        days = weekdays,
+        startTime = LocalTime(8, 0),
+        endTime = LocalTime(18, 0),
+        exemptPermitZones = listOf("N"),
+        source = IntervalSource.REGULATION,
+      )
+    val spot = createTestSpot(id = "1", zone = "N", limitMinutes = null, timeline = listOf(rppOnly))
+
+    val state = ParkingRestrictionEvaluator.evaluate(spot, "N", now, now, zone)
+
+    assertThat(state).isInstanceOf(ParkingRestrictionState.PermitSafe::class.java)
+  }
+
+  @Test
+  fun `limited interval with permit zone remains permit-exempt`() {
+    val now = dateTime(2024, 1, 1, 10, 0)
+    val spot =
+      createTestSpot(id = "1", zone = "A", limitMinutes = null, timeline = listOf(weekdayLimited))
+
+    val state = ParkingRestrictionEvaluator.evaluate(spot, "A", now, now, zone)
+
+    assertThat(state).isInstanceOf(ParkingRestrictionState.PermitSafe::class.java)
   }
 }

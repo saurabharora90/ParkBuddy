@@ -7,17 +7,21 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -31,13 +35,15 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import dev.bongballe.parkbuddy.data.repository.utils.DateTimeUtils
+import dev.bongballe.parkbuddy.core.navigation.Navigator
 import dev.bongballe.parkbuddy.data.repository.utils.formatSchedule
 import dev.bongballe.parkbuddy.model.Geometry
 import dev.bongballe.parkbuddy.model.IntervalSource
 import dev.bongballe.parkbuddy.model.IntervalType
 import dev.bongballe.parkbuddy.model.ParkingInterval
+import dev.bongballe.parkbuddy.model.ParkingRestrictionState
 import dev.bongballe.parkbuddy.model.ParkingSpot
+import dev.bongballe.parkbuddy.model.ProhibitionReason
 import dev.bongballe.parkbuddy.model.StreetSide
 import dev.bongballe.parkbuddy.model.SweepingSchedule
 import dev.bongballe.parkbuddy.model.Weekday
@@ -47,19 +53,38 @@ import dev.bongballe.parkbuddy.theme.SageGreen
 import dev.bongballe.parkbuddy.theme.SagePrimary
 import dev.bongballe.parkbuddy.theme.Terracotta
 import dev.bongballe.parkbuddy.theme.WildIris
+import dev.parkbuddy.core.ui.DayTimelineBar
 import dev.parkbuddy.core.ui.ParkBuddyButton
 import dev.parkbuddy.core.ui.ParkBuddyIcons
+import dev.parkbuddy.core.ui.SquircleIcon
 import kotlin.time.Clock
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalTime
 
+/** Entry point that collects state from the ViewModel. */
 @Composable
 internal fun SpotDetailContent(
-  spot: ParkingSpot,
-  isInPermitZone: Boolean,
+  viewModel: SpotDetailViewModel,
+  navigator: Navigator,
+  modifier: Modifier = Modifier,
+) {
+  val state by viewModel.stateFlow.collectAsState()
+  SpotDetailContent(
+    state = state,
+    onParkHere = {
+      viewModel.parkHere()
+      navigator.goBack()
+    },
+    modifier = modifier,
+  )
+}
+
+/** Pure renderer that takes pre-computed state. Used by previews and the VM overload. */
+@Composable
+internal fun SpotDetailContent(
+  state: SpotDetailState,
   onParkHere: () -> Unit,
   modifier: Modifier = Modifier,
-  clock: Clock = Clock.System,
 ) {
   Column(
     modifier =
@@ -69,22 +94,10 @@ internal fun SpotDetailContent(
         .padding(horizontal = 16.dp),
     verticalArrangement = Arrangement.spacedBy(24.dp),
   ) {
-    // Header: street name, block limits, side, RPP zone badge
-    SpotHeader(spot)
+    SpotHeader(state.spot)
 
-    // Current state card: what rule is active RIGHT NOW
-    CurrentStateCard(spot, isInPermitZone, clock)
+    CurrentStateCard(state)
 
-    // "PAY AT METER" banner: only shown when a metered interval is active RIGHT NOW.
-    // During off-hours (e.g., Sunday evening after 6pm), meters aren't enforced so showing
-    // "PAY AT METER" alongside "FREE PARKING" would be confusing.
-    val now = clock.now()
-    val meterActiveNow = spot.timeline.any { it.type is IntervalType.Metered && it.isActiveAt(now) }
-    if (meterActiveNow && !isInPermitZone) {
-      StatusBanner(icon = ParkBuddyIcons.Error, text = "PAY AT METER.", accentColor = Terracotta)
-    }
-
-    // Timeline section + sweeping schedules
     Card(
       modifier = Modifier.fillMaxWidth(),
       shape = MaterialTheme.shapes.large,
@@ -94,10 +107,7 @@ internal fun SpotDetailContent(
         modifier = Modifier.padding(vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp),
       ) {
-        // Timeline intervals (unified timed + meter rules)
-        if (spot.timeline.isNotEmpty()) {
-          val now = clock.now()
-
+        if (state.sortedIntervals.isNotEmpty() || state.sweepingDisplay.isNotEmpty()) {
           Text(
             text = "PARKING RULES & SCHEDULES",
             style = MaterialTheme.typography.labelSmall,
@@ -105,16 +115,12 @@ internal fun SpotDetailContent(
             modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 8.dp),
           )
 
-          val sortedIntervals =
-            spot.timeline.sortedWith(compareBy({ it.days.minOrNull() }, { it.startTime }))
-
-          sortedIntervals.forEach { interval ->
-            IntervalRow(interval = interval, isActive = interval.isActiveAt(now))
+          state.sortedIntervals.forEach { (interval, isActive) ->
+            IntervalRow(interval = interval, isActive = isActive)
           }
-        }
 
-        // Sweeping schedules (separate because they carry week-of-month info)
-        spot.sweepingSchedules.forEach { schedule -> NoParkingInfo(schedule, clock) }
+          state.sweepingDisplay.forEach { display -> SweepingRow(display) }
+        }
       }
     }
 
@@ -170,152 +176,234 @@ private fun SpotHeader(spot: ParkingSpot) {
   }
 }
 
-/**
- * Shows the CURRENT parking status based on the active timeline interval.
- *
- * Color scheme per state:
- * - Free / Open: SagePrimary
- * - Permit exempt: SageGreen
- * - Limited: WildIris
- * - Metered: Goldenrod
- * - Restricted / Forbidden: Terracotta
- */
+// ---------------------------------------------------------------------------
+// Current Status Card (thin renderer, pattern-matches on restrictionState)
+// ---------------------------------------------------------------------------
+
 @Composable
-private fun CurrentStateCard(spot: ParkingSpot, isInPermitZone: Boolean, clock: Clock) {
-  val now = clock.now()
+private fun CurrentStateCard(state: SpotDetailState) {
+  val upcoming = state.upcoming
+  val isImminent = state.isImminent
 
-  // Check sweeping FIRST. Sweeping lives outside the timeline (week-of-month semantics)
-  // but is the highest-priority restriction. Without this check, the card would show
-  // "FREE PARKING" during active street cleaning.
-  val activeSweeping = spot.sweepingSchedules.firstOrNull { it.isWithinWindow(now) }
-  if (activeSweeping != null) {
-    StatusBanner(
-      icon = ParkBuddyIcons.Error,
-      text = "NO PARKING: STREET CLEANING IN PROGRESS",
-      accentColor = Terracotta,
-    )
-    return
-  }
-
-  val activeInterval = spot.timeline.firstOrNull { it.isActiveAt(now) }
-
-  // Permit holders get a special "safe" banner if their zone is exempt
-  if (isInPermitZone && activeInterval != null) {
-    val userExempt = spot.rppAreas.any { it in activeInterval.exemptPermitZones }
-    if (userExempt) {
-      StatusBanner(
-        icon = ParkBuddyIcons.SafetyCheck,
-        text = buildPermitExemptText(spot, activeInterval),
-        accentColor = SageGreen,
-      )
-      return
-    }
-  }
-
-  // Only show permit-safe banner if the spot is actually parkable.
-  // A NO_PARKING or GOVERNMENT_ONLY spot with an empty timeline should NOT show "FREE PARKING".
-  if (isInPermitZone && activeInterval == null && spot.isParkable) {
-    StatusBanner(
-      icon = ParkBuddyIcons.SafetyCheck,
-      text = "PERMIT ${spot.rppAreas.joinToString(" or ")} VALID. FREE PARKING.",
-      accentColor = SageGreen,
-    )
-    return
-  }
-
-  when (val type = activeInterval?.type) {
-    null,
-    is IntervalType.Open -> {
-      StatusBanner(
-        icon = ParkBuddyIcons.CheckCircle,
-        text = "FREE PARKING",
-        accentColor = SagePrimary,
+  when (val restriction = state.restrictionState) {
+    is ParkingRestrictionState.CleaningActive -> {
+      val remaining = restriction.cleaningEnd - Clock.System.now()
+      StateCard(
+        icon = ParkBuddyIcons.Error,
+        accentColor = Terracotta,
+        title = "YOU CANNOT PARK HERE",
+        details =
+          buildList {
+            add("Reason" to "Street Cleaning")
+            if (!remaining.isNegative()) add("Remaining" to formatDurationCompact(remaining))
+          },
+        showBorder = true,
+        segments = state.timelineSegments,
+        currentMinute = state.currentMinute,
       )
     }
 
-    is IntervalType.Limited -> {
-      val limit = formatLimit(type.timeLimitMinutes)
-      val endFormatted = formatTime(activeInterval.endTime)
-      StatusBanner(
+    is ParkingRestrictionState.PermitSafe -> {
+      val permitZone = state.permitZone.orEmpty()
+      if (isImminent && upcoming != null) {
+        StateCard(
+          icon = ParkBuddyIcons.Warning,
+          accentColor = Goldenrod,
+          title = "FREE FOR YOU",
+          details =
+            buildList {
+              add("Permit $permitZone active" to "")
+              add("${upcoming.reason} ${formatRelativeTime(upcoming.duration)}" to "")
+              add("Window" to upcoming.window)
+            },
+          segments = state.timelineSegments,
+          currentMinute = state.currentMinute,
+        )
+      } else {
+        StateCard(
+          icon = ParkBuddyIcons.SafetyCheck,
+          accentColor = SageGreen,
+          title = "FREE FOR YOU",
+          details =
+            buildList {
+              add("Permit $permitZone active" to "")
+              upcoming?.let { add("Next: ${it.label}" to "") }
+            },
+          segments = state.timelineSegments,
+          currentMinute = state.currentMinute,
+        )
+      }
+    }
+
+    is ParkingRestrictionState.Unrestricted -> {
+      if (isImminent && upcoming != null) {
+        StateCard(
+          icon = ParkBuddyIcons.Warning,
+          accentColor = Goldenrod,
+          title = "FREE PARKING",
+          details =
+            buildList {
+              add("${upcoming.reason} ${formatRelativeTime(upcoming.duration)}" to "")
+              add("Window" to upcoming.window)
+            },
+          segments = state.timelineSegments,
+          currentMinute = state.currentMinute,
+        )
+      } else {
+        StateCard(
+          icon = ParkBuddyIcons.CheckCircle,
+          accentColor = SagePrimary,
+          title = "FREE PARKING",
+          details =
+            buildList {
+              add("No restrictions right now" to "")
+              upcoming?.let { add("Next: ${it.label}" to "") }
+            },
+          segments = state.timelineSegments,
+          currentMinute = state.currentMinute,
+        )
+      }
+    }
+
+    is ParkingRestrictionState.ActiveTimed -> {
+      val icon =
+        if (restriction.paymentRequired) ParkBuddyIcons.AccessTime else ParkBuddyIcons.AccessTime
+      val accentColor = if (restriction.paymentRequired) Goldenrod else WildIris
+      val title = if (restriction.paymentRequired) "PAY AT METER" else "TIME LIMITED"
+
+      val remaining = restriction.expiry - Clock.System.now()
+      val enforcement = if (!remaining.isNegative()) formatDurationCompact(remaining) else "Expired"
+
+      StateCard(
+        icon = icon,
+        accentColor = accentColor,
+        title = title,
+        details =
+          buildList {
+            add("Time remaining" to enforcement)
+            if (restriction.paymentRequired) add("Payment" to "Required")
+          },
+        segments = state.timelineSegments,
+        currentMinute = state.currentMinute,
+      )
+    }
+
+    is ParkingRestrictionState.PendingTimed -> {
+      val startsIn = restriction.startsAt - Clock.System.now()
+      StateCard(
         icon = ParkBuddyIcons.AccessTime,
-        text = "MAX $limit UNTIL $endFormatted",
-        accentColor = WildIris,
+        accentColor = if (restriction.paymentRequired) Goldenrod else WildIris,
+        title = if (restriction.paymentRequired) "METERED SOON" else "TIME LIMIT SOON",
+        details =
+          buildList {
+            add("Starts" to formatRelativeTime(startsIn))
+            if (restriction.paymentRequired) add("Payment" to "Required")
+          },
+        segments = state.timelineSegments,
+        currentMinute = state.currentMinute,
       )
     }
 
-    is IntervalType.Metered -> {
-      val endFormatted = formatTime(activeInterval.endTime)
-      val limitText =
-        if (type.timeLimitMinutes > 0)
-          "MAX ${formatLimit(type.timeLimitMinutes)} UNTIL $endFormatted"
-        else "METERED UNTIL $endFormatted"
-      StatusBanner(icon = ParkBuddyIcons.AccessTime, text = limitText, accentColor = Goldenrod)
-    }
+    is ParkingRestrictionState.Forbidden -> {
+      val remaining = restriction.startsAt?.let { it - Clock.System.now() }
+      val isFuture = remaining != null && !remaining.isNegative()
 
-    is IntervalType.Restricted -> {
-      StatusBanner(
+      StateCard(
         icon = ParkBuddyIcons.Error,
-        text = type.reason.uppercase(),
         accentColor = Terracotta,
-      )
-    }
-
-    is IntervalType.Forbidden -> {
-      StatusBanner(
-        icon = ParkBuddyIcons.Error,
-        text = "NO PARKING: ${type.reason.uppercase()}",
-        accentColor = Terracotta,
+        title = if (isFuture) "RESTRICTION AHEAD" else "YOU CANNOT PARK HERE",
+        details =
+          buildList {
+            add("Reason" to restriction.reason.displayText())
+            if (isFuture && remaining != null) {
+              add("Starts" to formatRelativeTime(remaining))
+            }
+          },
+        showBorder = !isFuture,
+        segments = state.timelineSegments,
+        currentMinute = state.currentMinute,
       )
     }
   }
 }
 
-/**
- * Builds the text for permit-exempt users. Shows what the general public rule is so the user
- * understands why others can't park there.
- */
-private fun buildPermitExemptText(spot: ParkingSpot, interval: ParkingInterval): String {
-  val zone = spot.rppAreas.joinToString(" or ")
-  return when (val type = interval.type) {
-    is IntervalType.Limited ->
-      "FREE FOR YOU (PERMIT $zone). GENERAL: MAX ${formatLimit(type.timeLimitMinutes)}."
-    is IntervalType.Metered -> "FREE FOR YOU (PERMIT $zone). GENERAL: PAY AT METER."
-    else -> "PERMIT $zone VALID. TIME LIMITS DO NOT APPLY."
-  }
-}
-
-/** Colored banner row used for the current state card. */
 @Composable
-private fun StatusBanner(
+private fun StateCard(
   icon: ImageVector,
-  text: String,
   accentColor: Color,
-  modifier: Modifier = Modifier,
+  title: String,
+  details: List<Pair<String, String>>,
+  showBorder: Boolean = false,
+  segments: List<dev.parkbuddy.core.ui.TimelineSegment> = emptyList(),
+  currentMinute: Int = 0,
 ) {
-  Row(
-    verticalAlignment = Alignment.CenterVertically,
-    horizontalArrangement = Arrangement.spacedBy(16.dp),
-    modifier =
-      modifier
-        .fillMaxWidth()
-        .background(accentColor.copy(alpha = 0.15f), shape = MaterialTheme.shapes.large)
-        .padding(16.dp),
+  val cardModifier =
+    if (showBorder)
+      Modifier.fillMaxWidth()
+        .border(width = 2.dp, color = accentColor, shape = MaterialTheme.shapes.large)
+    else Modifier.fillMaxWidth()
+
+  Card(
+    modifier = cardModifier,
+    shape = MaterialTheme.shapes.large,
+    colors = CardDefaults.cardColors(containerColor = Color.White),
   ) {
-    Icon(imageVector = icon, contentDescription = null, tint = accentColor)
-    Text(text = text, style = MaterialTheme.typography.labelSmall, color = accentColor)
+    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+      Row(
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+      ) {
+        SquircleIcon(
+          icon = icon,
+          size = 48.dp,
+          shape = RoundedCornerShape(12.dp),
+          iconTint = accentColor,
+          backgroundTint = accentColor.copy(alpha = 0.15f),
+        )
+        Column {
+          Text(
+            text = title,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = accentColor,
+          )
+          details.forEach { (key, value) ->
+            if (value.isEmpty()) {
+              Text(
+                text = key,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+              )
+            } else {
+              Text(
+                text =
+                  buildAnnotatedString {
+                    append("$key: ")
+                    withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(value) }
+                  },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+              )
+            }
+          }
+        }
+      }
+
+      if (segments.isNotEmpty()) {
+        DayTimelineBar(
+          segments = segments,
+          currentMinute = currentMinute,
+          freeColor = SagePrimary.copy(alpha = 0.15f),
+        )
+      }
+    }
   }
 }
 
-/**
- * A single row in the timeline section. Shows the interval type icon, day/time schedule, and any
- * time limit information.
- *
- * Color coding:
- * - LIMITED -> WildIris
- * - METERED -> Goldenrod
- * - RESTRICTED -> Terracotta
- * - FORBIDDEN -> Terracotta (darker via alpha)
- */
+// ---------------------------------------------------------------------------
+// Timeline Rows
+// ---------------------------------------------------------------------------
+
 @Composable
 private fun IntervalRow(
   interval: ParkingInterval,
@@ -324,7 +412,6 @@ private fun IntervalRow(
 ) {
   val tint = intervalColor(interval.type)
   val icon = intervalIcon(interval.type)
-  val label = intervalLabel(interval)
 
   val backgroundColor =
     if (isActive)
@@ -351,76 +438,22 @@ private fun IntervalRow(
   ) {
     Icon(imageVector = icon, contentDescription = null, tint = tint)
 
+    val dayRange = formatDayRange(interval.days)
+    val detail = intervalDetail(interval)
+    val time = "${formatTime(interval.startTime)}-${formatTime(interval.endTime)}"
+
     val annotatedString = buildAnnotatedString {
-      append(label)
-      withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
-        append(
-          "${
-            interval.days.sortedBy { it.ordinal }.joinToString(
-              prefix = " ",
-              transform = { it.name.substring(0, 3) },
-            )
-          },  ${formatTime(interval.startTime)}-${formatTime(interval.endTime)}"
-        )
-      }
+      withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(dayRange) }
+      if (detail.isNotEmpty()) append(" ($detail)")
+      append(": $time")
     }
 
     Text(text = annotatedString, style = MaterialTheme.typography.bodyMedium)
   }
 }
 
-/** Returns the accent color for a given interval type. */
-private fun intervalColor(type: IntervalType): Color =
-  when (type) {
-    is IntervalType.Open -> SagePrimary
-    is IntervalType.Limited -> WildIris
-    is IntervalType.Metered -> Goldenrod
-    is IntervalType.Restricted -> Terracotta
-    is IntervalType.Forbidden -> Terracotta
-  }
-
-/** Returns the appropriate icon for a given interval type. */
 @Composable
-private fun intervalIcon(type: IntervalType): ImageVector =
-  when (type) {
-    is IntervalType.Open -> ParkBuddyIcons.CheckCircle
-    is IntervalType.Limited -> ParkBuddyIcons.AccessTime
-    is IntervalType.Metered -> ParkBuddyIcons.AccessTime
-    is IntervalType.Restricted -> ParkBuddyIcons.Warning
-    is IntervalType.Forbidden -> ParkBuddyIcons.Error
-  }
-
-/** Builds the label prefix for a timeline row (e.g. "Max 2 hrs:", "TOW AWAY:", "METERED:"). */
-private fun intervalLabel(interval: ParkingInterval): String =
-  when (val type = interval.type) {
-    is IntervalType.Open -> "Free:"
-    is IntervalType.Limited -> "Max ${formatLimit(type.timeLimitMinutes)}:"
-    is IntervalType.Metered -> {
-      if (type.timeLimitMinutes > 0) "Max ${formatLimit(type.timeLimitMinutes)}:" else "METERED:"
-    }
-    is IntervalType.Restricted -> "${type.reason.uppercase()}:"
-    is IntervalType.Forbidden -> "${type.reason.uppercase()}:"
-  }
-
-private fun formatLimit(minutes: Int): String =
-  when {
-    minutes == 0 -> ""
-    minutes >= 60 -> {
-      val hrs = minutes / 60.0
-      if (hrs == hrs.toInt().toDouble()) "${hrs.toInt()} hrs" else "$hrs hrs"
-    }
-    else -> "$minutes min"
-  }
-
-/** Formats a [LocalTime] to a human-readable string like "8 AM" or "6 PM". */
-private fun formatTime(time: LocalTime): String = DateTimeUtils.formatHour(time.hour)
-
-@Composable
-private fun NoParkingInfo(schedule: SweepingSchedule, clock: Clock, modifier: Modifier = Modifier) {
-  val now = clock.now()
-  val nextCleaning = schedule.nextOccurrence(now)
-  val isActive = schedule.isWithinWindow(now)
-
+private fun SweepingRow(display: SweepingDisplay, modifier: Modifier = Modifier) {
   Row(
     verticalAlignment = Alignment.CenterVertically,
     horizontalArrangement = Arrangement.spacedBy(16.dp),
@@ -432,7 +465,7 @@ private fun NoParkingInfo(schedule: SweepingSchedule, clock: Clock, modifier: Mo
       val noParkingTiming = buildAnnotatedString {
         append("No Parking: ")
         withStyle(style = SpanStyle(fontWeight = FontWeight.Bold)) {
-          append(schedule.formatSchedule())
+          append(display.schedule.formatSchedule())
         }
       }
       Text(text = noParkingTiming, style = MaterialTheme.typography.bodyMedium)
@@ -444,9 +477,9 @@ private fun NoParkingInfo(schedule: SweepingSchedule, clock: Clock, modifier: Mo
           modifier = Modifier.background(Terracotta.copy(alpha = 0.2f)).padding(2.dp),
         )
 
-        if (isActive) {
+        if (display.isActive) {
           Text(
-            text = " • IN PROGRESS",
+            text = " \u2022 IN PROGRESS",
             style =
               MaterialTheme.typography.bodyMedium.copy(
                 color = Terracotta,
@@ -454,16 +487,8 @@ private fun NoParkingInfo(schedule: SweepingSchedule, clock: Clock, modifier: Mo
               ),
           )
         } else {
-          nextCleaning?.let { nextTime ->
-            val duration = nextTime - now
-            val hoursUntil = duration.inWholeHours
-            val timeUntilText =
-              when {
-                hoursUntil < 1 -> "in ${duration.inWholeMinutes} min"
-                hoursUntil < 24 -> "in $hoursUntil hrs"
-                else -> "in ${hoursUntil / 24} days"
-              }
-            Text(text = " • $timeUntilText", style = MaterialTheme.typography.bodyMedium)
+          display.relativeTimeText?.let { timeText ->
+            Text(text = " \u2022 $timeText", style = MaterialTheme.typography.bodyMedium)
           }
         }
       }
@@ -471,10 +496,22 @@ private fun NoParkingInfo(schedule: SweepingSchedule, clock: Clock, modifier: Mo
   }
 }
 
-// -- Preview data --
+@Composable
+private fun intervalIcon(type: IntervalType): ImageVector =
+  when (type) {
+    is IntervalType.Open -> ParkBuddyIcons.CheckCircle
+    is IntervalType.Limited -> ParkBuddyIcons.AccessTime
+    is IntervalType.Metered -> ParkBuddyIcons.AccessTime
+    is IntervalType.Restricted -> ParkBuddyIcons.Warning
+    is IntervalType.Forbidden -> ParkBuddyIcons.Error
+  }
+
+// ---------------------------------------------------------------------------
+// Previews
+// ---------------------------------------------------------------------------
 
 @VisibleForTesting
-internal val spot =
+internal val previewSpot =
   ParkingSpot(
     objectId = "1",
     geometry = Geometry(type = "Line", coordinates = listOf(listOf(1.0, 2.0), listOf(3.0, 4.0))),
@@ -502,14 +539,7 @@ internal val spot =
       listOf(
         ParkingInterval(
           type = IntervalType.Limited(timeLimitMinutes = 120),
-          days =
-            setOf(
-              DayOfWeek.MONDAY,
-              DayOfWeek.TUESDAY,
-              DayOfWeek.WEDNESDAY,
-              DayOfWeek.THURSDAY,
-              DayOfWeek.FRIDAY,
-            ),
+          days = DayOfWeek.entries.toSet(),
           startTime = LocalTime(8, 0),
           endTime = LocalTime(18, 0),
           exemptPermitZones = listOf("A"),
@@ -519,7 +549,7 @@ internal val spot =
   )
 
 @VisibleForTesting
-internal val meteredSpot =
+internal val previewMeteredSpot =
   ParkingSpot(
     objectId = "2",
     geometry = Geometry(type = "Line", coordinates = listOf(listOf(1.0, 2.0), listOf(3.0, 4.0))),
@@ -534,28 +564,14 @@ internal val meteredSpot =
       listOf(
         ParkingInterval(
           type = IntervalType.Metered(timeLimitMinutes = 60),
-          days =
-            setOf(
-              DayOfWeek.MONDAY,
-              DayOfWeek.TUESDAY,
-              DayOfWeek.WEDNESDAY,
-              DayOfWeek.THURSDAY,
-              DayOfWeek.FRIDAY,
-            ),
+          days = DayOfWeek.entries.toSet(),
           startTime = LocalTime(9, 0),
           endTime = LocalTime(18, 0),
           source = IntervalSource.METER,
         ),
         ParkingInterval(
-          type = IntervalType.Forbidden(reason = "Tow Away"),
-          days =
-            setOf(
-              DayOfWeek.MONDAY,
-              DayOfWeek.TUESDAY,
-              DayOfWeek.WEDNESDAY,
-              DayOfWeek.THURSDAY,
-              DayOfWeek.FRIDAY,
-            ),
+          type = IntervalType.Forbidden(reason = ProhibitionReason.TOW_AWAY),
+          days = DayOfWeek.entries.toSet(),
           startTime = LocalTime(7, 0),
           endTime = LocalTime(9, 0),
           source = IntervalSource.TOW,
@@ -563,27 +579,37 @@ internal val meteredSpot =
       ),
   )
 
-@Preview(showBackground = true)
-@Composable
-private fun WatchedSpotDetailContentPreview() {
-  ParkBuddyTheme { SpotDetailContent(spot = spot, isInPermitZone = true, onParkHere = {}) }
+private fun previewState(
+  spot: ParkingSpot = previewSpot,
+  permitZone: String? = null,
+): SpotDetailState {
+  val now = Clock.System.now()
+  return evaluate(spot, permitZone, now)
 }
 
 @Preview(showBackground = true)
 @Composable
-private fun NonWatchedSpotDetailContentPreview() {
-  ParkBuddyTheme { SpotDetailContent(spot = spot, isInPermitZone = false, onParkHere = {}) }
+private fun SpotDetailContentPreview_PermitZone() {
+  ParkBuddyTheme { SpotDetailContent(state = previewState(permitZone = "A"), onParkHere = {}) }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun SpotDetailContentPreview_TimeLimited() {
+  ParkBuddyTheme { SpotDetailContent(state = previewState(), onParkHere = {}) }
 }
 
 @Preview(showBackground = true, name = "Metered Spot with Tow Zone")
 @Composable
-private fun MeteredSpotDetailContentPreview() {
-  ParkBuddyTheme { SpotDetailContent(spot = meteredSpot, isInPermitZone = false, onParkHere = {}) }
+private fun SpotDetailContentPreview_Metered() {
+  ParkBuddyTheme {
+    SpotDetailContent(state = previewState(spot = previewMeteredSpot), onParkHere = {})
+  }
 }
 
 @Preview(showBackground = true, name = "Free Parking (no timeline)")
 @Composable
-private fun FreeParkingSpotDetailContentPreview() {
+private fun SpotDetailContentPreview_Free() {
   val freeSpot =
     ParkingSpot(
       objectId = "3",
@@ -597,5 +623,5 @@ private fun FreeParkingSpotDetailContentPreview() {
       sweepingSchedules = emptyList(),
       timeline = emptyList(),
     )
-  ParkBuddyTheme { SpotDetailContent(spot = freeSpot, isInPermitZone = false, onParkHere = {}) }
+  ParkBuddyTheme { SpotDetailContent(state = previewState(spot = freeSpot), onParkHere = {}) }
 }
