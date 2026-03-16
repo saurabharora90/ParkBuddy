@@ -6,7 +6,6 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import dev.bongballe.parkbuddy.data.repository.utils.DateTimeUtils
 import dev.bongballe.parkbuddy.data.repository.utils.ParkingRestrictionEvaluator
-import dev.bongballe.parkbuddy.model.ParkingRegulation
 import dev.bongballe.parkbuddy.model.ParkingRestrictionState
 import dev.bongballe.parkbuddy.model.ParkingSpot
 import dev.bongballe.parkbuddy.model.ReminderMinutes
@@ -24,6 +23,17 @@ import kotlinx.coroutines.flow.map
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 
+/**
+ * Manages parking reminder scheduling and notification display.
+ *
+ * Reminder flow:
+ * 1. User parks -> [scheduleReminders] evaluates the spot's restriction state.
+ * 2. Based on the [ParkingRestrictionState], we schedule alarms (cleaning, expiry, or both).
+ * 3. A "spot found" notification summarizes the situation and lists upcoming alarms.
+ *
+ * The evaluator now folds metered spots into [ParkingRestrictionState.ActiveTimed] with
+ * `paymentRequired = true`, so there is no separate MeteredActive branch.
+ */
 @ContributesBinding(AppScope::class)
 @SingleIn(AppScope::class)
 @Inject
@@ -54,6 +64,16 @@ class ReminderRepositoryImpl(
     dataStore.edit { it[REMINDER_MINUTES] = currentReminders.map { it.value.toString() }.toSet() }
   }
 
+  /**
+   * Evaluates the restriction state for [spot] and schedules the appropriate alarms.
+   *
+   * Alarm strategy by state:
+   * - **CleaningActive / Forbidden**: No alarms; the notification itself is the warning.
+   * - **ActiveTimed**: Expiry reminders only (15 min before + at expiry). Covers both free
+   *   time-limited spots and metered spots (distinguished by `paymentRequired`).
+   * - **PendingTimed**: Cleaning reminders (if cleaning precedes enforcement), plus expiry.
+   * - **Unrestricted / PermitSafe**: Cleaning reminders only.
+   */
   override suspend fun scheduleReminders(spot: ParkingSpot, showNotification: Boolean) {
     clearAllReminders()
 
@@ -82,11 +102,6 @@ class ReminderRepositoryImpl(
 
       is ParkingRestrictionState.Forbidden -> {
         // Parking is prohibited. No reminders, just an urgent notification.
-      }
-
-      is ParkingRestrictionState.MeteredActive -> {
-        // Metered parking. No time limit known yet, so no alarms.
-        // We'll show the notification with the warning.
       }
 
       is ParkingRestrictionState.ActiveTimed -> {
@@ -247,6 +262,17 @@ class ReminderRepositoryImpl(
     alarmScheduler.cancelAll()
   }
 
+  /**
+   * Builds and shows the "Parked on [street]" notification.
+   *
+   * The notification has two text layers:
+   * - **contentText**: One-line summary visible in the notification shade.
+   * - **bigText**: Expanded view with payment warnings, cleaning schedule, and alarm list.
+   *
+   * Payment warnings are derived from [ParkingRestrictionState.ActiveTimed.paymentRequired] and
+   * [ParkingRestrictionState.PendingTimed.paymentRequired], which the evaluator sets for metered
+   * spots. This replaces the old MeteredActive notification arm.
+   */
   private fun showSpotFoundNotification(
     spot: ParkingSpot,
     streetName: String,
@@ -270,12 +296,6 @@ class ReminderRepositoryImpl(
               "his is a restricted zone. MOVE YOUR CAR IMMEDIATELY."
         }
 
-        is ParkingRestrictionState.MeteredActive -> {
-          "⚠️ PAY AT METER." to
-            "⚠️ PAY AT METER.\n\nThis is a metered parking zone. " +
-              "Please check the nearest meter for rates and time limits."
-        }
-
         is ParkingRestrictionState.CleaningActive -> {
           val cleaningEndText = formatTime(state.cleaningEnd, zone)
           "⚠️ STREET CLEANING IN PROGRESS!" to
@@ -287,10 +307,8 @@ class ReminderRepositoryImpl(
           val paymentWarning =
             when {
               !state.paymentRequired -> ""
-              spot.regulation == ParkingRegulation.PAID_PLUS_PERMIT ->
-                "\n⚠️ PAY AT METER: Payment is required even with a Zone ${spot.rppAreas.joinToString(" or ")} permit."
-              spot.regulation == ParkingRegulation.PAY_OR_PERMIT ->
-                "\n⚠️ PAY AT METER: You lack a permit for Zone ${spot.rppAreas.joinToString(" or ")}."
+              spot.hasMeters && spot.rppAreas.isNotEmpty() ->
+                "\n⚠️ PAY AT METER: Metered spot in Zone ${spot.rppAreas.joinToString(" or ")}."
               else -> "\n⚠️ PAY AT METER: Standard metered parking."
             }
           val contentText =
@@ -306,10 +324,8 @@ class ReminderRepositoryImpl(
           val paymentWarning =
             when {
               !state.paymentRequired -> ""
-              spot.regulation == ParkingRegulation.PAID_PLUS_PERMIT ->
-                "\n⚠️ PAY AT METER: Payment is required even with a Zone ${spot.rppAreas.joinToString(" or ")} permit."
-              spot.regulation == ParkingRegulation.PAY_OR_PERMIT ->
-                "\n⚠️ PAY AT METER: You lack a permit for Zone ${spot.rppAreas.joinToString(" or ")}."
+              spot.hasMeters && spot.rppAreas.isNotEmpty() ->
+                "\n⚠️ PAY AT METER: Metered spot in Zone ${spot.rppAreas.joinToString(" or ")}."
               else -> "\n⚠️ PAY AT METER: Standard metered parking."
             }
           val contentText =
@@ -350,6 +366,12 @@ class ReminderRepositoryImpl(
     )
   }
 
+  /**
+   * Builds the notification title, e.g. "Main St (2hr limit)" or "Oak St (Permit zone)".
+   *
+   * For ActiveTimed/PendingTimed states, the time limit is pulled from [ParkingSpot.timeline] (the
+   * unified interval list).
+   */
   private fun buildTitle(
     streetName: String,
     spot: ParkingSpot,
@@ -362,24 +384,19 @@ class ReminderRepositoryImpl(
         is ParkingRestrictionState.Forbidden,
         is ParkingRestrictionState.CleaningActive -> " ⚠️ NO PARKING"
 
-        is ParkingRestrictionState.MeteredActive -> " (Metered)"
         is ParkingRestrictionState.PermitSafe -> " (Permit zone)"
         is ParkingRestrictionState.ActiveTimed,
         is ParkingRestrictionState.PendingTimed -> {
+          // Pull the time limit from the active (or first) timeline interval.
+          val activeInterval = spot.timeline.firstOrNull { it.isActiveAt(now, zone) }
+          val minutes =
+            activeInterval?.timeLimitMinutes
+              ?: spot.timeline.firstNotNullOfOrNull { it.timeLimitMinutes }
           val limitDisplay =
-            if (spot.regulation == ParkingRegulation.METERED) {
-              // Find the active or next schedule to get the limit
-              val localNow = now.toLocalDateTime(zone)
-              val schedule =
-                spot.meterSchedules.firstOrNull { it.days.contains(localNow.dayOfWeek) }
-              val minutes = schedule?.timeLimitMinutes ?: 0
-              when {
-                minutes == 0 -> ""
-                minutes >= 60 -> "${minutes / 60}hr"
-                else -> "${minutes}min"
-              }
-            } else {
-              spot.timedRestriction?.limitHours?.let { "${it}hr" }.orEmpty()
+            when {
+              minutes == null || minutes == 0 -> ""
+              minutes >= 60 -> "${minutes / 60}hr"
+              else -> "${minutes}min"
             }
           if (limitDisplay.isNotEmpty()) " ($limitDisplay limit)" else ""
         }

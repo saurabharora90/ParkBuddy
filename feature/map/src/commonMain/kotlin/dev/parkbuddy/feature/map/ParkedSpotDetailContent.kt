@@ -168,10 +168,6 @@ private fun Header(spot: ParkingSpot, restrictionState: ParkingRestrictionState,
         is ParkingRestrictionState.Forbidden -> {
           "● DO NOT PARK HERE"
         }
-
-        is ParkingRestrictionState.MeteredActive -> {
-          "● METERED PARKING"
-        }
       }
 
     val statusColor =
@@ -179,7 +175,6 @@ private fun Header(spot: ParkingSpot, restrictionState: ParkingRestrictionState,
         is ParkingRestrictionState.CleaningActive,
         is ParkingRestrictionState.Forbidden -> Terracotta
 
-        is ParkingRestrictionState.MeteredActive -> MaterialTheme.colorScheme.primary
         is ParkingRestrictionState.ActiveTimed -> {
           val remaining = restrictionState.expiry - now
           if (remaining.isNegative() || remaining.inWholeMinutes < 30) Terracotta
@@ -231,14 +226,6 @@ private fun PrimaryCountdown(
       AlertCard(
         title = "FORBIDDEN: ${restrictionState.reason.uppercase()}",
         subtitle = "Move your car immediately to avoid a ticket or towing.",
-        timeLabel = "ACTIVE",
-      )
-    }
-
-    is ParkingRestrictionState.MeteredActive -> {
-      AlertCard(
-        title = "METERED PARKING ACTIVE",
-        subtitle = "Please ensure you have paid the meter to avoid a ticket.",
         timeLabel = "ACTIVE",
       )
     }
@@ -373,7 +360,6 @@ private fun SecondaryCleaningInfo(restrictionState: ParkingRestrictionState, now
       is ParkingRestrictionState.ActiveTimed -> restrictionState.nextCleaning
       is ParkingRestrictionState.PendingTimed -> restrictionState.nextCleaning
       is ParkingRestrictionState.Forbidden -> restrictionState.nextCleaning
-      is ParkingRestrictionState.MeteredActive -> restrictionState.nextCleaning
       else -> return
     } ?: return
 
@@ -435,20 +421,16 @@ private fun AlertsSection(
       ForbiddenAlertsSection(restrictionState.reason)
     }
 
-    is ParkingRestrictionState.MeteredActive -> {
-      MeteredActiveAlertsSection()
-    }
-
     is ParkingRestrictionState.ActiveTimed,
     is ParkingRestrictionState.PendingTimed -> {
       if (
         restrictionState is ParkingRestrictionState.ActiveTimed && restrictionState.paymentRequired
       ) {
-        MeteredActiveAlertsSection()
+        PaymentRequiredAlertsSection()
       } else if (
         restrictionState is ParkingRestrictionState.PendingTimed && restrictionState.paymentRequired
       ) {
-        MeteredActiveAlertsSection()
+        PaymentRequiredAlertsSection()
       }
       TimeLimitAlertsSection(restrictionState, now)
     }
@@ -461,7 +443,7 @@ private fun AlertsSection(
 }
 
 @Composable
-private fun MeteredActiveAlertsSection() {
+private fun PaymentRequiredAlertsSection() {
   Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
     Text(
       text = "IMPORTANT INFO",
@@ -716,12 +698,16 @@ private fun AlertCard(title: String, subtitle: String, timeLabel: String) {
 
 @Preview(showBackground = true)
 @Composable
-private fun ParkedSpotDetailContentMeteredActivePreview() {
+private fun ParkedSpotDetailContentMeteredTimedPreview() {
   ParkBuddyTheme {
     ParkedSpotDetailContent(
       spot = spot,
       restrictionState =
-        ParkingRestrictionState.MeteredActive(nextCleaning = Clock.System.now() + 24.hours),
+        ParkingRestrictionState.ActiveTimed(
+          expiry = Clock.System.now() + 1.hours,
+          paymentRequired = true,
+          nextCleaning = Clock.System.now() + 24.hours,
+        ),
       reminders = emptyList(),
       onMovedCar = {},
       onEndSession = {},

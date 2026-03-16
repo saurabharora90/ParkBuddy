@@ -17,6 +17,8 @@ import kotlinx.serialization.Serializable
  * @property fromTime Start time (e.g. "7:00 AM")
  * @property toTime End time (e.g. "6:00 PM")
  * @property timeLimit Time limit in minutes (e.g. "60 minutes")
+ * @property priority Rule priority (e.g. "1", "2"). Higher numbers override lower ones.
+ * @property appliedColorRule Meter color rule (e.g. "Yellow - Commercial loading zone").
  */
 @Serializable
 data class MeterScheduleResponse(
@@ -27,4 +29,6 @@ data class MeterScheduleResponse(
   @SerialName("from_time") val fromTime: String? = null,
   @SerialName("to_time") val toTime: String? = null,
   @SerialName("time_limit") val timeLimit: String? = null,
+  @SerialName("priority") val priority: String? = null,
+  @SerialName("applied_color_rule") val appliedColorRule: String? = null,
 )

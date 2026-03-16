@@ -29,8 +29,8 @@ fun BannerNudge(
   subtitle: String,
   actionLabel: String,
   onAction: () -> Unit,
-  dismissLabel: String,
-  onDismiss: () -> Unit,
+  dismissLabel: String?,
+  onDismiss: (() -> Unit)?,
   containerColor: Color,
   contentColor: Color,
   modifier: Modifier = Modifier,
@@ -64,7 +64,10 @@ fun BannerNudge(
       )
     }
     TextButton(onClick = onAction) { Text(actionLabel, color = contentColor) }
-    TextButton(onClick = onDismiss) { Text(dismissLabel, color = contentColor.copy(alpha = 0.6f)) }
+    if (onDismiss != null && dismissLabel != null)
+      TextButton(onClick = onDismiss) {
+        Text(dismissLabel, color = contentColor.copy(alpha = 0.6f))
+      }
   }
 }
 

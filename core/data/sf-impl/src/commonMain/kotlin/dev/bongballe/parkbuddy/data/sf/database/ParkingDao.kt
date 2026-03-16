@@ -6,7 +6,6 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
 import androidx.room.Upsert
-import dev.bongballe.parkbuddy.data.sf.database.entity.MeterScheduleEntity
 import dev.bongballe.parkbuddy.data.sf.database.entity.ParkingSpotEntity
 import dev.bongballe.parkbuddy.data.sf.database.entity.SweepingScheduleEntity
 import dev.bongballe.parkbuddy.data.sf.database.entity.UserPreferencesEntity
@@ -18,22 +17,16 @@ import kotlinx.coroutines.flow.Flow
  *
  * ## Data Flow
  * 1. On app startup (or manual refresh), repository fetches data from city data APIs
- * 2. Parking regulations are matched to sweeping schedules via coordinate proximity
+ * 2. Parking regulations and meter schedules are resolved into a timeline via [TimelineResolver]
  * 3. Data is stored via [insertSpots] and [insertSchedules]
  * 4. UI observes data via Flow-returning methods
  *
  * ## Permit Streets
  * Streets are managed based on user's selected RPP zone ([UserPreferencesEntity.rppZone]). Use
  * [getSpotsByZone] to get all permit spots for reminder scheduling.
- *
- * @see ParkingSpotEntity
- * @see SweepingScheduleEntity
- * @see UserPreferencesEntity
  */
 @Dao
 interface ParkingDao {
-
-  // ==================== Parking Spots ====================
 
   /**
    * Get all parking spots with their sweeping schedules. Use [Transaction] to ensure atomic read of
@@ -44,8 +37,7 @@ interface ParkingDao {
   fun getAllSpots(): Flow<List<PopulatedParkingSpot>>
 
   /**
-   * Get parking spots in a specific RPP zone with their sweeping schedules. Used to get permit
-   * streets when user has selected a zone.
+   * Get parking spots in a specific RPP zone with their sweeping schedules.
    *
    * @param zone RPP zone letter (e.g., "N", "A")
    */
@@ -85,10 +77,6 @@ interface ParkingDao {
   @Insert(onConflict = OnConflictStrategy.REPLACE)
   suspend fun insertSchedules(schedules: List<SweepingScheduleEntity>)
 
-  /** Insert or replace meter schedules. Called during data refresh. */
-  @Insert(onConflict = OnConflictStrategy.REPLACE)
-  suspend fun insertMeterSchedules(schedules: List<MeterScheduleEntity>)
-
   /**
    * Delete all parking spots. Called before data refresh to ensure clean state. Cascades to delete
    * related sweeping schedules via foreign key.
@@ -97,11 +85,6 @@ interface ParkingDao {
 
   /** Delete all sweeping schedules. Called before data refresh. */
   @Query("DELETE FROM sweeping_schedules") suspend fun clearAllSchedules()
-
-  /** Delete all meter schedules. Called before data refresh. */
-  @Query("DELETE FROM meter_schedules") suspend fun clearAllMeterSchedules()
-
-  // ==================== User Preferences ====================
 
   /** Get user preferences (single row, id=1). Returns null if no preferences have been set yet. */
   @Query("SELECT * FROM user_preferences WHERE id = 1")

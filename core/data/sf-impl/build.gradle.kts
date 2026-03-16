@@ -28,6 +28,7 @@ kotlin {
       implementation(libs.kotlinx.serialization.json)
       implementation(libs.ktor.client.core)
     }
+    commonTest.dependencies { implementation(kotlin("test")) }
     androidMain.dependencies { implementation(libs.androidx.datastore.preferences) }
     getByName("androidHostTest").dependencies {
       implementation(project(":core:testing"))

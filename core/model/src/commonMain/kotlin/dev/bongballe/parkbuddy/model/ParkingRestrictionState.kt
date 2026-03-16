@@ -31,9 +31,6 @@ sealed class ParkingRestrictionState {
     override val nextCleaning: Instant?,
   ) : ParkingRestrictionState()
 
-  /** Metered parking is active (payment required) */
-  data class MeteredActive(override val nextCleaning: Instant?) : ParkingRestrictionState()
-
   /** Parking is prohibited (No Parking, No Stopping, etc.) */
   data class Forbidden(val reason: String, override val nextCleaning: Instant?) :
     ParkingRestrictionState()

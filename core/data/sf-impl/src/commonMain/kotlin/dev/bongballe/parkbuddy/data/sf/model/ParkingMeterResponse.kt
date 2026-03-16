@@ -18,8 +18,12 @@ import kotlinx.serialization.Serializable
  * @property streetSegCtrlnId CNN (Street Centerline ID), crucial for matching geometry
  * @property meterType SS (Single Space), MS (Multi Space)
  * @property capColor Color of the meter cap, often indicates rate/rules
- * @property activeMeterFlag "M" (Active), "U" (Inactive), etc.
+ * @property activeMeterFlag Meter status. "M" = active meter installed, "T" = temporarily inactive,
+ *   "L" = legislated for future install (meter doesn't physically exist yet)
  * @property neighborhood Analysis neighborhood
+ * @property latitude WGS84 latitude as string. Used to create a virtual geometry for meters whose
+ *   CNN has no sweeping centerline match.
+ * @property longitude WGS84 longitude as string.
  */
 @Serializable
 data class ParkingMeterResponse(
@@ -32,4 +36,6 @@ data class ParkingMeterResponse(
   @SerialName("cap_color") val capColor: String? = null,
   @SerialName("active_meter_flag") val activeMeterFlag: String? = null,
   @SerialName("analysis_neighborhood") val neighborhood: String? = null,
+  val latitude: String? = null,
+  val longitude: String? = null,
 )

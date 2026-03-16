@@ -2,27 +2,29 @@ package dev.bongballe.parkbuddy.data.sf.repository
 
 import co.touchlab.kermit.Logger
 import dev.bongballe.parkbuddy.DispatcherType
-import dev.bongballe.parkbuddy.analytics.AnalyticsTracker
 import dev.bongballe.parkbuddy.data.repository.ParkingRepository
+import dev.bongballe.parkbuddy.data.repository.utils.TimelineResolver
 import dev.bongballe.parkbuddy.data.sf.CoordinateMatcher
+import dev.bongballe.parkbuddy.data.sf.DayParser
+import dev.bongballe.parkbuddy.data.sf.TimeParser
 import dev.bongballe.parkbuddy.data.sf.database.ParkingDao
-import dev.bongballe.parkbuddy.data.sf.database.entity.MeterScheduleEntity
 import dev.bongballe.parkbuddy.data.sf.database.entity.ParkingSpotEntity
 import dev.bongballe.parkbuddy.data.sf.database.entity.SweepingScheduleEntity
 import dev.bongballe.parkbuddy.data.sf.database.entity.UserPreferencesEntity
 import dev.bongballe.parkbuddy.data.sf.database.model.PopulatedParkingSpot
 import dev.bongballe.parkbuddy.data.sf.model.MeterScheduleResponse
+import dev.bongballe.parkbuddy.data.sf.model.ParkingRegulation
 import dev.bongballe.parkbuddy.data.sf.model.StreetCleaningResponse
 import dev.bongballe.parkbuddy.data.sf.model.toParkingRegulation
 import dev.bongballe.parkbuddy.data.sf.model.toStreetSide
 import dev.bongballe.parkbuddy.data.sf.network.SfOpenDataApi
 import dev.bongballe.parkbuddy.model.Geometry
-import dev.bongballe.parkbuddy.model.MeterSchedule
-import dev.bongballe.parkbuddy.model.ParkingRegulation
+import dev.bongballe.parkbuddy.model.IntervalSource
+import dev.bongballe.parkbuddy.model.IntervalType
+import dev.bongballe.parkbuddy.model.ParkingInterval
 import dev.bongballe.parkbuddy.model.ParkingSpot
 import dev.bongballe.parkbuddy.model.StreetSide
 import dev.bongballe.parkbuddy.model.SweepingSchedule
-import dev.bongballe.parkbuddy.model.TimedRestriction
 import dev.bongballe.parkbuddy.qualifier.WithDispatcherType
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesBinding
@@ -34,26 +36,60 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
-import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalTime
-import kotlinx.io.IOException
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
+/**
+ * SF-specific implementation of [ParkingRepository].
+ *
+ * ## Data Sync Pipeline (refreshData)
+ *
+ * Merges four SF Open Data APIs into a unified street segment model:
+ * ```
+ *   ┌──────────────┐  ┌──────────────┐  ┌───────────────┐  ┌──────────────────┐
+ *   │  Sweeping     │  │  Regulations  │  │  Meter        │  │  Meter           │
+ *   │  (geometry    │  │  (time limits │  │  Inventory    │  │  Schedules       │
+ *   │   backbone)   │  │   RPP zones)  │  │  (post IDs)   │  │  (hours, limits) │
+ *   └──────┬───────┘  └──────┬───────┘  └──────┬────────┘  └──────┬───────────┘
+ *          │                 │                  │                  │
+ *          ▼                 ▼                  ▼                  ▼
+ *   ┌─────────────────────────────────────────────────────────────────────┐
+ *   │                    UnifiedSegmentContext                           │
+ *   │  Key: (CNN, StreetSide)                                           │
+ *   │  Accumulates: geometry, street name, regulations, meter schedules │
+ *   └──────────────────────────────┬──────────────────────────────────────┘
+ *                                  │
+ *                                  ▼
+ *   ┌─────────────────────────────────────────────────────────────────────┐
+ *   │                      TimelineResolver                              │
+ *   │  Flattens overlapping rules into non-overlapping ParkingIntervals  │
+ *   │  Priority: FORBIDDEN > RESTRICTED > METERED > LIMITED > OPEN       │
+ *   └──────────────────────────────┬──────────────────────────────────────┘
+ *                                  │
+ *                                  ▼
+ *   ┌─────────────────────────────────────────────────────────────────────┐
+ *   │  ParkingSpotEntity (timeline JSON) + SweepingScheduleEntity        │
+ *   │  Stored in Room, consumed by UI and evaluator                      │
+ *   └────────────────────────────────────────────────────────────────────┘
+ * ```
+ */
 @ContributesBinding(AppScope::class)
 @SingleIn(AppScope::class)
 @Inject
 class ParkingRepositoryImpl(
   private val dao: ParkingDao,
   private val api: SfOpenDataApi,
-  private val analyticsTracker: AnalyticsTracker,
   @WithDispatcherType(DispatcherType.DEFAULT) private val defaultDispatcher: CoroutineDispatcher,
 ) : ParkingRepository {
 
   /**
-   * Internal context used during data refresh to merge multiple data sources into a single segment.
+   * Accumulator for all data layers for a single (CNN, side) street segment.
+   *
+   * During sync, each API response contributes data to the appropriate context. After all data is
+   * collected, the context is resolved into a [ParkingSpotEntity] with a pre-computed timeline.
    */
   private data class UnifiedSegmentContext(
     val cnn: String,
@@ -65,565 +101,555 @@ class ParkingRepositoryImpl(
     var neighborhood: String? = null,
     var regulation: ParkingRegulation? = null,
     val rppAreas: MutableSet<String> = mutableSetOf(),
-    var timeLimitHours: Int? = null,
-    var enforcementDays: Set<DayOfWeek>? = null,
-    var enforcementStart: LocalTime? = null,
-    var enforcementEnd: LocalTime? = null,
+    /** Raw parsed regulation intervals (before timeline resolution). */
+    val candidateIntervals: MutableList<ParkingInterval> = mutableListOf(),
     val sweepingSchedules: MutableList<StreetCleaningResponse> = mutableListOf(),
+    /** Raw meter schedule responses (before parsing into intervals). */
     val meterSchedules: MutableList<MeterScheduleResponse> = mutableListOf(),
-    var originalObjectId: String? = null,
+    /** True if physical meters exist on this CNN (even if no schedules were found). */
+    var hasPhysicalMeters: Boolean = false,
   )
 
-  private fun parseEnforcementDays(daysStr: String?): Set<DayOfWeek> {
-    if (daysStr == null) return DayOfWeek.values().toSet()
-
-    val days = mutableSetOf<DayOfWeek>()
-    val normalized = daysStr.uppercase()
-
-    if (
-      normalized.contains("M-F") ||
-        normalized.contains("MON-FRI") ||
-        normalized.contains("WEEKDAYS")
-    ) {
-      days.addAll(
-        listOf(
-          DayOfWeek.MONDAY,
-          DayOfWeek.TUESDAY,
-          DayOfWeek.WEDNESDAY,
-          DayOfWeek.THURSDAY,
-          DayOfWeek.FRIDAY,
-        )
-      )
+  /**
+   * Regulation priority ranking. Higher rank wins when multiple regulations match the same segment
+   * via geometry overlap.
+   */
+  private fun ParkingRegulation.rank(): Int =
+    when (this) {
+      ParkingRegulation.TIME_LIMITED -> 100
+      ParkingRegulation.RPP_ONLY -> 95
+      ParkingRegulation.PAY_OR_PERMIT -> 90
+      ParkingRegulation.PAID_PLUS_PERMIT -> 85
+      ParkingRegulation.METERED -> 80
+      ParkingRegulation.LOADING_ZONE -> 50
+      ParkingRegulation.COMMERCIAL_ONLY -> 40
+      ParkingRegulation.GOVERNMENT_ONLY -> 30
+      ParkingRegulation.NO_OVERNIGHT -> 25
+      ParkingRegulation.NO_OVERSIZED -> 20
+      ParkingRegulation.NO_PARKING -> 10
+      ParkingRegulation.NO_STOPPING -> 5
+      ParkingRegulation.UNKNOWN -> 0
     }
-    if (normalized.contains("SAT")) days.add(DayOfWeek.SATURDAY)
-    if (normalized.contains("SUN")) days.add(DayOfWeek.SUNDAY)
-    if (normalized.contains("MON") && !normalized.contains("MON-FRI")) days.add(DayOfWeek.MONDAY)
-    if (normalized.contains("TUE")) days.add(DayOfWeek.TUESDAY)
-    if (normalized.contains("WED")) days.add(DayOfWeek.WEDNESDAY)
-    if (normalized.contains("THU")) days.add(DayOfWeek.THURSDAY)
-    if (normalized.contains("FRI") && !normalized.contains("MON-FRI")) days.add(DayOfWeek.FRIDAY)
-    if (normalized.contains("DAILY") || normalized.isBlank()) {
-      days.addAll(DayOfWeek.values())
-    }
-
-    return if (days.isEmpty()) DayOfWeek.values().toSet() else days
-  }
 
   companion object {
     private val log = Logger.withTag("ParkingRepository")
 
-    /** Threshold for matching a regulation or meter to a street centerline segment. */
-    private const val MATCHING_THRESHOLD_METERS = 20.0
+    /**
+     * Maximum distance (in meters) for matching a regulation polyline to a sweeping centerline.
+     * Compromise between accuracy and coverage:
+     * - 20m (original): caused regulation leakage at dense intersections
+     * - 10m (too tight): missed valid matches where regulation polylines are offset from centerline
+     * - 15m: catches curb-offset regulations while limiting intersection leakage
+     */
+    private const val MATCHING_THRESHOLD_METERS = 15.0
     private const val API_BATCH_LIMIT = 5000
   }
 
-  override fun getAllSpots(): Flow<List<ParkingSpot>> {
-    return dao.getAllSpots().map { entities ->
-      log.d { "getAllSpots: mapping ${entities.size} entities" }
-      entities.map { it.toDomainModel() }
+  // ── Public API (ParkingRepository interface) ──
+
+  override fun getAllSpots(): Flow<List<ParkingSpot>> =
+    dao.getAllSpots().map { it.map { e -> e.toDomainModel() } }
+
+  override fun getSpotsByZone(zone: String): Flow<List<ParkingSpot>> =
+    dao.getSpotsByZone(zone).map { it.map { e -> e.toDomainModel() } }
+
+  override fun countSpotsByZone(zone: String): Flow<Int> = dao.countSpotsByZone(zone)
+
+  override fun getAllPermitZones(): Flow<List<String>> =
+    dao.getAllRppZonesInternal().map {
+      it.flatMap { s -> s.split(",") }.filter { s -> s.isNotBlank() }.distinct().sorted()
     }
-  }
 
-  override fun getSpotsByZone(zone: String): Flow<List<ParkingSpot>> {
-    return dao.getSpotsByZone(zone).map { entities ->
-      log.d { "getSpotsByZone($zone): mapping ${entities.size} entities" }
-      entities.map { it.toDomainModel() }
-    }
-  }
-
-  override fun countSpotsByZone(zone: String): Flow<Int> {
-    return dao.countSpotsByZone(zone)
-  }
-
-  override fun getAllPermitZones(): Flow<List<String>> {
-    return dao.getAllRppZonesInternal().map { rppAreaStrings ->
-      rppAreaStrings.flatMap { it.split(",") }.filter { it.isNotBlank() }.distinct().sorted()
-    }
-  }
-
-  override fun getUserPermitZone(): Flow<String?> {
-    return dao.getUserPreferences().map { it?.rppZone }
-  }
+  override fun getUserPermitZone(): Flow<String?> = dao.getUserPreferences().map { it?.rppZone }
 
   override suspend fun setUserPermitZone(zone: String?) {
-    val existing = getExistingPreferences()
+    val existing = dao.getUserPreferences().first() ?: UserPreferencesEntity(1, null)
     dao.upsertUserPreferences(existing.copy(rppZone = zone))
-    analyticsTracker.setCustomKey("rpp_zone", zone ?: "none")
   }
 
-  private suspend fun getExistingPreferences(): UserPreferencesEntity {
-    return dao.getUserPreferences().first() ?: UserPreferencesEntity(id = 1, rppZone = null)
-  }
+  // ── Data Sync ──
 
   private data class ProcessingResult(
     val spots: List<ParkingSpotEntity>,
     val sweepingSchedules: List<SweepingScheduleEntity>,
-    val meterSchedules: List<MeterScheduleEntity>,
     val hasParkingData: Boolean,
   )
 
+  /**
+   * Fetches all four SF data sources, merges them by (CNN, side), resolves overlapping rules into a
+   * timeline via [TimelineResolver], and stores the result in Room.
+   */
   override suspend fun refreshData(): Boolean = coroutineScope {
-    log.d { "refreshData: starting memory-efficient fetch" }
-
-    // 1. Fetch Sweeping Data (The Backbone)
-    // We need this entire dataset to build the CoordinateMatcher and unifiedContexts.
-    // It's the smallest layer (~35k records) and is the physical street network.
+    log.d { "refreshData: starting sync" }
     val sweepingData = fetchAllSweepingData()
-    if (sweepingData.isEmpty()) {
-      log.w { "refreshData: no sweeping data found, aborting" }
-      return@coroutineScope false
-    }
+    if (sweepingData.isEmpty()) return@coroutineScope false
 
-    log.d { "refreshData: sweeping data loaded. Building matcher..." }
-
-    // Heavy processing on background thread
     val result =
       withContext(defaultDispatcher) {
         var hasMatchedParking = false
         val matcher = CoordinateMatcher(sweepingData)
         val unifiedContexts = mutableMapOf<Pair<String, StreetSide>, UnifiedSegmentContext>()
 
-        // Seed contexts from Sweeping Data
-        for (sweeping in sweepingData) {
-          val side = sweeping.cnnRightLeft.toStreetSide()
-          val key = sweeping.cnn to side
+        // ── Step 1: Build segment backbone from sweeping data ──
+        // Each sweeping record seeds a UnifiedSegmentContext keyed by (CNN, side).
+        // Sweeping geometry becomes the street centerline for coordinate matching.
+        for (s in sweepingData) {
+          val side = s.cnnRightLeft.toStreetSide()
           val context =
-            unifiedContexts.getOrPut(key) { UnifiedSegmentContext(cnn = sweeping.cnn, side = side) }
-
-          context.sweepingSchedules.add(sweeping)
+            unifiedContexts.getOrPut(s.cnn to side) { UnifiedSegmentContext(s.cnn, side) }
+          context.sweepingSchedules.add(s)
           if (context.centerline == null) {
-            context.centerline = parseGeometry(sweeping.geometry)
-            context.streetName = sweeping.streetName
-            context.blockLimits = sweeping.limits
+            context.centerline = parseGeometry(s.geometry)
+            context.streetName = s.streetName
+            context.blockLimits = s.limits
           }
         }
 
-        // 2. Fetch and Match Parking Regulations in Batches
-        log.d { "refreshData: fetching parking regulations in batches" }
+        // ── Step 2: Match parking regulations to segments via geometry ──
+        // Each regulation polyline is sampled at up to 10 points and matched to the nearest
+        // sweeping centerline within MATCHING_THRESHOLD_METERS.
         fetchInBatches(
-          fetch = { limit, offset -> api.getParkingRegulations(limit = limit, offset = offset) },
+          fetch = { l, o -> api.getParkingRegulations(l, o) },
           process = { batch ->
-            for (regulation in batch) {
-              val poly = parseGeometry(regulation.shape) ?: continue
-              val overlappingSegments = matcher.matchPolyline(poly, MATCHING_THRESHOLD_METERS)
+            for (reg in batch) {
+              val poly = parseGeometry(reg.shape) ?: continue
+              val overlaps = matcher.matchPolyline(poly, MATCHING_THRESHOLD_METERS)
 
-              for (match in overlappingSegments) {
-                val key = match.cnn to match.side
-                val context = unifiedContexts[key] ?: continue
+              // If no sweeping centerline matches, create a "virtual" segment.
+              // Identity Inheritance: find the closest known street for naming.
+              val contexts =
+                if (overlaps.isEmpty()) {
+                  val vCnn = "reg_${reg.objectId}"
+                  val key = vCnn to StreetSide.RIGHT
+                  listOf(
+                    unifiedContexts.getOrPut(key) {
+                      UnifiedSegmentContext(vCnn, StreetSide.RIGHT).apply {
+                        curbsideGeometry = poly
+                        val coord = poly.coordinates.firstOrNull()
+                        if (coord != null && coord.size >= 2) {
+                          matcher.findClosestSegment(coord[1], coord[0])?.let { closest ->
+                            this.streetName = closest.streetName
+                            this.neighborhood = reg.neighborhood ?: closest.neighborhood
+                          } ?: run { this.streetName = "Unknown Street" }
+                        } else {
+                          this.streetName = "Unknown Street"
+                        }
+                      }
+                    }
+                  )
+                } else overlaps.mapNotNull { unifiedContexts[it.cnn to it.side] }
 
+              for (ctx in contexts) {
                 hasMatchedParking = true
-                // If the regulation is higher resolution, use its geometry
-                context.curbsideGeometry = poly
+                if (ctx.curbsideGeometry == null) ctx.curbsideGeometry = poly
 
-                context.regulation = regulation.regulation.toParkingRegulation()
-                regulation.rppArea1?.takeIf { it.isNotBlank() }?.let { context.rppAreas.add(it) }
-                regulation.rppArea2?.takeIf { it.isNotBlank() }?.let { context.rppAreas.add(it) }
-                regulation.rppArea3?.takeIf { it.isNotBlank() }?.let { context.rppAreas.add(it) }
-                context.neighborhood = regulation.neighborhood
-                context.timeLimitHours = parseTimeLimit(regulation.hrLimit)
-                context.enforcementDays = parseEnforcementDays(regulation.days)
-                context.enforcementStart =
-                  parseTime(regulation.hrsBegin)?.let { timeToLocalTime(it) }
-                context.enforcementEnd = parseTime(regulation.hrsEnd)?.let { timeToLocalTime(it) }
-                context.originalObjectId = regulation.objectId
+                val incoming = reg.regulation.toParkingRegulation()
+                val current = ctx.regulation
+                if (current == null || incoming.rank() > current.rank()) ctx.regulation = incoming
+
+                // Collect RPP areas, filtering out "0" (data quality issue in 2 records)
+                reg.rppArea1?.takeIf { it.isNotBlank() && it != "0" }?.let { ctx.rppAreas.add(it) }
+                reg.rppArea2?.takeIf { it.isNotBlank() && it != "0" }?.let { ctx.rppAreas.add(it) }
+                reg.rppArea3?.takeIf { it.isNotBlank() && it != "0" }?.let { ctx.rppAreas.add(it) }
+                reg.exceptions?.let { e ->
+                  Regex("Except Area ([A-Z])", RegexOption.IGNORE_CASE).findAll(e).forEach {
+                    ctx.rppAreas.add(it.groupValues[1].uppercase())
+                  }
+                }
+                ctx.neighborhood = reg.neighborhood ?: ctx.neighborhood
+
+                // Convert regulation to a candidate ParkingInterval for the resolver.
+                // Uses DayParser (fixes "M, TH", "Sa" bugs) and TimeParser.
+                val limit = TimeParser.parseTimeLimit(reg.hrLimit) ?: 0
+                val days = DayParser.parseRegulationDays(reg.days)
+                val rawStart = TimeParser.parseRegulationTime(reg.hrsBegin) ?: continue
+                val rawEnd = TimeParser.parseRegulationTime(reg.hrsEnd) ?: continue
+                val (start, end) = TimeParser.normalizeWindow(rawStart, rawEnd)
+
+                val intervalType = regulationToIntervalType(incoming, limit) ?: continue
+                ctx.candidateIntervals.add(
+                  ParkingInterval(
+                    type = intervalType,
+                    days = days,
+                    startTime = start,
+                    endTime = end,
+                    exemptPermitZones = ctx.rppAreas.toList(),
+                    source = IntervalSource.REGULATION,
+                  )
+                )
               }
             }
           },
         )
 
-        // 3. Fetch all Meter Schedules (Needed for Inventory matching)
-        // Grouped by Post ID to keep memory usage manageable.
-        log.d { "refreshData: fetching meter schedules" }
+        // ── Step 3: Fetch meter schedules indexed by post_id ──
+        // Skips unevaluable event-based schedules (Giants Day, Posted Events, etc.)
         val meterSchedulesByPostId = mutableMapOf<String, MutableList<MeterScheduleResponse>>()
         fetchInBatches(
-          fetch = { limit, offset -> api.getMeterSchedules(limit = limit, offset = offset) },
+          fetch = { l, o -> api.getMeterSchedules(l, o) },
           process = { batch ->
-            for (schedule in batch) {
-              val postId = schedule.postId ?: continue
-              meterSchedulesByPostId.getOrPut(postId) { mutableListOf() }.add(schedule)
-            }
-          },
-        )
-
-        // 4. Fetch and Match Meter Inventory in Batches
-        log.d { "refreshData: fetching meter inventory in batches" }
-        fetchInBatches(
-          fetch = { limit, offset -> api.getParkingMeterInventory(limit = limit, offset = offset) },
-          process = { batch ->
-            val metersByCnn =
-              batch
-                .filter { !it.streetSegCtrlnId.isNullOrBlank() }
-                .groupBy { it.streetSegCtrlnId.orEmpty() }
-
-            for ((cnn, meters) in metersByCnn) {
-              val matches = matcher.findAllMatchesForCnn(cnn)
-              for (match in matches) {
-                val key = cnn to match.side
-                val context = unifiedContexts[key] ?: continue
-
-                hasMatchedParking = true
-                if (context.regulation == null) {
-                  context.regulation = ParkingRegulation.METERED
-                  context.neighborhood = meters.firstOrNull()?.neighborhood
-                  context.streetName = context.streetName ?: meters.firstOrNull()?.streetName
-                }
-
-                val postIds = meters.map { it.postId }.toSet()
-                postIds.forEach { postId ->
-                  meterSchedulesByPostId[postId]?.let { context.meterSchedules.addAll(it) }
-                }
+            for (s in batch) {
+              if (DayParser.parseMeterDays(s.daysApplied) == null) continue
+              s.postId?.let { pid ->
+                meterSchedulesByPostId.getOrPut(pid) { mutableListOf() }.add(s)
               }
             }
           },
         )
 
-        if (!hasMatchedParking) {
-          return@withContext ProcessingResult(emptyList(), emptyList(), emptyList(), false)
-        }
+        // ── Step 4: Match meter inventory to segments by CNN ──
+        // Filters out "L" (legislated for future install) meters that don't physically exist yet.
+        // Keeps "T" (temporarily inactive) since they'll likely be back online soon.
+        fetchInBatches(
+          fetch = { l, o -> api.getParkingMeterInventory(l, o) },
+          process = { batch ->
+            val filtered =
+              batch.filter { !it.streetSegCtrlnId.isNullOrBlank() && it.activeMeterFlag != "L" }
+            val byCnn = filtered.groupBy { checkNotNull(it.streetSegCtrlnId) }
+            for ((cnn, meters) in byCnn) {
+              val overlaps = matcher.findAllMatchesForCnn(cnn)
+              val contexts =
+                if (overlaps.isEmpty()) {
+                  val f = meters.first()
+                  val lat = f.latitude?.toDoubleOrNull() ?: 0.0
+                  val lng = f.longitude?.toDoubleOrNull() ?: 0.0
+                  val vCnn = "meter_$cnn"
+                  listOf(
+                    unifiedContexts.getOrPut(vCnn to StreetSide.RIGHT) {
+                      UnifiedSegmentContext(vCnn, StreetSide.RIGHT).apply {
+                        curbsideGeometry =
+                          Geometry(
+                            "LineString",
+                            listOf(listOf(lng, lat), listOf(lng + 0.00001, lat + 0.00001)),
+                          )
+                        streetName = f.streetName ?: "Unknown Street"
+                        neighborhood = f.neighborhood
+                      }
+                    }
+                  )
+                } else overlaps.mapNotNull { unifiedContexts[cnn to it.side] }
 
-        // Finalize Entities
-        val spotsList = mutableListOf<ParkingSpotEntity>()
-        val sweepingList = mutableListOf<SweepingScheduleEntity>()
-        val meterSchedulesList = mutableListOf<MeterScheduleEntity>()
+              for (ctx in contexts) {
+                hasMatchedParking = true
+                ctx.hasPhysicalMeters = true
+                val currentReg = ctx.regulation
+                if (currentReg == null || ParkingRegulation.METERED.rank() > currentReg.rank())
+                  ctx.regulation = ParkingRegulation.METERED
+                meters
+                  .mapNotNull { it.postId }
+                  .forEach { pid ->
+                    meterSchedulesByPostId[pid]?.let { ctx.meterSchedules.addAll(it) }
+                  }
+              }
+            }
+          },
+        )
 
-        for (context in unifiedContexts.values) {
-          // Skip segments that only have sweeping data but no parking regulation or meters.
-          if (context.regulation == null && context.meterSchedules.isEmpty()) continue
+        // ── Step 5: Resolve each segment's timeline and build entities ──
+        val spots = mutableListOf<ParkingSpotEntity>()
+        val sweeping = mutableListOf<SweepingScheduleEntity>()
 
-          // RESOLVE Geometry: Prioritize Reg, then offset Centerline
-          val finalGeometry =
+        for (ctx in unifiedContexts.values) {
+          if (ctx.regulation == null && ctx.meterSchedules.isEmpty()) continue
+          val geom =
             when {
-              context.curbsideGeometry != null -> context.curbsideGeometry
-              context.centerline != null ->
-                CoordinateMatcher.offsetGeometry(checkNotNull(context.centerline), context.side)
-
+              ctx.curbsideGeometry != null -> ctx.curbsideGeometry
+              ctx.centerline != null ->
+                CoordinateMatcher.offsetGeometry(checkNotNull(ctx.centerline), ctx.side)
               else -> null
             } ?: continue
 
-          val spotId = "cnn_${context.cnn}_${context.side.name}"
+          val sId = "cnn_${ctx.cnn}_${ctx.side.name}"
 
-          val spot =
+          // Build sweeping schedule entities (kept separate for week-of-month logic)
+          addSweepingSchedules(sId, ctx.sweepingSchedules, sweeping)
+
+          // Convert raw meter schedules to candidate ParkingIntervals
+          var meterIntervals =
+            parseMeterSchedulesToIntervals(ctx.meterSchedules, ctx.rppAreas.toList())
+
+          // Fallback: meters physically exist but the schedules API has no data for them.
+          // Inject a default Mon-Sat 7AM-6PM metered interval (the most common SF pattern)
+          // with timeLimitMinutes=0 meaning "pay at meter, check meter for actual limit."
+          if (meterIntervals.isEmpty() && ctx.hasPhysicalMeters) {
+            meterIntervals =
+              listOf(
+                ParkingInterval(
+                  type = IntervalType.Metered(timeLimitMinutes = 0),
+                  days = DayParser.parseRegulationDays("M-Sa"),
+                  startTime = LocalTime(7, 0),
+                  endTime = LocalTime(18, 0),
+                  exemptPermitZones = ctx.rppAreas.toList(),
+                  source = IntervalSource.METER,
+                )
+              )
+          }
+
+          val allCandidates = ctx.candidateIntervals + meterIntervals
+
+          // Resolve all overlapping rules into a clean, non-overlapping timeline.
+          // The resolver uses priority: FORBIDDEN > RESTRICTED > METERED > LIMITED > OPEN.
+          // Within the same tier, shorter time limit wins (safer for the user).
+          val timeline = TimelineResolver.resolve(allCandidates)
+
+          spots.add(
             ParkingSpotEntity(
-              objectId = spotId,
-              geometry = finalGeometry,
-              streetName = context.streetName,
-              blockLimits = context.blockLimits,
-              neighborhood = context.neighborhood,
-              regulation = checkNotNull(context.regulation),
-              rppAreas = context.rppAreas.toList().sorted(),
-              timeLimitHours = context.timeLimitHours,
-              enforcementDays = context.enforcementDays,
-              enforcementStart = context.enforcementStart,
-              enforcementEnd = context.enforcementEnd,
-              sweepingCnn = context.cnn,
-              sweepingSide = context.side,
+              sId,
+              geom,
+              ctx.streetName,
+              ctx.blockLimits,
+              ctx.neighborhood,
+              ctx.rppAreas.toList().sorted(),
+              timeline,
+              ctx.cnn,
+              ctx.side,
             )
-
-          spotsList.add(spot)
-          addSweepingSchedules(spotId, context.sweepingSchedules, sweepingList)
-          addMeterSchedules(spotId, context.meterSchedules, meterSchedulesList)
+          )
         }
-
-        ProcessingResult(spotsList, sweepingList, meterSchedulesList, hasMatchedParking)
+        ProcessingResult(spots, sweeping, hasMatchedParking)
       }
 
-    log.d { "refreshData: saving ${result.spots.size} segments to DB" }
-    if (result.hasParkingData && result.spots.isNotEmpty()) {
-      dao.clearAllMeterSchedules()
+    if (result.hasParkingData) {
       dao.clearAllSchedules()
       dao.clearAllSpots()
       dao.insertSpots(result.spots)
       dao.insertSchedules(result.sweepingSchedules)
-      dao.insertMeterSchedules(result.meterSchedules)
-      log.d { "refreshData: sync complete" }
+    }
+    result.hasParkingData
+  }
+
+  // ── Meter schedule parsing ──
+
+  /**
+   * Converts raw [MeterScheduleResponse]s into [ParkingInterval] candidates for the resolver.
+   *
+   * Handles deduplication (multiple physical meters on same CNN with identical schedules), midnight
+   * normalization (00:00-00:00 = full day), tow zone detection, and commercial color rule
+   * classification.
+   */
+  private fun parseMeterSchedulesToIntervals(
+    responses: List<MeterScheduleResponse>,
+    rppAreas: List<String>,
+  ): List<ParkingInterval> {
+    data class ParsedMeter(
+      val days: Set<kotlinx.datetime.DayOfWeek>,
+      val start: LocalTime,
+      val end: LocalTime,
+      val limitMinutes: Int,
+      val isTow: Boolean,
+      val isCommercial: Boolean,
+    )
+
+    val parsed =
+      responses.mapNotNull { r ->
+        val days = DayParser.parseMeterDays(r.daysApplied) ?: return@mapNotNull null
+        val rawStart = TimeParser.parseMeterTime(r.fromTime) ?: return@mapNotNull null
+        val rawEnd = TimeParser.parseMeterTime(r.toTime) ?: return@mapNotNull null
+        val (start, end) = TimeParser.normalizeWindow(rawStart, rawEnd)
+        val limitMinutes = r.timeLimit?.filter { it.isDigit() }?.toIntOrNull() ?: 0
+        val isTow = r.scheduleType?.contains("Tow", true) == true
+        // Check if this is a commercial/restricted meter by its color rule.
+        // Must match the color prefix BEFORE the dash to avoid false positives:
+        // "Grey - General metered parking" contains "red" in "metered" but is NOT commercial.
+        val colorPrefix = r.appliedColorRule?.substringBefore("-")?.trim()?.lowercase()
+        val isCommercial = colorPrefix in setOf("yellow", "red", "orange")
+
+        ParsedMeter(days, start, end, limitMinutes, isTow, isCommercial)
+      }
+
+    // Dedup: group by all fields and take first (30+ physical meters on same CNN have same
+    // schedule)
+    val deduped =
+      parsed
+        .groupBy { listOf(it.days, it.start, it.end, it.limitMinutes, it.isTow, it.isCommercial) }
+        .map { (_, group) -> group.first() }
+
+    return deduped.map { m ->
+      val type =
+        when {
+          m.isTow -> IntervalType.Forbidden("Tow Away Zone")
+          m.isCommercial -> IntervalType.Restricted("Commercial Vehicles Only")
+          else -> IntervalType.Metered(m.limitMinutes)
+        }
+      ParkingInterval(
+        type = type,
+        days = m.days,
+        startTime = m.start,
+        endTime = m.end,
+        exemptPermitZones = rppAreas,
+        source = if (m.isTow) IntervalSource.TOW else IntervalSource.METER,
+      )
+    }
+  }
+
+  // ── Regulation to IntervalType mapping ──
+
+  /**
+   * Maps a [ParkingRegulation] to an [IntervalType] for the timeline resolver.
+   *
+   * Returns null for informational regulations that shouldn't appear in the timeline (e.g.,
+   * NO_OVERSIZED applies only to large vehicles, not typical passenger cars).
+   */
+  private fun regulationToIntervalType(reg: ParkingRegulation, limitMinutes: Int): IntervalType? =
+    when (reg) {
+      ParkingRegulation.TIME_LIMITED ->
+        if (limitMinutes > 0) IntervalType.Limited(limitMinutes) else null
+      ParkingRegulation.PAY_OR_PERMIT,
+      ParkingRegulation.PAID_PLUS_PERMIT ->
+        if (limitMinutes > 0) IntervalType.Limited(limitMinutes) else null
+      // RPP-only streets: even with no numeric limit, the regulation itself IS the restriction.
+      // Without a permit, you can't park here at all during enforcement hours.
+      ParkingRegulation.RPP_ONLY ->
+        if (limitMinutes > 0) IntervalType.Limited(limitMinutes)
+        else IntervalType.Restricted("Residential Permit Required")
+      ParkingRegulation.METERED -> IntervalType.Metered(limitMinutes)
+      ParkingRegulation.COMMERCIAL_ONLY -> IntervalType.Restricted("Commercial Vehicles Only")
+      ParkingRegulation.LOADING_ZONE -> IntervalType.Restricted("Loading Zone")
+      ParkingRegulation.NO_PARKING -> IntervalType.Forbidden("No Parking")
+      ParkingRegulation.NO_STOPPING -> IntervalType.Forbidden("No Stopping")
+      ParkingRegulation.NO_OVERNIGHT -> IntervalType.Forbidden("No Overnight Parking")
+      ParkingRegulation.GOVERNMENT_ONLY -> null // Doesn't affect regular passenger vehicles
+      ParkingRegulation.NO_OVERSIZED -> null // Doesn't affect regular passenger vehicles
+      ParkingRegulation.UNKNOWN -> null
     }
 
-    return@coroutineScope result.hasParkingData
+  // ── Sweeping schedule entity creation ──
+
+  /**
+   * Creates [SweepingScheduleEntity]s from raw sweeping responses.
+   *
+   * Deduplicates by all fields to handle the (common) case where the API returns duplicate records
+   * for the same sweeping window.
+   */
+  private fun addSweepingSchedules(
+    sId: String,
+    schs: List<StreetCleaningResponse>,
+    out: MutableList<SweepingScheduleEntity>,
+  ) {
+    schs
+      .distinctBy {
+        listOf(
+          it.weekday,
+          it.fromhour,
+          it.tohour,
+          it.servicedOnFirstWeekOfMonth,
+          it.servicedOnSecondWeekOfMonth,
+          it.servicedOnThirdWeekOfMonth,
+          it.servicedOnFourthWeekOfMonth,
+          it.servicedOnFifthWeekOfMonth,
+          it.servicedOnHolidays,
+        )
+      }
+      .forEach { s ->
+        out.add(
+          SweepingScheduleEntity(
+            sId,
+            s.weekday,
+            (s.fromhour.toIntOrNull() ?: 0) % 24,
+            (s.tohour.toIntOrNull() ?: 0) % 24,
+            s.servicedOnFirstWeekOfMonth,
+            s.servicedOnSecondWeekOfMonth,
+            s.servicedOnThirdWeekOfMonth,
+            s.servicedOnFourthWeekOfMonth,
+            s.servicedOnFifthWeekOfMonth,
+            s.servicedOnHolidays,
+          )
+        )
+      }
+  }
+
+  // ── Network fetch helpers ──
+
+  private suspend fun fetchAllSweepingData(): List<StreetCleaningResponse> {
+    val all = mutableListOf<StreetCleaningResponse>()
+    var o = 0
+    while (true) {
+      val b =
+        try {
+          api.getStreetCleaningData(API_BATCH_LIMIT, o)
+        } catch (e: kotlinx.io.IOException) {
+          log.w(e) { "Failed to fetch sweeping data at offset $o" }
+          break
+        }
+      if (b.isEmpty()) break
+      all.addAll(b.filter { it.cnn.isNotEmpty() && it.geometry != null })
+      o += API_BATCH_LIMIT
+    }
+    return all
   }
 
   private suspend fun <T> fetchInBatches(
-    fetch: suspend (limit: Int, offset: Int) -> List<T>,
+    fetch: suspend (Int, Int) -> List<T>,
     process: suspend (List<T>) -> Unit,
   ) {
-    var offset = 0
+    var o = 0
     while (true) {
-      val batch =
+      val b =
         try {
-          fetch(API_BATCH_LIMIT, offset)
-        } catch (e: Exception) {
-          log.e(e) { "fetchInBatches: API call failed at offset $offset" }
+          fetch(API_BATCH_LIMIT, o)
+        } catch (e: kotlinx.io.IOException) {
+          log.w(e) { "Batch fetch failed at offset $o" }
           break
         }
-      if (batch.isEmpty()) break
-      process(batch)
-      offset += API_BATCH_LIMIT
+      if (b.isEmpty()) break
+      process(b)
+      o += API_BATCH_LIMIT
     }
   }
 
-  private fun addSweepingSchedules(
-    spotId: String,
-    schedules: List<StreetCleaningResponse>,
-    schedulesList: MutableList<SweepingScheduleEntity>,
-  ) {
-    for (schedule in schedules) {
-      val fromHour = (schedule.fromhour.toIntOrNull() ?: 0) % 24
-      val toHour = (schedule.tohour.toIntOrNull() ?: 0) % 24
+  // ── Geometry parsing ──
 
-      schedulesList.add(
-        SweepingScheduleEntity(
-          parkingSpotId = spotId,
-          weekday = schedule.weekday,
-          fromHour = fromHour,
-          toHour = toHour,
-          week1 = schedule.servicedOnFirstWeekOfMonth,
-          week2 = schedule.servicedOnSecondWeekOfMonth,
-          week3 = schedule.servicedOnThirdWeekOfMonth,
-          week4 = schedule.servicedOnFourthWeekOfMonth,
-          week5 = schedule.servicedOnFifthWeekOfMonth,
-          holidays = schedule.servicedOnHolidays,
-        )
-      )
-    }
-  }
-
-  private fun addMeterSchedules(
-    spotId: String,
-    responses: List<MeterScheduleResponse>,
-    schedulesList: MutableList<MeterScheduleEntity>,
-  ) {
-    // Phase 1: Deduplicate identical raw API responses (same string fields across meter posts).
-    val uniqueSchedules =
-      responses.groupBy {
-        Triple(it.daysApplied, it.fromTime to it.toTime, it.timeLimit to it.scheduleType)
-      }
-
-    // Phase 2: Parse into (days, start, end, limit, isTow) tuples.
-    data class Parsed(
-      val days: Set<DayOfWeek>,
-      val start: LocalTime,
-      val end: LocalTime,
-      val limit: Int,
-      val isTow: Boolean,
-    )
-
-    val parsed = mutableListOf<Parsed>()
-    for ((_, schedules) in uniqueSchedules) {
-      val first = schedules.first()
-      val days = parseMeterDays(first.daysApplied)
-      val start = parseMeterTime(first.fromTime) ?: continue
-      val end = parseMeterTime(first.toTime) ?: continue
-      val limit = first.timeLimit?.filter { it.isDigit() }?.toIntOrNull() ?: 0
-      val isTow = first.scheduleType?.contains("Tow", ignoreCase = true) == true
-      parsed.add(Parsed(days, start, end, limit, isTow))
-    }
-
-    // Phase 3: Merge schedules that share the same time window, limit, and tow status
-    // by unioning their day sets. Then drop any schedule whose days are a strict subset
-    // of another with the same window and a <= limit (the broader one is more restrictive
-    // or equally restrictive, so the subset adds no information).
-    val merged =
-      parsed
-        .groupBy { Triple(it.start, it.end, it.limit to it.isTow) }
-        .flatMap { (key, group) ->
-          val (start, end, limitTow) = key
-          val (limit, isTow) = limitTow
-          val unionDays = group.fold(emptySet<DayOfWeek>()) { acc, p -> acc + p.days }
-          listOf(Parsed(unionDays, start, end, limit, isTow))
-        }
-        .toMutableList()
-
-    // Remove schedules whose days are a strict subset of another with the same window
-    // and equal-or-shorter time limit (the superset already covers those days).
-    merged.removeAll { candidate ->
-      merged.any { other ->
-        other !== candidate &&
-          other.start == candidate.start &&
-          other.end == candidate.end &&
-          other.isTow == candidate.isTow &&
-          other.limit <= candidate.limit &&
-          other.days.containsAll(candidate.days) &&
-          other.days.size > candidate.days.size
-      }
-    }
-
-    for (schedule in merged) {
-      schedulesList.add(
-        MeterScheduleEntity(
-          parkingSpotId = spotId,
-          days = schedule.days,
-          startTime = schedule.start,
-          endTime = schedule.end,
-          timeLimitMinutes = schedule.limit,
-          isTowZone = schedule.isTow,
-        )
-      )
-    }
-  }
-
-  private fun parseMeterDays(daysStr: String?): Set<DayOfWeek> {
-    if (daysStr == null) return DayOfWeek.values().toSet()
-    val days = mutableSetOf<DayOfWeek>()
-    val parts = daysStr.split(",")
-    for (part in parts) {
-      when (part.trim()) {
-        "Mo" -> days.add(DayOfWeek.MONDAY)
-        "Tu" -> days.add(DayOfWeek.TUESDAY)
-        "We" -> days.add(DayOfWeek.WEDNESDAY)
-        "Th" -> days.add(DayOfWeek.THURSDAY)
-        "Fr" -> days.add(DayOfWeek.FRIDAY)
-        "Sa" -> days.add(DayOfWeek.SATURDAY)
-        "Su" -> days.add(DayOfWeek.SUNDAY)
-      }
-    }
-    return if (days.isEmpty()) DayOfWeek.values().toSet() else days
-  }
-
-  private fun parseMeterTime(timeStr: String?): LocalTime? {
-    if (timeStr == null) return null
-    return try {
-      val parts = timeStr.split(" ")
-      val timeParts = parts[0].split(":")
-      var hour = timeParts[0].toInt()
-      val minute = if (timeParts.size > 1) timeParts[1].toInt() else 0
-      val isPm = parts.size > 1 && parts[1].uppercase() == "PM"
-
-      if (isPm && hour < 12) hour += 12
-      if (!isPm && hour == 12) hour = 0
-
-      LocalTime(hour % 24, minute % 60)
-    } catch (e: NumberFormatException) {
-      log.e(e) { "parseMeterTime: invalid time format" }
-      null
-    }
-  }
-
-  private suspend fun fetchAllSweepingData(): List<StreetCleaningResponse> {
-    val allSweeping = mutableListOf<StreetCleaningResponse>()
-    var offset = 0
-
-    while (true) {
-      val batch =
-        try {
-          api.getStreetCleaningData(limit = API_BATCH_LIMIT, offset = offset)
-        } catch (e: IOException) {
-          log.e(e) { "fetchAllSweepingData: API call failed at offset $offset" }
-          analyticsTracker.logNonFatal(e, "API failure: fetchAllSweepingData at offset $offset")
-          break
-        }
-      if (batch.isEmpty()) break
-      allSweeping.addAll(batch.filter { it.cnn.isNotEmpty() && it.geometry != null })
-      offset += API_BATCH_LIMIT
-    }
-    return allSweeping
-  }
-
-  private fun parseGeometry(shape: JsonElement?): Geometry? {
-    if (shape == null) return null
-    val obj = shape.jsonObject
-    val type = obj["type"]?.jsonPrimitive?.content ?: return null
-    val coordsArray = obj["coordinates"]?.jsonArray ?: return null
-
-    val coordinates =
-      when (type) {
-        "MultiLineString" -> {
-          coordsArray.flatMap { lineArray ->
-            lineArray.jsonArray.map { point ->
-              point.jsonArray.map { it.jsonPrimitive.content.toDouble() }
-            }
+  private fun parseGeometry(s: JsonElement?): Geometry? {
+    if (s == null) return null
+    val o = s.jsonObject
+    val t = o["type"]?.jsonPrimitive?.content ?: return null
+    val ca = o["coordinates"]?.jsonArray ?: return null
+    val coords =
+      when (t) {
+        "MultiLineString" ->
+          ca.flatMap { l ->
+            l.jsonArray.map { p -> p.jsonArray.map { it.jsonPrimitive.content.toDouble() } }
           }
-        }
-
-        "LineString" -> {
-          coordsArray.map { point -> point.jsonArray.map { it.jsonPrimitive.content.toDouble() } }
-        }
-
+        "LineString" -> ca.map { p -> p.jsonArray.map { it.jsonPrimitive.content.toDouble() } }
         else -> return null
       }
-
-    return Geometry(type = "LineString", coordinates = coordinates)
+    return Geometry("LineString", coords)
   }
 
-  private fun parseTimeLimit(hrLimit: String?): Int? {
-    if (hrLimit == null) return null
-    return hrLimit.filter { it.isDigit() }.toIntOrNull()
-  }
+  // ── Domain model mapping ──
 
-  private fun parseTime(timeStr: String?): Int? {
-    if (timeStr == null) return null
-    return timeStr.filter { it.isDigit() }.toIntOrNull()
-  }
-
-  private fun timeToLocalTime(time: Int): LocalTime {
-    val hour = time / 100
-    val minute = time % 100
-    return if (hour >= 24) {
-      LocalTime(23, 59)
-    } else {
-      LocalTime(hour, minute.coerceIn(0, 59))
-    }
-  }
-
-  private fun PopulatedParkingSpot.toDomainModel(): ParkingSpot {
-    // SF publishes parking rules in two datasets: a regulation layer (timedRestriction)
-    // and a meter schedule layer. When both exist for the same spot, the meter schedules
-    // are strictly more granular, so drop the regulation-sourced timedRestriction to
-    // avoid double-reporting the same rule.
-    val hasMeters = meterSchedules.isNotEmpty()
-
-    return ParkingSpot(
+  /**
+   * Maps a [PopulatedParkingSpot] (Room join result) to the [ParkingSpot] domain model.
+   *
+   * Sweeping schedules are sorted by (weekday ordinal, fromHour). The timeline comes directly from
+   * the entity (pre-resolved during sync).
+   */
+  private fun PopulatedParkingSpot.toDomainModel(): ParkingSpot =
+    ParkingSpot(
       objectId = spot.objectId,
       geometry = spot.geometry,
       streetName = spot.streetName,
       blockLimits = spot.blockLimits,
       neighborhood = spot.neighborhood,
-      regulation = spot.regulation,
       rppAreas = spot.rppAreas,
-      timedRestriction =
-        if (hasMeters) null
-        else
-          spot.timeLimitHours?.let { limitHours ->
-            TimedRestriction(
-              limitHours = limitHours,
-              days = spot.enforcementDays.orEmpty(),
-              startTime = spot.enforcementStart,
-              endTime = spot.enforcementEnd,
-            )
-          },
       sweepingCnn = spot.sweepingCnn,
       sweepingSide = spot.sweepingSide,
       sweepingSchedules =
         schedules
-          .map { schedule ->
+          .map {
             SweepingSchedule(
-              weekday = schedule.weekday,
-              fromHour = schedule.fromHour,
-              toHour = schedule.toHour,
-              week1 = schedule.week1,
-              week2 = schedule.week2,
-              week3 = schedule.week3,
-              week4 = schedule.week4,
-              week5 = schedule.week5,
-              holidays = schedule.holidays,
+              it.weekday,
+              it.fromHour,
+              it.toHour,
+              it.week1,
+              it.week2,
+              it.week3,
+              it.week4,
+              it.week5,
+              it.holidays,
             )
           }
           .sortedWith(compareBy({ it.weekday.ordinal }, { it.fromHour })),
-      meterSchedules =
-        meterSchedules
-          .map { entity ->
-            MeterSchedule(
-              days = entity.days,
-              startTime = entity.startTime,
-              endTime = entity.endTime,
-              timeLimitMinutes = entity.timeLimitMinutes,
-              isTowZone = entity.isTowZone,
-            )
-          }
-          .sortedWith(
-            compareBy(
-              { schedule -> schedule.days.minByOrNull { it.ordinal }?.ordinal ?: Int.MAX_VALUE },
-              { it.startTime },
-            )
-          ),
+      timeline = spot.timeline,
     )
-  }
 }

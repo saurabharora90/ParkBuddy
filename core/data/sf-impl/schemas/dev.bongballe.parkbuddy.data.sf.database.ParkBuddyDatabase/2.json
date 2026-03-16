@@ -1,12 +1,12 @@
 {
   "formatVersion": 1,
   "database": {
-    "version": 1,
-    "identityHash": "3b3f0a10f5c66a37455382184c968ba7",
+    "version": 2,
+    "identityHash": "6df4ed8b1ff7049ea5036581ac0a0e4c",
     "entities": [
       {
         "tableName": "parking_spots",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`objectId` TEXT NOT NULL, `geometry` TEXT NOT NULL, `streetName` TEXT, `blockLimits` TEXT, `neighborhood` TEXT, `regulation` TEXT NOT NULL, `rppAreas` TEXT NOT NULL, `timeLimitHours` INTEGER, `enforcementDays` TEXT, `enforcementStart` TEXT, `enforcementEnd` TEXT, `sweepingCnn` TEXT, `sweepingSide` TEXT, PRIMARY KEY(`objectId`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`objectId` TEXT NOT NULL, `geometry` TEXT NOT NULL, `streetName` TEXT, `blockLimits` TEXT, `neighborhood` TEXT, `rppAreas` TEXT NOT NULL, `timeline` TEXT NOT NULL, `sweepingCnn` TEXT, `sweepingSide` TEXT, PRIMARY KEY(`objectId`))",
         "fields": [
           {
             "fieldPath": "objectId",
@@ -36,36 +36,16 @@
             "affinity": "TEXT"
           },
           {
-            "fieldPath": "regulation",
-            "columnName": "regulation",
-            "affinity": "TEXT",
-            "notNull": true
-          },
-          {
             "fieldPath": "rppAreas",
             "columnName": "rppAreas",
             "affinity": "TEXT",
             "notNull": true
           },
           {
-            "fieldPath": "timeLimitHours",
-            "columnName": "timeLimitHours",
-            "affinity": "INTEGER"
-          },
-          {
-            "fieldPath": "enforcementDays",
-            "columnName": "enforcementDays",
-            "affinity": "TEXT"
-          },
-          {
-            "fieldPath": "enforcementStart",
-            "columnName": "enforcementStart",
-            "affinity": "TEXT"
-          },
-          {
-            "fieldPath": "enforcementEnd",
-            "columnName": "enforcementEnd",
-            "affinity": "TEXT"
+            "fieldPath": "timeline",
+            "columnName": "timeline",
+            "affinity": "TEXT",
+            "notNull": true
           },
           {
             "fieldPath": "sweepingCnn",
@@ -87,7 +67,7 @@
       },
       {
         "tableName": "sweeping_schedules",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`parkingSpotId` TEXT NOT NULL, `weekday` TEXT NOT NULL, `fromHour` INTEGER NOT NULL, `toHour` INTEGER NOT NULL, `week1` INTEGER NOT NULL, `week2` INTEGER NOT NULL, `week3` INTEGER NOT NULL, `week4` INTEGER NOT NULL, `week5` INTEGER NOT NULL, `holidays` INTEGER NOT NULL, PRIMARY KEY(`parkingSpotId`, `weekday`), FOREIGN KEY(`parkingSpotId`) REFERENCES `parking_spots`(`objectId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`parkingSpotId` TEXT NOT NULL, `weekday` TEXT NOT NULL, `fromHour` INTEGER NOT NULL, `toHour` INTEGER NOT NULL, `week1` INTEGER NOT NULL, `week2` INTEGER NOT NULL, `week3` INTEGER NOT NULL, `week4` INTEGER NOT NULL, `week5` INTEGER NOT NULL, `holidays` INTEGER NOT NULL, PRIMARY KEY(`parkingSpotId`, `weekday`, `fromHour`, `toHour`), FOREIGN KEY(`parkingSpotId`) REFERENCES `parking_spots`(`objectId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
         "fields": [
           {
             "fieldPath": "parkingSpotId",
@@ -154,7 +134,9 @@
           "autoGenerate": false,
           "columnNames": [
             "parkingSpotId",
-            "weekday"
+            "weekday",
+            "fromHour",
+            "toHour"
           ]
         },
         "indices": [
@@ -204,89 +186,11 @@
             "id"
           ]
         }
-      },
-      {
-        "tableName": "meter_schedules",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `parkingSpotId` TEXT NOT NULL, `days` TEXT NOT NULL, `startTime` TEXT NOT NULL, `endTime` TEXT NOT NULL, `timeLimitMinutes` INTEGER NOT NULL, `isTowZone` INTEGER NOT NULL, FOREIGN KEY(`parkingSpotId`) REFERENCES `parking_spots`(`objectId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
-        "fields": [
-          {
-            "fieldPath": "id",
-            "columnName": "id",
-            "affinity": "INTEGER",
-            "notNull": true
-          },
-          {
-            "fieldPath": "parkingSpotId",
-            "columnName": "parkingSpotId",
-            "affinity": "TEXT",
-            "notNull": true
-          },
-          {
-            "fieldPath": "days",
-            "columnName": "days",
-            "affinity": "TEXT",
-            "notNull": true
-          },
-          {
-            "fieldPath": "startTime",
-            "columnName": "startTime",
-            "affinity": "TEXT",
-            "notNull": true
-          },
-          {
-            "fieldPath": "endTime",
-            "columnName": "endTime",
-            "affinity": "TEXT",
-            "notNull": true
-          },
-          {
-            "fieldPath": "timeLimitMinutes",
-            "columnName": "timeLimitMinutes",
-            "affinity": "INTEGER",
-            "notNull": true
-          },
-          {
-            "fieldPath": "isTowZone",
-            "columnName": "isTowZone",
-            "affinity": "INTEGER",
-            "notNull": true
-          }
-        ],
-        "primaryKey": {
-          "autoGenerate": true,
-          "columnNames": [
-            "id"
-          ]
-        },
-        "indices": [
-          {
-            "name": "index_meter_schedules_parkingSpotId",
-            "unique": false,
-            "columnNames": [
-              "parkingSpotId"
-            ],
-            "orders": [],
-            "createSql": "CREATE INDEX IF NOT EXISTS `index_meter_schedules_parkingSpotId` ON `${TABLE_NAME}` (`parkingSpotId`)"
-          }
-        ],
-        "foreignKeys": [
-          {
-            "table": "parking_spots",
-            "onDelete": "CASCADE",
-            "onUpdate": "NO ACTION",
-            "columns": [
-              "parkingSpotId"
-            ],
-            "referencedColumns": [
-              "objectId"
-            ]
-          }
-        ]
       }
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '3b3f0a10f5c66a37455382184c968ba7')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '6df4ed8b1ff7049ea5036581ac0a0e4c')"
     ]
   }
 }

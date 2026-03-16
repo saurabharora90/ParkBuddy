@@ -102,7 +102,7 @@ class MapViewModel(
   private val permitZoneFlow = repository.getUserPermitZone()
 
   private val spotsFlow =
-    repository.getAllSpots().map { spots -> spots.filter { it.regulation.isParkable } }
+    repository.getAllSpots().map { spots -> spots.filter { it.isParkable && !it.isCommercial } }
 
   val stateFlow: StateFlow<State> =
     combine(
