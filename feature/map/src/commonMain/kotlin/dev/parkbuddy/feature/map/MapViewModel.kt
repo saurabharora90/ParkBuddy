@@ -35,7 +35,6 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flowOn
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -61,11 +60,10 @@ class MapViewModel(
 
   data class State(
     val visibleSpots: List<ParkingSpot>,
-    val permitSpots: List<ParkingSpot>,
     val parkedState: ParkedState?,
     val shouldShowParkedLocationBottomSheet: Boolean,
     val hasSeenMapNux: Boolean,
-    val hasPermitZone: Boolean,
+    val permitZone: String?,
     val hasSeenZoneNudge: Boolean,
   )
 
@@ -99,58 +97,39 @@ class MapViewModel(
       }
     }
 
-  private val permitZoneFlow = repository.getUserPermitZone()
-
-  private val spotsFlow =
-    repository.getAllSpots().map { spots -> spots.filter { it.isParkable && !it.isCommercial } }
-
   val stateFlow: StateFlow<State> =
     combine(
-        combine(
-          spotsFlow,
-          permitZoneFlow.flatMapLatest { zone ->
-            if (zone == null) flowOf(emptyList()) else repository.getSpotsByZone(zone)
-          },
-          parkedStateFlow,
-        ) { spots, permit, parked ->
-          Triple(spots, permit, parked)
-        },
+        repository.getAllSpots(),
+        parkedStateFlow,
+        repository.getUserPermitZone(),
         combine(
           shouldShowParkedLocationBottomSheet,
-          combine(
-            preferencesRepository.hasSeenMapNux,
-            permitZoneFlow,
-            preferencesRepository.hasSeenZoneNudge,
-          ) { nux, zone, seenNudge ->
-            Triple(nux, zone, seenNudge)
-          },
-          viewportState.debounce(100),
-        ) { sheet, nuxInfo, viewport ->
-          Triple(sheet, nuxInfo, viewport)
+          preferencesRepository.hasSeenMapNux,
+          preferencesRepository.hasSeenZoneNudge,
+        ) { shouldShowSheet, nux, seenNudge ->
+          Triple(shouldShowSheet, nux, seenNudge)
         },
-      ) { mainInfo, extraInfo ->
-        val (parkingSpots, permitSpots, parkedState) = mainInfo
-        val (shouldShowSheet, nuxInfo, viewport) = extraInfo
-        val (hasSeenNux, permitZone, seenNudge) = nuxInfo
-
+        viewportState.debounce(100),
+      ) { spots, parkedState, permitZone, (shouldShowSheet, hasSeenNux, seenNudge), viewport ->
         val visibleSpots =
           if (viewport == null || viewport.zoom < 15f) {
             emptyList()
           } else {
-            parkingSpots.filter { spot ->
-              spot.geometry.coordinates.any { point ->
-                viewport.bounds.contains(latitude = point[1], longitude = point[0])
+            spots
+              .filter { spot ->
+                spot.geometry.coordinates.any { point ->
+                  viewport.bounds.contains(latitude = point[1], longitude = point[0])
+                }
               }
-            }
+              .filter { it.isParkable && !it.isCommercial }
           }
 
         State(
           visibleSpots = visibleSpots,
-          permitSpots = permitSpots,
           parkedState = parkedState,
           shouldShowParkedLocationBottomSheet = shouldShowSheet,
           hasSeenMapNux = hasSeenNux,
-          hasPermitZone = permitZone != null,
+          permitZone = permitZone,
           hasSeenZoneNudge = seenNudge,
         )
       }
@@ -161,11 +140,10 @@ class MapViewModel(
         initialValue =
           State(
             visibleSpots = emptyList(),
-            permitSpots = emptyList(),
             parkedState = null,
             shouldShowParkedLocationBottomSheet = false,
             hasSeenMapNux = true,
-            hasPermitZone = true,
+            permitZone = null,
             hasSeenZoneNudge = true,
           ),
       )

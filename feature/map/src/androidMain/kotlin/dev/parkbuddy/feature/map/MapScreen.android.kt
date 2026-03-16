@@ -87,10 +87,7 @@ private val SF_BOUNDS = LatLngBounds(LatLng(37.703397, -122.519967), LatLng(37.8
 @Composable
 actual fun MapScreen(navigator: Navigator, modifier: Modifier, viewModel: MapViewModel) {
   val state by viewModel.stateFlow.collectAsState()
-  val permitSpots = state.permitSpots
   val parkedState = state.parkedState
-
-  val permitSpotIds = remember(permitSpots) { permitSpots.map { it.objectId }.toSet() }
 
   // Pre-compute LatLng points for visible spots
   val visibleSpotsWithPoints =
@@ -190,7 +187,7 @@ actual fun MapScreen(navigator: Navigator, modifier: Modifier, viewModel: MapVie
     ) {
       visibleSpotsWithPoints.forEach { (spot, points) ->
         if (points.isNotEmpty()) {
-          val isInPermitZone = spot.objectId in permitSpotIds
+          val isInPermitZone = spot.rppAreas.contains(state.permitZone)
           val dominantColor = getDominantColor(spot, isInPermitZone)
           Polyline(
             points = points,
@@ -289,7 +286,7 @@ actual fun MapScreen(navigator: Navigator, modifier: Modifier, viewModel: MapVie
       ) {
         SpotDetailContent(
           spot = it,
-          isInPermitZone = it.objectId in permitSpotIds,
+          isInPermitZone = it.rppAreas.contains(state.permitZone),
           onParkHere = {
             viewModel.parkHere(it)
             selectedSpot = null
@@ -300,7 +297,7 @@ actual fun MapScreen(navigator: Navigator, modifier: Modifier, viewModel: MapVie
 
     // Zone setup nudge (one-off, persisted)
     AnimatedVisibility(
-      visible = !state.hasPermitZone && !state.hasSeenZoneNudge,
+      visible = state.permitZone == null && !state.hasSeenZoneNudge,
       enter = slideInVertically { it },
       exit = slideOutVertically { it },
       modifier = Modifier.align(Alignment.BottomCenter),
