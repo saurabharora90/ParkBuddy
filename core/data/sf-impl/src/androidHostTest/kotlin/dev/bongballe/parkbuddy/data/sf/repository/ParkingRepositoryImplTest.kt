@@ -920,4 +920,112 @@ class ParkingRepositoryImplTest {
         assertThat((limited.first().type as IntervalType.Limited).timeLimitMinutes).isEqualTo(120)
       }
     }
+
+  // When a meter's time_limit exceeds the enforcement window (e.g., 1440 min in a 13-hour
+  // window), it's effectively "no cap, just pay." The sync should clamp it to 0 so the UI
+  // shows "METERED:" instead of "Max 24 hrs:".
+  @Test
+  fun `meter time limit clamped to zero when it exceeds enforcement window`() =
+    runRepoTest { repository, api, _ ->
+      val geometryJson = Json.encodeToJsonElement(howardCenterline)
+
+      api.streetCleaningData =
+        listOf(
+          StreetCleaningResponse(
+            cnn = "7042000",
+            streetName = "Howard St",
+            cnnRightLeft = "R",
+            weekday = Weekday.Fri,
+            geometry = geometryJson,
+          )
+        )
+
+      // 1440-minute limit in a 9AM-10PM (780 min) window = meaningless, should clamp to 0
+      api.parkingMeterInventory =
+        listOf(
+          ParkingMeterResponse(
+            objectId = "m1",
+            postId = "470-09440",
+            streetSegCtrlnId = "7042000",
+            streetName = "HOWARD ST",
+          )
+        )
+
+      api.meterSchedules =
+        listOf(
+          MeterScheduleResponse(
+            postId = "470-09440",
+            daysApplied = "Mo,Tu,We,Th,Fr,Sa",
+            fromTime = "9:00 AM",
+            toTime = "10:00 PM",
+            timeLimit = "1440 minutes",
+            scheduleType = "Operating Schedule",
+          )
+        )
+
+      api.parkingRegulations = emptyList()
+
+      repository.refreshData()
+
+      repository.getAllSpots().test {
+        val spot = awaitItem().single()
+        val metered = spot.timeline.filter { it.type is IntervalType.Metered }
+        assertThat(metered).hasSize(1)
+        // 1440 >= 780 (window duration), so limit clamped to 0
+        assertThat((metered[0].type as IntervalType.Metered).timeLimitMinutes).isEqualTo(0)
+      }
+    }
+
+  // A real time limit shorter than the window should be preserved as-is.
+  @Test
+  fun `meter time limit preserved when shorter than enforcement window`() =
+    runRepoTest { repository, api, _ ->
+      val geometryJson = Json.encodeToJsonElement(howardCenterline)
+
+      api.streetCleaningData =
+        listOf(
+          StreetCleaningResponse(
+            cnn = "7042000",
+            streetName = "Howard St",
+            cnnRightLeft = "R",
+            weekday = Weekday.Fri,
+            geometry = geometryJson,
+          )
+        )
+
+      // 120-minute limit in a 9AM-6PM (540 min) window = meaningful, should be preserved
+      api.parkingMeterInventory =
+        listOf(
+          ParkingMeterResponse(
+            objectId = "m1",
+            postId = "470-09440",
+            streetSegCtrlnId = "7042000",
+            streetName = "HOWARD ST",
+          )
+        )
+
+      api.meterSchedules =
+        listOf(
+          MeterScheduleResponse(
+            postId = "470-09440",
+            daysApplied = "Mo,Tu,We,Th,Fr,Sa",
+            fromTime = "9:00 AM",
+            toTime = "6:00 PM",
+            timeLimit = "120 minutes",
+            scheduleType = "Operating Schedule",
+          )
+        )
+
+      api.parkingRegulations = emptyList()
+
+      repository.refreshData()
+
+      repository.getAllSpots().test {
+        val spot = awaitItem().single()
+        val metered = spot.timeline.filter { it.type is IntervalType.Metered }
+        assertThat(metered).hasSize(1)
+        // 120 < 540 (window duration), so limit preserved
+        assertThat((metered[0].type as IntervalType.Metered).timeLimitMinutes).isEqualTo(120)
+      }
+    }
 }

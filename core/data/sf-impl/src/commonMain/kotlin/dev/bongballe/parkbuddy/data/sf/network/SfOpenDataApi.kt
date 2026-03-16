@@ -4,6 +4,7 @@ import dev.bongballe.parkbuddy.data.sf.model.MeterScheduleResponse
 import dev.bongballe.parkbuddy.data.sf.model.ParkingMeterResponse
 import dev.bongballe.parkbuddy.data.sf.model.ParkingRegulationResponse
 import dev.bongballe.parkbuddy.data.sf.model.StreetCleaningResponse
+import dev.bongballe.parkbuddy.data.sf.model.TowAwayZoneResponse
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.get
@@ -57,6 +58,20 @@ open class SfOpenDataApi(private val client: HttpClient, private val baseUrl: St
   open suspend fun getMeterSchedules(limit: Int, offset: Int = 0): List<MeterScheduleResponse> =
     client
       .get("${baseUrl}resource/6cqg-dxku.json") {
+        parameter("\$limit", limit)
+        parameter("\$offset", offset)
+      }
+      .body()
+
+  /**
+   * Fetches regularly scheduled tow-away zones.
+   *
+   * This is a separate dataset from meter schedules. It covers AM/PM peak tow-away on major
+   * arterials that aren't captured in the meter schedule API.
+   */
+  open suspend fun getTowAwayZones(limit: Int, offset: Int = 0): List<TowAwayZoneResponse> =
+    client
+      .get("${baseUrl}resource/ynvq-waab.json") {
         parameter("\$limit", limit)
         parameter("\$offset", offset)
       }

@@ -75,10 +75,12 @@ internal fun SpotDetailContent(
     // Current state card: what rule is active RIGHT NOW
     CurrentStateCard(spot, isInPermitZone, clock)
 
-    // "PAY AT METER" banner for spots with any metered intervals (so the user knows to bring
-    // change)
-    val hasMeteredIntervals = spot.timeline.any { it.type is IntervalType.Metered }
-    if (hasMeteredIntervals && !isInPermitZone) {
+    // "PAY AT METER" banner: only shown when a metered interval is active RIGHT NOW.
+    // During off-hours (e.g., Sunday evening after 6pm), meters aren't enforced so showing
+    // "PAY AT METER" alongside "FREE PARKING" would be confusing.
+    val now = clock.now()
+    val meterActiveNow = spot.timeline.any { it.type is IntervalType.Metered && it.isActiveAt(now) }
+    if (meterActiveNow && !isInPermitZone) {
       StatusBanner(icon = ParkBuddyIcons.Error, text = "PAY AT METER.", accentColor = Terracotta)
     }
 
