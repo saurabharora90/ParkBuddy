@@ -4,6 +4,7 @@ import dev.bongballe.parkbuddy.data.sf.model.MeterScheduleResponse
 import dev.bongballe.parkbuddy.data.sf.model.ParkingMeterResponse
 import dev.bongballe.parkbuddy.data.sf.model.ParkingRegulationResponse
 import dev.bongballe.parkbuddy.data.sf.model.StreetCleaningResponse
+import dev.bongballe.parkbuddy.data.sf.model.TowAwayZoneResponse
 import io.ktor.client.HttpClient
 
 class FakeSfOpenDataApi : SfOpenDataApi(HttpClient(), "") {
@@ -43,5 +44,13 @@ class FakeSfOpenDataApi : SfOpenDataApi(HttpClient(), "") {
     val start = offset.coerceAtMost(meterSchedules.size)
     val end = (offset + limit).coerceAtMost(meterSchedules.size)
     return meterSchedules.subList(start, end)
+  }
+
+  var towAwayZones: List<TowAwayZoneResponse> = emptyList()
+
+  override suspend fun getTowAwayZones(limit: Int, offset: Int): List<TowAwayZoneResponse> {
+    val start = offset.coerceAtMost(towAwayZones.size)
+    val end = (offset + limit).coerceAtMost(towAwayZones.size)
+    return towAwayZones.subList(start, end)
   }
 }
