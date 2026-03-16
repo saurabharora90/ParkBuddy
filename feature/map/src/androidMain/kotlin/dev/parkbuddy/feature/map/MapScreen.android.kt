@@ -40,6 +40,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
@@ -60,10 +61,12 @@ import com.google.maps.android.compose.rememberCameraPositionState
 import dev.bongballe.parkbuddy.core.navigation.MainRoute
 import dev.bongballe.parkbuddy.core.navigation.Navigator
 import dev.bongballe.parkbuddy.model.Geometry
+import dev.bongballe.parkbuddy.model.IntervalType
 import dev.bongballe.parkbuddy.model.ParkingSpot
 import dev.bongballe.parkbuddy.theme.Goldenrod
 import dev.bongballe.parkbuddy.theme.SageGreen
 import dev.bongballe.parkbuddy.theme.SagePrimary
+import dev.bongballe.parkbuddy.theme.Terracotta
 import dev.bongballe.parkbuddy.theme.WildIris
 import dev.parkbuddy.core.ui.BannerNudge
 import dev.parkbuddy.core.ui.ParkBuddyAlertDialog
@@ -188,10 +191,10 @@ actual fun MapScreen(navigator: Navigator, modifier: Modifier, viewModel: MapVie
       visibleSpotsWithPoints.forEach { (spot, points) ->
         if (points.isNotEmpty()) {
           val isInPermitZone = spot.objectId in permitSpotIds
-          val isPaid = spot.regulation.requiresPayment
+          val dominantColor = getDominantColor(spot, isInPermitZone)
           Polyline(
             points = points,
-            color = if (isInPermitZone) SageGreen else if (isPaid) Goldenrod else WildIris,
+            color = dominantColor,
             width = if (isInPermitZone) 12f else 8f,
             clickable = true,
             onClick = { selectedSpot = spot },
@@ -258,8 +261,8 @@ actual fun MapScreen(navigator: Navigator, modifier: Modifier, viewModel: MapVie
         subtitle = "Next time you park, ParkBuddy handles the rest.",
         actionLabel = "Nice",
         onAction = { viewModel.markMapNuxSeen() },
-        dismissLabel = "Dismiss",
-        onDismiss = { viewModel.markMapNuxSeen() },
+        dismissLabel = null,
+        onDismiss = null,
         containerColor = MaterialTheme.colorScheme.primaryContainer,
         contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
       )
@@ -393,20 +396,11 @@ private fun LegendContent(modifier: Modifier = Modifier) {
   ) {
     Text("Map Legend", style = MaterialTheme.typography.titleMedium)
 
-    Row(verticalAlignment = Alignment.CenterVertically) {
-      Box(modifier = Modifier.padding(end = 12.dp).size(16.dp).background(SageGreen, CircleShape))
-      Text("Your permit zone (safe to park).", color = MaterialTheme.colorScheme.onSurface)
-    }
-
-    Row(verticalAlignment = Alignment.CenterVertically) {
-      Box(modifier = Modifier.padding(end = 12.dp).size(16.dp).background(Goldenrod, CircleShape))
-      Text("Paid parking meters.", color = MaterialTheme.colorScheme.onSurface)
-    }
-
-    Row(verticalAlignment = Alignment.CenterVertically) {
-      Box(modifier = Modifier.padding(end = 12.dp).size(16.dp).background(WildIris, CircleShape))
-      Text("Time limits or other rules.", color = MaterialTheme.colorScheme.onSurface)
-    }
+    LegendRow(color = SageGreen, label = "Your permit zone")
+    LegendRow(color = SagePrimary, label = "Free parking")
+    LegendRow(color = Goldenrod, label = "Metered parking")
+    LegendRow(color = WildIris, label = "Time-limited parking")
+    LegendRow(color = Terracotta, label = "Restricted / No parking")
 
     Text(
       text = "Tap any colored line to see parking restrictions and street sweeping times.",
@@ -414,6 +408,48 @@ private fun LegendContent(modifier: Modifier = Modifier) {
       color = MaterialTheme.colorScheme.onSurfaceVariant,
       modifier = Modifier.padding(top = 8.dp, bottom = 16.dp),
     )
+  }
+}
+
+@Composable
+private fun LegendRow(color: Color, label: String) {
+  Row(verticalAlignment = Alignment.CenterVertically) {
+    Box(modifier = Modifier.padding(end = 12.dp).size(16.dp).background(color, CircleShape))
+    Text(label, color = MaterialTheme.colorScheme.onSurface)
+  }
+}
+
+/**
+ * Picks a polyline color based on what's happening at the spot RIGHT NOW.
+ *
+ * Colors update as the map viewport refreshes (every 30s via tickerFlow), so a spot that's
+ * commercial-only in the morning shows red, then switches to yellow (metered) in the afternoon.
+ * Tapping the polyline opens SpotDetailContent which shows the full timeline.
+ *
+ * Permit zone spots always get SageGreen regardless of their timeline.
+ */
+private fun getDominantColor(
+  spot: ParkingSpot,
+  isInPermitZone: Boolean,
+  now: kotlin.time.Instant = kotlin.time.Clock.System.now(),
+): Color {
+  if (isInPermitZone) return SageGreen
+  if (spot.timeline.isEmpty()) return SagePrimary
+
+  // Check if any sweeping is active right now
+  val sweepingActive = spot.sweepingSchedules.any { it.isWithinWindow(now) }
+  if (sweepingActive) return Terracotta
+
+  // Find the currently active timeline interval
+  val activeType = spot.timeline.firstOrNull { it.isActiveAt(now) }?.type
+  return when (activeType) {
+    is IntervalType.Forbidden -> Terracotta
+    is IntervalType.Restricted -> Terracotta
+    is IntervalType.Metered -> Goldenrod
+    is IntervalType.Limited -> WildIris
+    // No active interval = free parking right now
+    is IntervalType.Open,
+    null -> SagePrimary
   }
 }
 

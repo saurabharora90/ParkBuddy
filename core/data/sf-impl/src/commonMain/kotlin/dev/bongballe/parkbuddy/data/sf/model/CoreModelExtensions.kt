@@ -1,6 +1,5 @@
 package dev.bongballe.parkbuddy.data.sf.model
 
-import dev.bongballe.parkbuddy.model.ParkingRegulation
 import dev.bongballe.parkbuddy.model.StreetSide
 import dev.bongballe.parkbuddy.model.StreetSide.LEFT
 import dev.bongballe.parkbuddy.model.StreetSide.RIGHT
@@ -16,6 +15,11 @@ internal fun String.toParkingRegulation(): ParkingRegulation {
     normalized.contains("residential permit") -> ParkingRegulation.RPP_ONLY
     normalized.contains("no overnight") -> ParkingRegulation.NO_OVERNIGHT
     normalized.contains("no oversized") -> ParkingRegulation.NO_OVERSIZED
+    normalized.contains("commercial") || normalized.contains("truck") ->
+      ParkingRegulation.COMMERCIAL_ONLY
+    normalized.contains("green zone") ||
+      normalized.contains("short term") ||
+      normalized.contains("loading") -> ParkingRegulation.LOADING_ZONE
     normalized.contains("no parking") -> ParkingRegulation.NO_PARKING
     normalized.contains("no stopping") -> ParkingRegulation.NO_STOPPING
     normalized.contains("government permit") -> ParkingRegulation.GOVERNMENT_ONLY

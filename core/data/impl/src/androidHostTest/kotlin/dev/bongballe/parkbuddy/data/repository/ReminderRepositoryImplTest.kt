@@ -8,7 +8,6 @@ import com.google.common.truth.Truth.assertThat
 import dev.bongballe.parkbuddy.model.ParkedLocation
 import dev.bongballe.parkbuddy.model.ReminderMinutes
 import dev.bongballe.parkbuddy.model.SweepingSchedule
-import dev.bongballe.parkbuddy.model.TimedRestriction
 import dev.bongballe.parkbuddy.model.Weekday
 import dev.bongballe.parkbuddy.testing.FakeParkingRepository
 import dev.bongballe.parkbuddy.testing.FakePreferencesRepository
@@ -125,20 +124,17 @@ class ReminderRepositoryImplTest {
     val spot =
       createTestSpot(
         id = "1",
-        timedRestriction =
-          TimedRestriction(
-            limitHours = 2,
-            days =
-              setOf(
-                DayOfWeek.MONDAY,
-                DayOfWeek.TUESDAY,
-                DayOfWeek.WEDNESDAY,
-                DayOfWeek.THURSDAY,
-                DayOfWeek.FRIDAY,
-              ),
-            startTime = kotlinx.datetime.LocalTime(8, 0),
-            endTime = kotlinx.datetime.LocalTime(18, 0),
+        limitMinutes = 120,
+        enforcementDays =
+          setOf(
+            DayOfWeek.MONDAY,
+            DayOfWeek.TUESDAY,
+            DayOfWeek.WEDNESDAY,
+            DayOfWeek.THURSDAY,
+            DayOfWeek.FRIDAY,
           ),
+        enforcementStart = kotlinx.datetime.LocalTime(8, 0),
+        enforcementEnd = kotlinx.datetime.LocalTime(18, 0),
       )
 
     val parkedLocation =
@@ -317,20 +313,17 @@ class ReminderRepositoryImplTest {
     val spot =
       createTestSpot(
           id = "1",
-          timedRestriction =
-            TimedRestriction(
-              limitHours = 2,
-              days =
-                setOf(
-                  DayOfWeek.MONDAY,
-                  DayOfWeek.TUESDAY,
-                  DayOfWeek.WEDNESDAY,
-                  DayOfWeek.THURSDAY,
-                  DayOfWeek.FRIDAY,
-                ),
-              startTime = kotlinx.datetime.LocalTime(8, 0),
-              endTime = kotlinx.datetime.LocalTime(18, 0),
+          limitMinutes = 120,
+          enforcementDays =
+            setOf(
+              DayOfWeek.MONDAY,
+              DayOfWeek.TUESDAY,
+              DayOfWeek.WEDNESDAY,
+              DayOfWeek.THURSDAY,
+              DayOfWeek.FRIDAY,
             ),
+          enforcementStart = kotlinx.datetime.LocalTime(8, 0),
+          enforcementEnd = kotlinx.datetime.LocalTime(18, 0),
         )
         .copy(sweepingSchedules = listOf(cleaningSchedule))
 
@@ -372,20 +365,17 @@ class ReminderRepositoryImplTest {
       val spot =
         createTestSpot(
             id = "1",
-            timedRestriction =
-              TimedRestriction(
-                limitHours = 2,
-                days =
-                  setOf(
-                    DayOfWeek.MONDAY,
-                    DayOfWeek.TUESDAY,
-                    DayOfWeek.WEDNESDAY,
-                    DayOfWeek.THURSDAY,
-                    DayOfWeek.FRIDAY,
-                  ),
-                startTime = kotlinx.datetime.LocalTime(8, 0),
-                endTime = kotlinx.datetime.LocalTime(18, 0),
+            limitMinutes = 120,
+            enforcementDays =
+              setOf(
+                DayOfWeek.MONDAY,
+                DayOfWeek.TUESDAY,
+                DayOfWeek.WEDNESDAY,
+                DayOfWeek.THURSDAY,
+                DayOfWeek.FRIDAY,
               ),
+            enforcementStart = kotlinx.datetime.LocalTime(8, 0),
+            enforcementEnd = kotlinx.datetime.LocalTime(18, 0),
           )
           .copy(sweepingSchedules = listOf(cleaningSchedule))
 

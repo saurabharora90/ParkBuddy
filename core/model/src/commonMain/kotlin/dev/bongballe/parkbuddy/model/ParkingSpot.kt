@@ -2,7 +2,6 @@ package dev.bongballe.parkbuddy.model
 
 import kotlin.time.Instant
 import kotlinx.datetime.DateTimeUnit
-import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
@@ -10,35 +9,7 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.plus
 import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
-
-/**
- * Time-limited parking restriction with enforcement window.
- *
- * Represents the rule: "during [days] from [startTime] to [endTime], you may park for at most
- * [limitHours] hours." If this is null on a [ParkingSpot], there is no time limit.
- */
-data class TimedRestriction(
-  val limitHours: Int,
-  val days: Set<DayOfWeek>,
-  val startTime: LocalTime?,
-  val endTime: LocalTime?,
-) {
-  fun isWithinWindow(time: Instant, zone: TimeZone = TimeZone.currentSystemDefault()): Boolean {
-    val localDateTime = time.toLocalDateTime(zone)
-    if (days.isNotEmpty() && localDateTime.dayOfWeek !in days) return false
-
-    val currentTime = localDateTime.time
-    val start = startTime ?: LocalTime(0, 0)
-    val end = endTime ?: LocalTime(23, 59)
-
-    return if (start <= end) {
-      currentTime in start..end
-    } else {
-      // Over-night window (e.g., 10 PM to 6 AM)
-      currentTime >= start || currentTime <= end
-    }
-  }
-}
+import kotlinx.serialization.Serializable
 
 /**
  * Represents a parkable street segment.
@@ -46,62 +17,67 @@ data class TimedRestriction(
  * Each parking spot represents ONE side of a street block. The geometry is a polyline along that
  * side, and sweeping schedules are specific to that side.
  *
+ * ## Timeline Architecture
+ * The [timeline] contains pre-resolved [ParkingInterval]s computed during data sync. Overlapping
+ * regulations and meter schedules are flattened using priority-based resolution: FORBIDDEN >
+ * RESTRICTED > METERED > LIMITED > OPEN.
+ *
+ * Sweeping schedules are kept separate in [sweepingSchedules] because they have week-of-month
+ * semantics (week1-week5) that a weekly timeline cannot represent.
+ *
  * @property objectId Unique identifier for this parking spot
  * @property geometry Polyline coordinates representing this street segment (one side of street)
  * @property streetName Street name (e.g., "Main St"), may be null if unavailable
  * @property blockLimits Cross streets defining the block (e.g., "1st Ave - 2nd Ave")
  * @property neighborhood Neighborhood or district name
- * @property regulation Type of parking allowed (time-limited, permit, etc.)
  * @property rppAreas Residential Parking Permit zone identifiers, empty if not in a permit zone
- * @property timedRestriction Time limit and enforcement window, null if no time limit
+ * @property timeline Pre-resolved weekly parking rules. Gaps between intervals are implicitly OPEN.
  * @property sweepingCnn Street segment identifier used for matching sweeping schedules
  * @property sweepingSide Which side of the street (LEFT/RIGHT) this spot is on
- * @property sweepingSchedules All street cleaning schedules for this side of the street.
+ * @property sweepingSchedules All street cleaning schedules for this side of the street
  */
+@Serializable
 data class ParkingSpot(
   val objectId: String,
   val geometry: Geometry,
   val streetName: String?,
   val blockLimits: String?,
   val neighborhood: String?,
-  val regulation: ParkingRegulation,
   val rppAreas: List<String>,
-  val timedRestriction: TimedRestriction?,
+  val timeline: List<ParkingInterval> = emptyList(),
   val sweepingCnn: String?,
   val sweepingSide: StreetSide?,
   val sweepingSchedules: List<SweepingSchedule>,
-  val meterSchedules: List<MeterSchedule> = emptyList(),
 ) {
+  /** Returns the next street cleaning start time, or null if no cleaning is scheduled. */
   fun nextCleaning(now: Instant, zone: TimeZone = TimeZone.currentSystemDefault()): Instant? =
     sweepingSchedules.mapNotNull { it.nextOccurrence(now, zone) }.minOrNull()
-}
 
-/**
- * Represents a specific operating window for a parking meter.
- *
- * @property days Days when this schedule applies
- * @property startTime Opening hour for meter enforcement
- * @property endTime Closing hour for meter enforcement
- * @property timeLimitMinutes Maximum allowed parking duration (0 means no limit or towing)
- * @property isTowZone Whether parking is strictly prohibited (towing) during this window
- */
-data class MeterSchedule(
-  val days: Set<DayOfWeek>,
-  val startTime: LocalTime,
-  val endTime: LocalTime,
-  val timeLimitMinutes: Int,
-  val isTowZone: Boolean = false,
-) {
-  fun isWithinWindow(time: Instant, zone: TimeZone = TimeZone.currentSystemDefault()): Boolean {
-    val localDateTime = time.toLocalDateTime(zone)
-    if (days.isNotEmpty() && localDateTime.dayOfWeek !in days) return false
-    val currentTime = localDateTime.time
-    return if (startTime <= endTime) {
-      currentTime in startTime..endTime
-    } else {
-      currentTime >= startTime || currentTime <= endTime
+  /** Whether regular passenger vehicles can park here (derived from timeline). */
+  val isParkable: Boolean
+    get() =
+      timeline.isEmpty() ||
+        timeline.any {
+          it.type is IntervalType.Open ||
+            it.type is IntervalType.Limited ||
+            it.type is IntervalType.Metered
+        }
+
+  /** Whether this spot has any metered intervals (user needs to pay). */
+  val hasMeters: Boolean
+    get() = timeline.any { it.type is IntervalType.Metered }
+
+  /** Whether this spot is primarily for commercial vehicles (Yellow/Red meter zones). */
+  val isCommercial: Boolean
+    get() {
+      val restricted = timeline.filter { it.type is IntervalType.Restricted }
+      val nonRestricted =
+        timeline.filter {
+          it.type !is IntervalType.Restricted && it.type !is IntervalType.Forbidden
+        }
+      // Commercial if all non-forbidden intervals are restricted, or restricted covers more time
+      return restricted.isNotEmpty() && nonRestricted.isEmpty()
     }
-  }
 }
 
 /**
@@ -123,6 +99,7 @@ data class MeterSchedule(
  * @property week5 Whether sweeping occurs on the 5th occurrence of [weekday] in the month (rare)
  * @property holidays Whether sweeping occurs on holidays
  */
+@Serializable
 data class SweepingSchedule(
   val weekday: Weekday,
   val fromHour: Int,

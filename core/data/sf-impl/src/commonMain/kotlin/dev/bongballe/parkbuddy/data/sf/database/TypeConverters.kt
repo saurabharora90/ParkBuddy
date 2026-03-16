@@ -2,7 +2,7 @@ package dev.bongballe.parkbuddy.data.sf.database
 
 import androidx.room.TypeConverter
 import dev.bongballe.parkbuddy.model.Geometry
-import dev.bongballe.parkbuddy.model.ParkingRegulation
+import dev.bongballe.parkbuddy.model.ParkingInterval
 import dev.bongballe.parkbuddy.model.StreetSide
 import dev.bongballe.parkbuddy.model.Weekday
 import kotlinx.datetime.DayOfWeek
@@ -27,11 +27,6 @@ class ParkBuddyTypeConverters {
 
   @TypeConverter fun toGeometry(value: String): Geometry = json.decodeFromString(value)
 
-  @TypeConverter fun fromParkingRegulation(regulation: ParkingRegulation): String = regulation.name
-
-  @TypeConverter
-  fun toParkingRegulation(value: String): ParkingRegulation = ParkingRegulation.valueOf(value)
-
   @TypeConverter fun fromStreetSide(side: StreetSide?): String? = side?.name
 
   @TypeConverter
@@ -46,4 +41,10 @@ class ParkBuddyTypeConverters {
   @TypeConverter
   fun toStringList(value: String): List<String> =
     if (value.isBlank()) emptyList() else value.split(",")
+
+  @TypeConverter
+  fun fromParkingIntervalList(value: List<ParkingInterval>): String = json.encodeToString(value)
+
+  @TypeConverter
+  fun toParkingIntervalList(value: String): List<ParkingInterval> = json.decodeFromString(value)
 }

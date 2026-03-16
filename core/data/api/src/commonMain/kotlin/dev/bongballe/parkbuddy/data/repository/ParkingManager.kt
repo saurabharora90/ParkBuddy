@@ -52,11 +52,7 @@ class ParkingManager(
     if (matchingSpot != null) {
       analyticsTracker.logEvent(
         "parking_event_success",
-        mapOf(
-          "has_time_limit" to
-            (matchingSpot.timedRestriction != null || matchingSpot.meterSchedules.isNotEmpty())
-              .toString()
-        ),
+        mapOf("has_time_limit" to matchingSpot.timeline.isNotEmpty().toString()),
       )
       park(spot = matchingSpot, detectedLocation = location, showNotification = true)
     } else {

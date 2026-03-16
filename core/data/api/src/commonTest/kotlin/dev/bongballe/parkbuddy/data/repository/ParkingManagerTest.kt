@@ -123,7 +123,7 @@ class ParkingManagerTest {
         lat = 37.7749,
         lng = -122.4194,
         side = StreetSide.RIGHT,
-        timedRestriction = null,
+        limitMinutes = null,
       )
     context.parkingRepository.setSpots(listOf(spot))
 

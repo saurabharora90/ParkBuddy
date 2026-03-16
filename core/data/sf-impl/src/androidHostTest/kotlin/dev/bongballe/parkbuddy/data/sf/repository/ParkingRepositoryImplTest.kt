@@ -11,9 +11,8 @@ import dev.bongballe.parkbuddy.data.sf.model.ParkingRegulationResponse
 import dev.bongballe.parkbuddy.data.sf.model.StreetCleaningResponse
 import dev.bongballe.parkbuddy.data.sf.network.FakeSfOpenDataApi
 import dev.bongballe.parkbuddy.model.Geometry
-import dev.bongballe.parkbuddy.model.ParkingRegulation
+import dev.bongballe.parkbuddy.model.IntervalType
 import dev.bongballe.parkbuddy.model.Weekday
-import dev.bongballe.parkbuddy.testing.FakeAnalyticsTracker
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -32,6 +31,10 @@ import org.robolectric.RobolectricTestRunner
  * - Parking regulations: https://data.sfgov.org/resource/hi6h-neyh.json
  * - Meter inventory: https://data.sfgov.org/resource/8vzz-qzz9.json
  * - Meter schedules: https://data.sfgov.org/resource/6cqg-dxku.json
+ *
+ * Assertions use `spot.timeline` (pre-resolved `List<ParkingInterval>`). The timeline is produced
+ * by [TimelineResolver] during sync and stored in the entity as a flat, non-overlapping weekly
+ * schedule.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
@@ -40,10 +43,7 @@ class ParkingRepositoryImplTest {
   private fun runRepoTest(
     block:
       suspend TestScope.(
-        repository: ParkingRepositoryImpl,
-        api: FakeSfOpenDataApi,
-        analyticsTracker: FakeAnalyticsTracker,
-        db: ParkBuddyDatabase,
+        repository: ParkingRepositoryImpl, api: FakeSfOpenDataApi, db: ParkBuddyDatabase,
       ) -> Unit
   ) =
     runTest(UnconfinedTestDispatcher()) {
@@ -56,18 +56,16 @@ class ParkingRepositoryImplTest {
           .build()
 
       val api = FakeSfOpenDataApi()
-      val analyticsTracker = FakeAnalyticsTracker()
 
       val repository =
         ParkingRepositoryImpl(
           dao = db.parkingDao(),
           api = api,
-          analyticsTracker = analyticsTracker,
           defaultDispatcher = UnconfinedTestDispatcher(),
         )
 
       try {
-        block(repository, api, analyticsTracker, db)
+        block(repository, api, db)
       } finally {
         db.close()
       }
@@ -126,7 +124,7 @@ class ParkingRepositoryImplTest {
 
   @Test
   fun `Delancey - regulation matches one side, sweeping-only side excluded`() =
-    runRepoTest { repository, api, _, _ ->
+    runRepoTest { repository, api, _ ->
       val geometryJson = Json.encodeToJsonElement(delanceyCenterline)
 
       // CNN 115001: R sweeps Fri, L sweeps Thu
@@ -174,13 +172,13 @@ class ParkingRepositoryImplTest {
         // Only the side matching the regulation is stored; the other is sweeping-only.
         assertThat(spots).hasSize(1)
         assertThat(spots[0].rppAreas).containsExactly("Y")
-        assertThat(spots[0].regulation).isEqualTo(ParkingRegulation.TIME_LIMITED)
+        assertThat(spots[0].timeline.any { it.type is IntervalType.Limited }).isTrue()
         assertThat(spots[0].sweepingSchedules).hasSize(1)
       }
     }
 
   @Test
-  fun `refreshData - maps multiple RPP areas correctly`() = runRepoTest { repository, api, _, _ ->
+  fun `refreshData - maps multiple RPP areas correctly`() = runRepoTest { repository, api, _ ->
     val geometryJson = Json.encodeToJsonElement(delanceyCenterline)
 
     api.streetCleaningData =
@@ -218,7 +216,7 @@ class ParkingRepositoryImplTest {
   }
 
   @Test
-  fun `De Haro - sweeping-only street excluded entirely`() = runRepoTest { repository, api, _, _ ->
+  fun `De Haro - sweeping-only street excluded entirely`() = runRepoTest { repository, api, _ ->
     val geometryJson = Json.encodeToJsonElement(deHaroCenterline)
 
     api.streetCleaningData =
@@ -257,7 +255,7 @@ class ParkingRepositoryImplTest {
 
   @Test
   fun `sweeping-only segments excluded even when other segments have regulations`() =
-    runRepoTest { repository, api, _, _ ->
+    runRepoTest { repository, api, _ ->
       val delanceyJson = Json.encodeToJsonElement(delanceyCenterline)
       val deHaroJson = Json.encodeToJsonElement(deHaroCenterline)
 
@@ -299,9 +297,12 @@ class ParkingRepositoryImplTest {
       }
     }
 
+  // Verifies that a meter-only CNN (no parking regulations) produces METERED timeline intervals
+  // on both LEFT and RIGHT sides. The two API schedules (weekday 120min and Sunday 240min) should
+  // resolve into separate METERED intervals with correct time windows and limits.
   @Test
   fun `Howard - meter-only segment stored as METERED on both sides`() =
-    runRepoTest { repository, api, _, _ ->
+    runRepoTest { repository, api, _ ->
       val geometryJson = Json.encodeToJsonElement(howardCenterline)
 
       // Howard CNN 7042000: R=Fri, L=Thu sweeping
@@ -372,9 +373,9 @@ class ParkingRepositoryImplTest {
         // Both sides stored because meters match via CNN
         assertThat(spots).hasSize(2)
         spots.forEach { spot ->
-          assertThat(spot.regulation).isEqualTo(ParkingRegulation.METERED)
+          assertThat(spot.hasMeters).isTrue()
           assertThat(spot.streetName).isEqualTo("Howard St")
-          assertThat(spot.meterSchedules).hasSize(2)
+          assertThat(spot.timeline.any { it.type is IntervalType.Metered }).isTrue()
         }
 
         val left = spots.first { it.objectId == "cnn_7042000_LEFT" }
@@ -385,20 +386,27 @@ class ParkingRepositoryImplTest {
         assertThat(right.sweepingSchedules).hasSize(1)
         assertThat(right.sweepingSchedules[0].weekday).isEqualTo(Weekday.Fri)
 
-        // Weekday schedule: 2hr limit
-        val weekday = right.meterSchedules.first { it.timeLimitMinutes == 120 }
+        val meteredIntervals = right.timeline.filter { it.type is IntervalType.Metered }
+
+        // Weekday schedule: 2hr (120min) limit, 7AM-6PM
+        val weekday =
+          meteredIntervals.first { (it.type as IntervalType.Metered).timeLimitMinutes == 120 }
         assertThat(weekday.startTime.hour).isEqualTo(7)
         assertThat(weekday.endTime.hour).isEqualTo(18)
 
-        // Sunday schedule: 4hr limit
-        val sunday = right.meterSchedules.first { it.timeLimitMinutes == 240 }
+        // Sunday schedule: 4hr (240min) limit, 12PM-6PM
+        val sunday =
+          meteredIntervals.first { (it.type as IntervalType.Metered).timeLimitMinutes == 240 }
         assertThat(sunday.startTime.hour).isEqualTo(12)
       }
     }
 
+  // Two physical meter posts on the same CNN with identical schedules. The deduplication in
+  // parseMeterSchedulesToIntervals should collapse them, and the resolver should produce a
+  // single METERED interval.
   @Test
   fun `meter schedules deduplicated across multiple posts on same CNN`() =
-    runRepoTest { repository, api, _, _ ->
+    runRepoTest { repository, api, _ ->
       val geometryJson = Json.encodeToJsonElement(howardCenterline)
 
       api.streetCleaningData =
@@ -456,13 +464,14 @@ class ParkingRepositoryImplTest {
       repository.getAllSpots().test {
         val spots = awaitItem()
         assertThat(spots).hasSize(1)
-        assertThat(spots[0].meterSchedules).hasSize(1)
+        val meteredCount = spots[0].timeline.count { it.type is IntervalType.Metered }
+        assertThat(meteredCount).isEqualTo(1)
       }
     }
 
   @Test
   fun `returns false when both regulations and meters are empty`() =
-    runRepoTest { repository, api, _, _ ->
+    runRepoTest { repository, api, _ ->
       api.streetCleaningData =
         listOf(
           StreetCleaningResponse(
@@ -480,9 +489,11 @@ class ParkingRepositoryImplTest {
       assertThat(success).isFalse()
     }
 
+  // Verifies that a TIME_LIMITED regulation's enforcement window and days are correctly converted
+  // into a LIMITED timeline interval with the right hours and day coverage.
   @Test
   fun `enforcement times and days parsed correctly from regulation`() =
-    runRepoTest { repository, api, _, _ ->
+    runRepoTest { repository, api, _ ->
       val geometryJson = Json.encodeToJsonElement(delanceyCenterline)
 
       api.streetCleaningData =
@@ -514,16 +525,20 @@ class ParkingRepositoryImplTest {
 
       repository.getAllSpots().test {
         val spot = awaitItem().single()
-        val restriction = spot.timedRestriction!!
-        assertThat(restriction.limitHours).isEqualTo(2)
-        assertThat(restriction.startTime!!.hour).isEqualTo(8)
-        assertThat(restriction.endTime!!.hour).isEqualTo(22)
-        assertThat(restriction.days).hasSize(7) // M-Su = all 7 days
+        val interval = spot.timeline.single()
+        assertThat(interval.type).isInstanceOf(IntervalType.Limited::class.java)
+        assertThat((interval.type as IntervalType.Limited).timeLimitMinutes).isEqualTo(120)
+        assertThat(interval.startTime.hour).isEqualTo(8)
+        assertThat(interval.endTime.hour).isEqualTo(22)
+        assertThat(interval.days).hasSize(7) // M-Su = all 7 days
       }
     }
 
+  // A tow-zone meter schedule (scheduleType="Tow") should produce a FORBIDDEN interval in the
+  // timeline, while the regular operating schedule becomes METERED. The resolver splits them
+  // into non-overlapping windows.
   @Test
-  fun `tow zone meter schedule stored correctly`() = runRepoTest { repository, api, _, _ ->
+  fun `tow zone meter schedule stored correctly`() = runRepoTest { repository, api, _ ->
     val geometryJson = Json.encodeToJsonElement(howardCenterline)
 
     api.streetCleaningData =
@@ -573,22 +588,25 @@ class ParkingRepositoryImplTest {
 
     repository.getAllSpots().test {
       val spot = awaitItem().single()
-      assertThat(spot.regulation).isEqualTo(ParkingRegulation.METERED)
-      assertThat(spot.meterSchedules).hasSize(2)
+      assertThat(spot.hasMeters).isTrue()
 
-      val operating = spot.meterSchedules.first { !it.isTowZone }
-      assertThat(operating.timeLimitMinutes).isEqualTo(120)
-      assertThat(operating.startTime.hour).isEqualTo(9)
+      val forbidden = spot.timeline.filter { it.type is IntervalType.Forbidden }
+      assertThat(forbidden).isNotEmpty()
+      assertThat(forbidden.first().startTime.hour).isEqualTo(7)
 
-      val tow = spot.meterSchedules.first { it.isTowZone }
-      assertThat(tow.isTowZone).isTrue()
-      assertThat(tow.startTime.hour).isEqualTo(7)
+      val metered = spot.timeline.filter { it.type is IntervalType.Metered }
+      assertThat(metered).isNotEmpty()
+      assertThat((metered.first().type as IntervalType.Metered).timeLimitMinutes).isEqualTo(120)
+      assertThat(metered.first().startTime.hour).isEqualTo(9)
     }
   }
 
+  // Two posts on the same CNN with identical time windows but the second has a superset of days.
+  // The resolver merges days across posts for identical (window, limit) combinations, producing
+  // a single METERED interval covering all 7 days.
   @Test
   fun `meter schedules with same window and limit merge days across posts`() =
-    runRepoTest { repository, api, _, _ ->
+    runRepoTest { repository, api, _ ->
       val geometryJson = Json.encodeToJsonElement(howardCenterline)
 
       api.streetCleaningData =
@@ -646,16 +664,20 @@ class ParkingRepositoryImplTest {
 
       repository.getAllSpots().test {
         val spot = awaitItem().single()
-        // Mon-Sat is a subset of Mon-Sun with same window/limit, so only one merged schedule
-        assertThat(spot.meterSchedules).hasSize(1)
-        assertThat(spot.meterSchedules[0].days).hasSize(7)
-        assertThat(spot.meterSchedules[0].timeLimitMinutes).isEqualTo(30)
+        val metered = spot.timeline.filter { it.type is IntervalType.Metered }
+        // Resolver merges identical (window, type) intervals across days into one
+        assertThat(metered).hasSize(1)
+        assertThat(metered[0].days).hasSize(7)
+        assertThat((metered[0].type as IntervalType.Metered).timeLimitMinutes).isEqualTo(30)
       }
     }
 
+  // Two posts with the same time window but different limits (30 vs 240 min). The resolver picks
+  // the shorter limit (30min) because within the same METERED priority tier, shorter is safer
+  // for the user. This produces a single METERED(30) interval.
   @Test
   fun `meter schedules with different limits on same window kept separate`() =
-    runRepoTest { repository, api, _, _ ->
+    runRepoTest { repository, api, _ ->
       val geometryJson = Json.encodeToJsonElement(howardCenterline)
 
       api.streetCleaningData =
@@ -713,16 +735,18 @@ class ParkingRepositoryImplTest {
 
       repository.getAllSpots().test {
         val spot = awaitItem().single()
-        // Different limits mean different rules, both kept
-        assertThat(spot.meterSchedules).hasSize(2)
-        val limits = spot.meterSchedules.map { it.timeLimitMinutes }.toSet()
-        assertThat(limits).containsExactly(30, 240)
+        // Resolver picks the shorter limit (30min) when two METERED intervals overlap
+        val metered = spot.timeline.filter { it.type is IntervalType.Metered }
+        assertThat(metered).hasSize(1)
+        assertThat((metered[0].type as IntervalType.Metered).timeLimitMinutes).isEqualTo(30)
       }
     }
 
+  // Same post, two non-overlapping time windows (morning and afternoon) with the same limit.
+  // These are distinct intervals that should both appear in the resolved timeline.
   @Test
   fun `meter schedules with different windows but same limit kept separate`() =
-    runRepoTest { repository, api, _, _ ->
+    runRepoTest { repository, api, _ ->
       val geometryJson = Json.encodeToJsonElement(howardCenterline)
 
       api.streetCleaningData =
@@ -773,14 +797,18 @@ class ParkingRepositoryImplTest {
 
       repository.getAllSpots().test {
         val spot = awaitItem().single()
-        // Different time windows are distinct schedules
-        assertThat(spot.meterSchedules).hasSize(2)
+        // Different time windows produce separate METERED intervals
+        val metered = spot.timeline.filter { it.type is IntervalType.Metered }
+        assertThat(metered).hasSize(2)
       }
     }
 
+  // When both a regulation (LIMITED 240min) and a meter (METERED 30min) cover the same CNN and
+  // time window, the resolver picks METERED because it has higher priority (2 > 1). The timeline
+  // should contain the METERED interval, not the LIMITED one.
   @Test
-  fun `timedRestriction nulled when spot has meter schedules`() =
-    runRepoTest { repository, api, _, _ ->
+  fun `metered interval wins over limited when both cover same window`() =
+    runRepoTest { repository, api, _ ->
       val geometryJson = Json.encodeToJsonElement(howardCenterline)
 
       api.streetCleaningData =
@@ -794,7 +822,7 @@ class ParkingRepositoryImplTest {
           )
         )
 
-      // Regulation that would produce a timedRestriction
+      // Regulation that would produce a LIMITED(240) interval
       api.parkingRegulations =
         listOf(
           ParkingRegulationResponse(
@@ -814,7 +842,7 @@ class ParkingRepositoryImplTest {
           )
         )
 
-      // Meter on the same CNN
+      // Meter on the same CNN producing METERED(30)
       api.parkingMeterInventory =
         listOf(
           ParkingMeterResponse(
@@ -841,16 +869,18 @@ class ParkingRepositoryImplTest {
 
       repository.getAllSpots().test {
         val spot = awaitItem().single()
-        // Meter schedules are present, so timedRestriction should be dropped
-        // to avoid double-reporting the same rules from two SF datasets.
-        assertThat(spot.meterSchedules).hasSize(1)
-        assertThat(spot.timedRestriction).isNull()
+        // METERED(priority=2) beats LIMITED(priority=1) during the overlapping window
+        val metered = spot.timeline.filter { it.type is IntervalType.Metered }
+        assertThat(metered).isNotEmpty()
+        assertThat((metered.first().type as IntervalType.Metered).timeLimitMinutes).isEqualTo(30)
       }
     }
 
+  // A regulation-only spot (no meters) should produce a LIMITED timeline interval with the
+  // correct time limit.
   @Test
-  fun `timedRestriction preserved when spot has no meter schedules`() =
-    runRepoTest { repository, api, _, _ ->
+  fun `regulation-only spot produces LIMITED timeline interval`() =
+    runRepoTest { repository, api, _ ->
       val geometryJson = Json.encodeToJsonElement(delanceyCenterline)
 
       api.streetCleaningData =
@@ -885,9 +915,9 @@ class ParkingRepositoryImplTest {
 
       repository.getAllSpots().test {
         val spot = awaitItem().single()
-        assertThat(spot.meterSchedules).isEmpty()
-        assertThat(spot.timedRestriction).isNotNull()
-        assertThat(spot.timedRestriction!!.limitHours).isEqualTo(2)
+        val limited = spot.timeline.filter { it.type is IntervalType.Limited }
+        assertThat(limited).isNotEmpty()
+        assertThat((limited.first().type as IntervalType.Limited).timeLimitMinutes).isEqualTo(120)
       }
     }
 }
