@@ -13,6 +13,8 @@ kotlin {
     commonMain.dependencies {
       api(libs.compose.navigation3.ui)
       api(libs.kotlinx.coroutines.core)
+      implementation(project(":core:model"))
+      implementation(libs.compose.material3)
     }
   }
 }

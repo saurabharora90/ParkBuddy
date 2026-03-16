@@ -31,7 +31,10 @@ sealed class ParkingRestrictionState {
     override val nextCleaning: Instant?,
   ) : ParkingRestrictionState()
 
-  /** Parking is prohibited (No Parking, No Stopping, etc.) */
-  data class Forbidden(val reason: String, override val nextCleaning: Instant?) :
-    ParkingRestrictionState()
+  /** Parking is prohibited (No Parking, No Stopping, Tow Away, Commercial Only, etc.) */
+  data class Forbidden(
+    val reason: ProhibitionReason,
+    val startsAt: Instant? = null,
+    override val nextCleaning: Instant?,
+  ) : ParkingRestrictionState()
 }

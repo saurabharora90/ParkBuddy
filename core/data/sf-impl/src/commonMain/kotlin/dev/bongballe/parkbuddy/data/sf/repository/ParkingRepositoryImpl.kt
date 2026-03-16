@@ -23,6 +23,7 @@ import dev.bongballe.parkbuddy.model.IntervalSource
 import dev.bongballe.parkbuddy.model.IntervalType
 import dev.bongballe.parkbuddy.model.ParkingInterval
 import dev.bongballe.parkbuddy.model.ParkingSpot
+import dev.bongballe.parkbuddy.model.ProhibitionReason
 import dev.bongballe.parkbuddy.model.StreetSide
 import dev.bongballe.parkbuddy.model.SweepingSchedule
 import dev.bongballe.parkbuddy.qualifier.WithDispatcherType
@@ -279,7 +280,7 @@ class ParkingRepositoryImpl(
                 days = days,
                 startTime = start,
                 endTime = end,
-                exemptPermitZones = ctx.rppAreas.toList(),
+                exemptPermitZones = permitExemptZonesFor(intervalType, ctx.rppAreas.toList()),
                 source = IntervalSource.REGULATION,
               )
             )
@@ -478,8 +479,8 @@ class ParkingRepositoryImpl(
     return deduped.map { m ->
       val type =
         when {
-          m.isTow -> IntervalType.Forbidden("Tow Away Zone")
-          m.isCommercial -> IntervalType.Restricted("Commercial Vehicles Only")
+          m.isTow -> IntervalType.Forbidden(ProhibitionReason.TOW_AWAY)
+          m.isCommercial -> IntervalType.Restricted(ProhibitionReason.COMMERCIAL)
           else -> IntervalType.Metered(m.limitMinutes)
         }
       ParkingInterval(
@@ -487,7 +488,7 @@ class ParkingRepositoryImpl(
         days = m.days,
         startTime = m.start,
         endTime = m.end,
-        exemptPermitZones = rppAreas,
+        exemptPermitZones = permitExemptZonesFor(type, rppAreas),
         source = if (m.isTow) IntervalSource.TOW else IntervalSource.METER,
       )
     }
@@ -520,17 +521,32 @@ class ParkingRepositoryImpl(
       // Without a permit, you can't park here at all during enforcement hours.
       ParkingRegulation.RPP_ONLY ->
         if (limitMinutes > 0) IntervalType.Limited(limitMinutes)
-        else IntervalType.Restricted("Residential Permit Required")
+        else IntervalType.Restricted(ProhibitionReason.RESIDENTIAL_PERMIT)
 
       ParkingRegulation.METERED -> IntervalType.Metered(limitMinutes)
-      ParkingRegulation.COMMERCIAL_ONLY -> IntervalType.Restricted("Commercial Vehicles Only")
-      ParkingRegulation.LOADING_ZONE -> IntervalType.Restricted("Loading Zone")
-      ParkingRegulation.NO_PARKING -> IntervalType.Forbidden("No Parking")
-      ParkingRegulation.NO_STOPPING -> IntervalType.Forbidden("No Stopping")
-      ParkingRegulation.NO_OVERNIGHT -> IntervalType.Forbidden("No Overnight Parking")
+      ParkingRegulation.COMMERCIAL_ONLY -> IntervalType.Restricted(ProhibitionReason.COMMERCIAL)
+      ParkingRegulation.LOADING_ZONE -> IntervalType.Restricted(ProhibitionReason.LOADING_ZONE)
+      ParkingRegulation.NO_PARKING -> IntervalType.Forbidden(ProhibitionReason.NO_PARKING)
+      ParkingRegulation.NO_STOPPING -> IntervalType.Forbidden(ProhibitionReason.NO_STOPPING)
+      ParkingRegulation.NO_OVERNIGHT -> IntervalType.Forbidden(ProhibitionReason.NO_OVERNIGHT)
       ParkingRegulation.GOVERNMENT_ONLY -> null // Doesn't affect regular passenger vehicles
       ParkingRegulation.NO_OVERSIZED -> null // Doesn't affect regular passenger vehicles
       ParkingRegulation.UNKNOWN -> null
+    }
+
+  /**
+   * RPP zones only grant exemptions for time-based restrictions (limited, metered) and RPP-only
+   * zones. Commercial, loading zone, tow-away, and no-parking restrictions are vehicle-type or
+   * absolute prohibitions that residential permits cannot override.
+   */
+  private fun permitExemptZonesFor(type: IntervalType, rppAreas: List<String>): List<String> =
+    when (type) {
+      is IntervalType.Limited,
+      is IntervalType.Metered -> rppAreas
+      is IntervalType.Restricted ->
+        if (type.reason == ProhibitionReason.RESIDENTIAL_PERMIT) rppAreas else emptyList()
+      is IntervalType.Forbidden,
+      is IntervalType.Open -> emptyList()
     }
 
   // ── Sweeping schedule entity creation ──
@@ -558,7 +574,7 @@ class ParkingRepositoryImpl(
     if (start == LocalTime(0, 0) && end == LocalTime(0, 0)) return null
     val days = DayParser.parseMeterDays(daysStr) ?: return null
     return ParkingInterval(
-      type = IntervalType.Forbidden("Tow Away Zone"),
+      type = IntervalType.Forbidden(ProhibitionReason.TOW_AWAY),
       days = days,
       startTime = start,
       endTime = end,

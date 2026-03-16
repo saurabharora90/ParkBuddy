@@ -3,6 +3,19 @@ package dev.bongballe.parkbuddy.model
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
+/** Why parking is prohibited or restricted during an interval. */
+@Serializable
+enum class ProhibitionReason {
+  TOW_AWAY,
+  NO_PARKING,
+  NO_STOPPING,
+  NO_OVERNIGHT,
+  STREET_CLEANING,
+  COMMERCIAL,
+  LOADING_ZONE,
+  RESIDENTIAL_PERMIT,
+}
+
 /**
  * The type of parking rule active during a [ParkingInterval].
  *
@@ -42,14 +55,14 @@ sealed interface IntervalType : Comparable<IntervalType> {
   /** Restricted to specific vehicle classes (commercial, loading, government). */
   @Serializable
   @SerialName("restricted")
-  data class Restricted(val reason: String) : IntervalType {
+  data class Restricted(val reason: ProhibitionReason) : IntervalType {
     override val priority = 3
   }
 
   /** No parking allowed (tow-away, street cleaning, no-parking signs). */
   @Serializable
   @SerialName("forbidden")
-  data class Forbidden(val reason: String) : IntervalType {
+  data class Forbidden(val reason: ProhibitionReason) : IntervalType {
     override val priority = 4
   }
 }

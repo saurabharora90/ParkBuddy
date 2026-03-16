@@ -4,6 +4,7 @@ import com.google.common.truth.Truth.assertThat
 import dev.bongballe.parkbuddy.model.IntervalSource
 import dev.bongballe.parkbuddy.model.IntervalType
 import dev.bongballe.parkbuddy.model.ParkingInterval
+import dev.bongballe.parkbuddy.model.ProhibitionReason
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.DayOfWeek.FRIDAY
 import kotlinx.datetime.DayOfWeek.MONDAY
@@ -46,14 +47,19 @@ class TimelineResolverTest {
 
   private fun tow(days: Set<DayOfWeek>, start: LocalTime, end: LocalTime) =
     ParkingInterval(
-      type = IntervalType.Forbidden("Tow Away Zone"),
+      type = IntervalType.Forbidden(ProhibitionReason.TOW_AWAY),
       days = days,
       startTime = start,
       endTime = end,
       source = IntervalSource.TOW,
     )
 
-  private fun forbidden(reason: String, days: Set<DayOfWeek>, start: LocalTime, end: LocalTime) =
+  private fun forbidden(
+    reason: ProhibitionReason,
+    days: Set<DayOfWeek>,
+    start: LocalTime,
+    end: LocalTime,
+  ) =
     ParkingInterval(
       type = IntervalType.Forbidden(reason),
       days = days,
@@ -189,7 +195,7 @@ class TimelineResolverTest {
     val input =
       listOf(
         limited(120, setOf(MONDAY), LocalTime(8, 0), LocalTime(18, 0)),
-        forbidden("Loading Zone", setOf(MONDAY), LocalTime(12, 0), LocalTime(14, 0)),
+        forbidden(ProhibitionReason.NO_PARKING, setOf(MONDAY), LocalTime(12, 0), LocalTime(14, 0)),
       )
     val result = TimelineResolver.resolve(input)
 

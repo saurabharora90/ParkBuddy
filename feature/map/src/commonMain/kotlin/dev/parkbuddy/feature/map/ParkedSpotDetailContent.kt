@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.sp
 import dev.bongballe.parkbuddy.data.repository.utils.formatSchedule
 import dev.bongballe.parkbuddy.model.ParkingRestrictionState
 import dev.bongballe.parkbuddy.model.ParkingSpot
+import dev.bongballe.parkbuddy.model.ProhibitionReason
 import dev.bongballe.parkbuddy.model.ReminderMinutes
 import dev.bongballe.parkbuddy.theme.ParkBuddyTheme
 import dev.bongballe.parkbuddy.theme.SagePrimary
@@ -224,7 +225,7 @@ private fun PrimaryCountdown(
 
     is ParkingRestrictionState.Forbidden -> {
       AlertCard(
-        title = "FORBIDDEN: ${restrictionState.reason.uppercase()}",
+        title = "FORBIDDEN: ${restrictionState.reason.displayText().uppercase()}",
         subtitle = "Move your car immediately to avoid a ticket or towing.",
         timeLabel = "ACTIVE",
       )
@@ -418,7 +419,7 @@ private fun AlertsSection(
     }
 
     is ParkingRestrictionState.Forbidden -> {
-      ForbiddenAlertsSection(restrictionState.reason)
+      ForbiddenAlertsSection(restrictionState.reason.displayText())
     }
 
     is ParkingRestrictionState.ActiveTimed,
@@ -613,15 +614,6 @@ private fun timeLabelFor(timeUntil: Duration): String {
   }
 }
 
-private fun formatDurationCompact(duration: Duration): String {
-  val hours = duration.inWholeHours
-  val minutes = duration.inWholeMinutes % 60
-  return when {
-    hours > 0 -> "${hours}h ${minutes}m"
-    else -> "${minutes}m"
-  }
-}
-
 @Composable
 private fun CountDownText(timeLeft: Int, unit: String, modifier: Modifier = Modifier) {
   Column(
@@ -701,7 +693,7 @@ private fun AlertCard(title: String, subtitle: String, timeLabel: String) {
 private fun ParkedSpotDetailContentMeteredTimedPreview() {
   ParkBuddyTheme {
     ParkedSpotDetailContent(
-      spot = spot,
+      spot = previewSpot,
       restrictionState =
         ParkingRestrictionState.ActiveTimed(
           expiry = Clock.System.now() + 1.hours,
@@ -720,10 +712,10 @@ private fun ParkedSpotDetailContentMeteredTimedPreview() {
 private fun ParkedSpotDetailContentForbiddenPreview() {
   ParkBuddyTheme {
     ParkedSpotDetailContent(
-      spot = spot,
+      spot = previewSpot,
       restrictionState =
         ParkingRestrictionState.Forbidden(
-          reason = "No Parking Any Time",
+          reason = ProhibitionReason.NO_PARKING,
           nextCleaning = Clock.System.now() + 24.hours,
         ),
       reminders = emptyList(),
@@ -738,7 +730,7 @@ private fun ParkedSpotDetailContentForbiddenPreview() {
 private fun ParkedSpotDetailContentCleaningActivePreview() {
   ParkBuddyTheme {
     ParkedSpotDetailContent(
-      spot = spot,
+      spot = previewSpot,
       restrictionState =
         ParkingRestrictionState.CleaningActive(
           cleaningEnd = Clock.System.now() + 45.minutes,
@@ -756,7 +748,7 @@ private fun ParkedSpotDetailContentCleaningActivePreview() {
 private fun ParkedSpotDetailContentUnrestrictedPreview() {
   ParkBuddyTheme {
     ParkedSpotDetailContent(
-      spot = spot,
+      spot = previewSpot,
       restrictionState =
         ParkingRestrictionState.Unrestricted(nextCleaning = Clock.System.now() + 48.hours),
       reminders = listOf(ReminderMinutes(720)),
@@ -771,7 +763,7 @@ private fun ParkedSpotDetailContentUnrestrictedPreview() {
 private fun ParkedSpotDetailContentActiveTimedPreview() {
   ParkBuddyTheme {
     ParkedSpotDetailContent(
-      spot = spot,
+      spot = previewSpot,
       restrictionState =
         ParkingRestrictionState.ActiveTimed(
           expiry = Clock.System.now() + 1.hours + 30.minutes,
@@ -790,7 +782,7 @@ private fun ParkedSpotDetailContentActiveTimedPreview() {
 private fun ParkedSpotDetailContentPendingTimedPreview() {
   ParkBuddyTheme {
     ParkedSpotDetailContent(
-      spot = spot,
+      spot = previewSpot,
       restrictionState =
         ParkingRestrictionState.PendingTimed(
           startsAt = Clock.System.now() + 3.hours,
