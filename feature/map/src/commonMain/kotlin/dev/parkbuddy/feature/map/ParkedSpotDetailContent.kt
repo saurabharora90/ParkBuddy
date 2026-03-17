@@ -16,7 +16,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -29,14 +29,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import dev.bongballe.parkbuddy.core.navigation.Navigator
 import dev.bongballe.parkbuddy.data.repository.utils.formatSchedule
 import dev.bongballe.parkbuddy.model.ParkingRestrictionState
 import dev.bongballe.parkbuddy.model.ParkingSpot
-import dev.bongballe.parkbuddy.model.ProhibitionReason
 import dev.bongballe.parkbuddy.model.ReminderMinutes
 import dev.bongballe.parkbuddy.theme.ParkBuddyTheme
 import dev.bongballe.parkbuddy.theme.SagePrimary
 import dev.bongballe.parkbuddy.theme.Terracotta
+import dev.parkbuddy.core.ui.ParkBuddyAlertDialog
 import dev.parkbuddy.core.ui.ParkBuddyButton
 import dev.parkbuddy.core.ui.ParkBuddyIcons
 import dev.parkbuddy.core.ui.SquircleIcon
@@ -45,25 +46,37 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
-import kotlinx.coroutines.delay
 
 @Composable
 internal fun ParkedSpotDetailContent(
-  spot: ParkingSpot,
-  restrictionState: ParkingRestrictionState,
-  reminders: List<ReminderMinutes>,
+  viewModel: ParkedSpotDetailViewModel,
+  navigator: Navigator,
+  modifier: Modifier = Modifier,
+) {
+  val state by viewModel.stateFlow.collectAsState()
+  ParkedSpotDetailContent(
+    state = state,
+    onMovedCar = {
+      viewModel.markCarMoved()
+      navigator.goBack()
+    },
+    onEndSession = {
+      viewModel.reportWrongLocation()
+      navigator.goBack()
+    },
+    modifier = modifier,
+  )
+}
+
+@Composable
+internal fun ParkedSpotDetailContent(
+  state: ParkedSpotDetailState,
   onMovedCar: () -> Unit,
   onEndSession: () -> Unit,
   modifier: Modifier = Modifier,
 ) {
-  var currentTime by remember { mutableStateOf(Clock.System.now()) }
-
-  LaunchedEffect(Unit) {
-    while (true) {
-      delay(1000)
-      currentTime = Clock.System.now()
-    }
-  }
+  var isShowingConfirmCarMovedPrompt by remember { mutableStateOf(false) }
+  var isShowingClearParkedLocationPrompt by remember { mutableStateOf(false) }
 
   Column(
     modifier =
@@ -73,25 +86,21 @@ internal fun ParkedSpotDetailContent(
         .padding(bottom = 24.dp),
     verticalArrangement = Arrangement.spacedBy(20.dp),
   ) {
-    val now = currentTime
+    val now = state.now
+    val restriction = state.restrictionState
 
-    // Header: street name + status
-    Header(spot, restrictionState, now)
+    Header(state.spot, restriction, now)
 
-    // Primary countdown card
-    PrimaryCountdown(spot, restrictionState, now)
+    PrimaryCountdown(state.spot, restriction, now)
 
-    // Secondary cleaning info for timed states
-    SecondaryCleaningInfo(restrictionState, now)
+    SecondaryCleaningInfo(restriction, now)
 
-    // Alerts section
-    AlertsSection(restrictionState, reminders, now)
+    AlertsSection(restriction, state.reminders, now)
 
-    // Action buttons
     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
       ParkBuddyButton(
         label = "MOVED",
-        onClick = onMovedCar,
+        onClick = { isShowingConfirmCarMovedPrompt = true },
         icon = ParkBuddyIcons.Check,
         containerColor = SagePrimary,
         modifier = Modifier.weight(1f).heightIn(max = 52.dp),
@@ -99,17 +108,47 @@ internal fun ParkedSpotDetailContent(
 
       ParkBuddyButton(
         label = "WRONG ?",
-        onClick = onEndSession,
+        onClick = { isShowingClearParkedLocationPrompt = true },
         icon = ParkBuddyIcons.NotificationsOff,
         containerColor = Terracotta,
         modifier = Modifier.weight(1f).heightIn(max = 52.dp),
       )
     }
   }
+
+  if (isShowingConfirmCarMovedPrompt) {
+    ParkBuddyAlertDialog(
+      title = "Are you sure?",
+      text = "Marking your car as moved will clear your parked location and cancel the reminders.",
+      confirmLabel = "Yes",
+      dismissLabel = "No",
+      onConfirm = {
+        isShowingConfirmCarMovedPrompt = false
+        onMovedCar()
+      },
+      onDismiss = { isShowingConfirmCarMovedPrompt = false },
+    )
+  }
+
+  if (isShowingClearParkedLocationPrompt) {
+    ParkBuddyAlertDialog(
+      title = "Are you sure?",
+      text =
+        "We are sorry for detecting the wrong location. " +
+          "Proceeding will clear this as parked location and cancel the reminders.",
+      confirmLabel = "Yes",
+      dismissLabel = "No",
+      onConfirm = {
+        isShowingClearParkedLocationPrompt = false
+        onEndSession()
+      },
+      onDismiss = { isShowingClearParkedLocationPrompt = false },
+    )
+  }
 }
 
 @Composable
-private fun Header(spot: ParkingSpot, restrictionState: ParkingRestrictionState, now: Instant) {
+private fun Header(spot: ParkingSpot, restriction: ParkingRestrictionState, now: Instant) {
   Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
     spot.streetName?.let { streetName ->
       Text(
@@ -129,59 +168,57 @@ private fun Header(spot: ParkingSpot, restrictionState: ParkingRestrictionState,
       }
 
     val statusText =
-      when (restrictionState) {
-        is ParkingRestrictionState.CleaningActive -> {
-          "● STREET CLEANING IN PROGRESS"
-        }
+      when (restriction) {
+        is ParkingRestrictionState.CleaningActive -> "\u25CF STREET CLEANING IN PROGRESS"
 
-        is ParkingRestrictionState.Unrestricted -> {
-          restrictionState.nextCleaning?.let {
-            val hours = (it - now).inWholeHours
-            "● Safe for $hours more hours"
-          } ?: "● No restrictions"
-        }
+        is ParkingRestrictionState.Forbidden -> "\u25CF DO NOT PARK HERE"
+
+        is ParkingRestrictionState.ForbiddenUpcoming -> "\u25CF Restriction ahead"
 
         is ParkingRestrictionState.PermitSafe -> {
-          restrictionState.nextCleaning?.let {
-            val hours = (it - now).inWholeHours
-            "● Permit zone, safe for $hours more hours"
-          } ?: "● Permit zone, no restrictions"
+          restriction.nextCleaning?.let {
+            val remaining = it - now
+            if (remaining.isNegative()) "\u25CF Permit zone, no restrictions"
+            else "\u25CF Permit zone, safe for ${formatDurationCompact(remaining)}"
+          } ?: "\u25CF Permit zone, no restrictions"
         }
 
         is ParkingRestrictionState.ActiveTimed -> {
-          val remaining = restrictionState.expiry - now
+          val remaining = restriction.expiry - now
           val prefix =
             if (remaining.isNegative()) "Time limit EXPIRED"
             else "Move within ${formatDurationCompact(remaining)}"
-          val suffix = if (restrictionState.paymentRequired) " (PAY METER)" else ""
-          "● $prefix$suffix"
+          val suffix = if (restriction.paymentRequired) " (PAY METER)" else ""
+          "\u25CF $prefix$suffix"
         }
 
         is ParkingRestrictionState.PendingTimed -> {
-          val startsIn = restrictionState.startsAt - now
+          val startsIn = restriction.startsAt - now
           val prefix =
             if (startsIn.isNegative()) "Enforcement starting now"
             else "Enforcement starts in ${formatDurationCompact(startsIn)}"
-          val suffix = if (restrictionState.paymentRequired) " (PAY METER)" else ""
-          "● $prefix$suffix"
+          val suffix = if (restriction.paymentRequired) " (PAY METER)" else ""
+          "\u25CF $prefix$suffix"
         }
 
-        is ParkingRestrictionState.Forbidden -> {
-          "● DO NOT PARK HERE"
+        is ParkingRestrictionState.Unrestricted -> {
+          restriction.nextCleaning?.let {
+            val remaining = it - now
+            if (remaining.isNegative()) "\u25CF No restrictions"
+            else "\u25CF Safe for ${formatDurationCompact(remaining)}"
+          } ?: "\u25CF No restrictions"
         }
       }
 
     val statusColor =
-      when (restrictionState) {
-        is ParkingRestrictionState.CleaningActive,
+      when (restriction) {
+        is ParkingRestrictionState.CleaningActive -> Terracotta
         is ParkingRestrictionState.Forbidden -> Terracotta
-
         is ParkingRestrictionState.ActiveTimed -> {
-          val remaining = restrictionState.expiry - now
+          val remaining = restriction.expiry - now
           if (remaining.isNegative() || remaining.inWholeMinutes < 30) Terracotta
           else MaterialTheme.colorScheme.onSurfaceVariant
         }
-
         else -> MaterialTheme.colorScheme.onSurfaceVariant
       }
 
@@ -192,14 +229,14 @@ private fun Header(spot: ParkingSpot, restrictionState: ParkingRestrictionState,
 @Composable
 private fun PrimaryCountdown(
   spot: ParkingSpot,
-  restrictionState: ParkingRestrictionState,
+  restriction: ParkingRestrictionState,
   now: Instant,
 ) {
-  when (restrictionState) {
+  when (restriction) {
     is ParkingRestrictionState.CleaningActive -> {
       TimeLimitCountdownCard(
         label = "Street Cleaning Ends",
-        targetTime = restrictionState.cleaningEnd,
+        targetTime = restriction.cleaningEnd,
         now = now,
         accentColor = Terracotta,
       )
@@ -208,7 +245,7 @@ private fun PrimaryCountdown(
     is ParkingRestrictionState.ActiveTimed -> {
       TimeLimitCountdownCard(
         label = "Time Limit Expires",
-        targetTime = restrictionState.expiry,
+        targetTime = restriction.expiry,
         now = now,
         accentColor = Terracotta,
       )
@@ -217,23 +254,25 @@ private fun PrimaryCountdown(
     is ParkingRestrictionState.PendingTimed -> {
       TimeLimitCountdownCard(
         label = "Enforcement Starts",
-        targetTime = restrictionState.startsAt,
+        targetTime = restriction.startsAt,
         now = now,
         accentColor = MaterialTheme.colorScheme.primary,
       )
     }
 
     is ParkingRestrictionState.Forbidden -> {
+      val reasonText = restriction.reason.displayText().uppercase()
       AlertCard(
-        title = "FORBIDDEN: ${restrictionState.reason.displayText().uppercase()}",
+        title = "FORBIDDEN: $reasonText",
         subtitle = "Move your car immediately to avoid a ticket or towing.",
         timeLabel = "ACTIVE",
       )
     }
 
-    is ParkingRestrictionState.Unrestricted,
-    is ParkingRestrictionState.PermitSafe -> {
-      CleaningCountdownCard(spot, restrictionState.nextCleaning, now)
+    is ParkingRestrictionState.ForbiddenUpcoming,
+    is ParkingRestrictionState.PermitSafe,
+    is ParkingRestrictionState.Unrestricted -> {
+      CleaningCountdownCard(spot, restriction.nextCleaning, now)
     }
   }
 }
@@ -251,6 +290,8 @@ private fun TimeLimitCountdownCard(
     colors = CardDefaults.cardColors(containerColor = Color.White),
   ) {
     Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
+      val duration = targetTime - now
+
       Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(16.dp),
@@ -269,7 +310,6 @@ private fun TimeLimitCountdownCard(
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.secondary,
           )
-          val duration = targetTime - now
           Text(
             text = if (duration.isNegative()) "EXPIRED" else formatDurationCompact(duration),
             style = MaterialTheme.typography.titleMedium,
@@ -279,7 +319,6 @@ private fun TimeLimitCountdownCard(
         }
       }
 
-      val duration = targetTime - now
       if (!duration.isNegative()) {
         val hoursUntil = duration.inWholeHours
         val minutesUntil = duration.inWholeMinutes % 60
@@ -297,7 +336,7 @@ private fun TimeLimitCountdownCard(
 @Composable
 private fun CleaningCountdownCard(spot: ParkingSpot, nextCleaning: Instant?, now: Instant) {
   val nextSweepingSchedule =
-    spot.sweepingSchedules.sortedBy { it.nextOccurrence(now) }.firstOrNull()
+    remember(spot) { spot.sweepingSchedules.sortedBy { it.nextOccurrence(now) }.firstOrNull() }
 
   nextSweepingSchedule?.let { schedule ->
     Card(
@@ -355,23 +394,18 @@ private fun CleaningCountdownCard(spot: ParkingSpot, nextCleaning: Instant?, now
 }
 
 @Composable
-private fun SecondaryCleaningInfo(restrictionState: ParkingRestrictionState, now: Instant) {
-  val nextCleaning =
-    when (restrictionState) {
-      is ParkingRestrictionState.ActiveTimed -> restrictionState.nextCleaning
-      is ParkingRestrictionState.PendingTimed -> restrictionState.nextCleaning
-      is ParkingRestrictionState.Forbidden -> restrictionState.nextCleaning
-      else -> return
-    } ?: return
+private fun SecondaryCleaningInfo(restriction: ParkingRestrictionState, now: Instant) {
+  val showSecondary =
+    restriction is ParkingRestrictionState.ActiveTimed ||
+      restriction is ParkingRestrictionState.PendingTimed ||
+      restriction is ParkingRestrictionState.Forbidden
+  if (!showSecondary) return
+
+  val nextCleaning = restriction.nextCleaning ?: return
 
   val duration = nextCleaning - now
   if (duration.isNegative()) return
-  val cleaningText =
-    when {
-      duration.inWholeHours < 1 -> "in ${duration.inWholeMinutes} min"
-      duration.inWholeHours < 24 -> "in ${duration.inWholeHours} hrs"
-      else -> "in ${duration.inWholeHours / 24} days"
-    }
+  val cleaningText = formatRelativeTime(duration)
 
   Card(
     modifier = Modifier.fillMaxWidth(),
@@ -409,36 +443,34 @@ private fun SecondaryCleaningInfo(restrictionState: ParkingRestrictionState, now
 
 @Composable
 private fun AlertsSection(
-  restrictionState: ParkingRestrictionState,
+  restriction: ParkingRestrictionState,
   reminders: List<ReminderMinutes>,
   now: Instant,
 ) {
-  when (restrictionState) {
+  when (restriction) {
     is ParkingRestrictionState.CleaningActive -> {
-      CleaningActiveAlertsSection(restrictionState.cleaningEnd, now)
+      CleaningActiveAlertsSection(restriction.cleaningEnd, now)
     }
 
     is ParkingRestrictionState.Forbidden -> {
-      ForbiddenAlertsSection(restrictionState.reason.displayText())
+      ForbiddenAlertsSection(restriction.reason.displayText())
     }
 
-    is ParkingRestrictionState.ActiveTimed,
+    is ParkingRestrictionState.ForbiddenUpcoming -> {}
+
+    is ParkingRestrictionState.ActiveTimed -> {
+      if (restriction.paymentRequired) PaymentRequiredAlertsSection()
+      TimeLimitAlertsSection(restriction.expiry, now)
+    }
+
     is ParkingRestrictionState.PendingTimed -> {
-      if (
-        restrictionState is ParkingRestrictionState.ActiveTimed && restrictionState.paymentRequired
-      ) {
-        PaymentRequiredAlertsSection()
-      } else if (
-        restrictionState is ParkingRestrictionState.PendingTimed && restrictionState.paymentRequired
-      ) {
-        PaymentRequiredAlertsSection()
-      }
-      TimeLimitAlertsSection(restrictionState, now)
+      if (restriction.paymentRequired) PaymentRequiredAlertsSection()
+      TimeLimitAlertsSection(restriction.expiry, now)
     }
 
     is ParkingRestrictionState.Unrestricted,
     is ParkingRestrictionState.PermitSafe -> {
-      CleaningAlertsSection(reminders, restrictionState.nextCleaning, now)
+      CleaningAlertsSection(reminders, restriction.nextCleaning, now)
     }
   }
 }
@@ -497,14 +529,7 @@ private fun CleaningActiveAlertsSection(cleaningEnd: Instant, now: Instant) {
 }
 
 @Composable
-private fun TimeLimitAlertsSection(restrictionState: ParkingRestrictionState, now: Instant) {
-  val expiry =
-    when (restrictionState) {
-      is ParkingRestrictionState.ActiveTimed -> restrictionState.expiry
-      is ParkingRestrictionState.PendingTimed -> restrictionState.expiry
-      else -> return
-    }
-
+private fun TimeLimitAlertsSection(expiry: Instant, now: Instant) {
   val warningTime = expiry - 15.minutes
   val activeCount = listOf(warningTime, expiry).count { it > now }
 
@@ -533,7 +558,6 @@ private fun TimeLimitAlertsSection(restrictionState: ParkingRestrictionState, no
       }
     }
 
-    // 15-minute warning
     val warningTimeLabel = timeLabelFor(warningTime - now)
     AlertCard(
       title = "Alert 1: Move Reminder",
@@ -541,7 +565,6 @@ private fun TimeLimitAlertsSection(restrictionState: ParkingRestrictionState, no
       timeLabel = warningTimeLabel,
     )
 
-    // At expiry
     val expiryTimeLabel = timeLabelFor(expiry - now)
     AlertCard(
       title = "Alert 2: Time Limit Expired",
@@ -562,7 +585,7 @@ private fun CleaningAlertsSection(
   val displayedReminders = reminders.take(2)
   val activeCount =
     displayedReminders.count { reminder ->
-      val alertTime = nextCleaning - Duration.parse("${reminder.value}m")
+      val alertTime = nextCleaning - reminder.value.minutes
       alertTime > now
     }
 
@@ -592,7 +615,7 @@ private fun CleaningAlertsSection(
     }
 
     displayedReminders.forEachIndexed { index, reminder ->
-      val alertTime = nextCleaning - Duration.parse("${reminder.value}m")
+      val alertTime = nextCleaning - reminder.value.minutes
       val timeLabel = timeLabelFor(alertTime - now)
 
       AlertCard(
@@ -693,14 +716,18 @@ private fun AlertCard(title: String, subtitle: String, timeLabel: String) {
 private fun ParkedSpotDetailContentMeteredTimedPreview() {
   ParkBuddyTheme {
     ParkedSpotDetailContent(
-      spot = previewSpot,
-      restrictionState =
-        ParkingRestrictionState.ActiveTimed(
-          expiry = Clock.System.now() + 1.hours,
-          paymentRequired = true,
-          nextCleaning = Clock.System.now() + 24.hours,
+      state =
+        ParkedSpotDetailState(
+          spot = previewSpot,
+          restrictionState =
+            ParkingRestrictionState.ActiveTimed(
+              expiry = Clock.System.now() + 1.hours,
+              paymentRequired = true,
+              nextCleaning = Clock.System.now() + 24.hours,
+            ),
+          now = Clock.System.now(),
+          reminders = emptyList(),
         ),
-      reminders = emptyList(),
       onMovedCar = {},
       onEndSession = {},
     )
@@ -712,13 +739,17 @@ private fun ParkedSpotDetailContentMeteredTimedPreview() {
 private fun ParkedSpotDetailContentForbiddenPreview() {
   ParkBuddyTheme {
     ParkedSpotDetailContent(
-      spot = previewSpot,
-      restrictionState =
-        ParkingRestrictionState.Forbidden(
-          reason = ProhibitionReason.NO_PARKING,
-          nextCleaning = Clock.System.now() + 24.hours,
+      state =
+        ParkedSpotDetailState(
+          spot = previewSpot,
+          restrictionState =
+            ParkingRestrictionState.Forbidden(
+              reason = dev.bongballe.parkbuddy.model.ProhibitionReason.NO_PARKING,
+              nextCleaning = Clock.System.now() + 24.hours,
+            ),
+          now = Clock.System.now(),
+          reminders = emptyList(),
         ),
-      reminders = emptyList(),
       onMovedCar = {},
       onEndSession = {},
     )
@@ -730,13 +761,17 @@ private fun ParkedSpotDetailContentForbiddenPreview() {
 private fun ParkedSpotDetailContentCleaningActivePreview() {
   ParkBuddyTheme {
     ParkedSpotDetailContent(
-      spot = previewSpot,
-      restrictionState =
-        ParkingRestrictionState.CleaningActive(
-          cleaningEnd = Clock.System.now() + 45.minutes,
-          nextCleaning = Clock.System.now() + (24 * 7).hours,
+      state =
+        ParkedSpotDetailState(
+          spot = previewSpot,
+          restrictionState =
+            ParkingRestrictionState.CleaningActive(
+              cleaningEnd = Clock.System.now() + 45.minutes,
+              nextCleaning = Clock.System.now() + (24 * 7).hours,
+            ),
+          now = Clock.System.now(),
+          reminders = emptyList(),
         ),
-      reminders = emptyList(),
       onMovedCar = {},
       onEndSession = {},
     )
@@ -748,10 +783,14 @@ private fun ParkedSpotDetailContentCleaningActivePreview() {
 private fun ParkedSpotDetailContentUnrestrictedPreview() {
   ParkBuddyTheme {
     ParkedSpotDetailContent(
-      spot = previewSpot,
-      restrictionState =
-        ParkingRestrictionState.Unrestricted(nextCleaning = Clock.System.now() + 48.hours),
-      reminders = listOf(ReminderMinutes(720)),
+      state =
+        ParkedSpotDetailState(
+          spot = previewSpot,
+          restrictionState =
+            ParkingRestrictionState.Unrestricted(nextCleaning = Clock.System.now() + 48.hours),
+          now = Clock.System.now(),
+          reminders = listOf(ReminderMinutes(720)),
+        ),
       onMovedCar = {},
       onEndSession = {},
     )
@@ -763,14 +802,18 @@ private fun ParkedSpotDetailContentUnrestrictedPreview() {
 private fun ParkedSpotDetailContentActiveTimedPreview() {
   ParkBuddyTheme {
     ParkedSpotDetailContent(
-      spot = previewSpot,
-      restrictionState =
-        ParkingRestrictionState.ActiveTimed(
-          expiry = Clock.System.now() + 1.hours + 30.minutes,
-          paymentRequired = true,
-          nextCleaning = Clock.System.now() + 48.hours,
+      state =
+        ParkedSpotDetailState(
+          spot = previewSpot,
+          restrictionState =
+            ParkingRestrictionState.ActiveTimed(
+              expiry = Clock.System.now() + 1.hours + 30.minutes,
+              paymentRequired = false,
+              nextCleaning = Clock.System.now() + 48.hours,
+            ),
+          now = Clock.System.now(),
+          reminders = emptyList(),
         ),
-      reminders = emptyList(),
       onMovedCar = {},
       onEndSession = {},
     )
@@ -782,15 +825,19 @@ private fun ParkedSpotDetailContentActiveTimedPreview() {
 private fun ParkedSpotDetailContentPendingTimedPreview() {
   ParkBuddyTheme {
     ParkedSpotDetailContent(
-      spot = previewSpot,
-      restrictionState =
-        ParkingRestrictionState.PendingTimed(
-          startsAt = Clock.System.now() + 3.hours,
-          expiry = Clock.System.now() + 5.hours,
-          paymentRequired = false,
-          nextCleaning = null,
+      state =
+        ParkedSpotDetailState(
+          spot = previewSpot,
+          restrictionState =
+            ParkingRestrictionState.PendingTimed(
+              startsAt = Clock.System.now() + 3.hours,
+              expiry = Clock.System.now() + 5.hours,
+              paymentRequired = false,
+              nextCleaning = null,
+            ),
+          now = Clock.System.now(),
+          reminders = emptyList(),
         ),
-      reminders = emptyList(),
       onMovedCar = {},
       onEndSession = {},
     )

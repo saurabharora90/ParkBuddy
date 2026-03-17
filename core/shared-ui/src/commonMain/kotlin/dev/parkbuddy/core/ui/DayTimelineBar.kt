@@ -17,21 +17,37 @@ import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import dev.bongballe.parkbuddy.model.IntervalType
+import dev.bongballe.parkbuddy.theme.Goldenrod
+import dev.bongballe.parkbuddy.theme.SagePrimary
+import dev.bongballe.parkbuddy.theme.Terracotta
+import dev.bongballe.parkbuddy.theme.WildIris
 
 /**
- * A single colored segment in the day timeline.
+ * A single segment in the day timeline.
  *
  * @property startMinute Minutes from midnight (0-1440)
  * @property endMinute Minutes from midnight (0-1440)
- * @property color Fill color for this segment
- * @property label Optional label for the time label below the bar
+ * @property intervalType The interval type that produced this segment, or null for sweeping.
+ *   [DayTimelineBar] maps this to a fill color. Callers can use this for type-safe filtering (e.g.
+ *   filtering to only segments that affect permit holders).
  */
 data class TimelineSegment(
   val startMinute: Int,
   val endMinute: Int,
-  val color: Color,
-  val label: String = "",
+  val intervalType: IntervalType? = null,
 )
+
+/** Maps an [IntervalType] (or null for sweeping) to the appropriate fill color. */
+fun segmentColor(type: IntervalType?): Color =
+  when (type) {
+    null -> Terracotta // sweeping
+    is IntervalType.Open -> SagePrimary
+    is IntervalType.Limited -> WildIris
+    is IntervalType.Metered -> Goldenrod
+    is IntervalType.Restricted -> Terracotta
+    is IntervalType.Forbidden -> Terracotta
+  }
 
 private const val TOTAL_MINUTES = 1440
 
@@ -79,7 +95,7 @@ fun DayTimelineBar(
         val startX = minuteToX(segment.startMinute)
         val endX = minuteToX(segment.endMinute)
         drawRect(
-          color = segment.color,
+          color = segmentColor(segment.intervalType),
           topLeft = Offset(startX, barTop),
           size = Size(endX - startX, barHeight),
         )
