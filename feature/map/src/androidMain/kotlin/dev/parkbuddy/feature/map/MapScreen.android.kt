@@ -368,23 +368,24 @@ private fun getDominantColor(
   isInPermitZone: Boolean,
   now: kotlin.time.Instant = kotlin.time.Clock.System.now(),
 ): Color {
-  if (isInPermitZone) return SageGreen
-  if (spot.timeline.isEmpty()) return SagePrimary
-
-  // Check if any sweeping is active right now
+  // Sweeping and prohibited intervals always show red, even in permit zones
   val sweepingActive = spot.sweepingSchedules.any { it.isWithinWindow(now) }
   if (sweepingActive) return Terracotta
 
-  // Find the currently active timeline interval
   val activeType = spot.timeline.firstOrNull { it.isActiveAt(now) }?.type
+  if (activeType != null && activeType.isProhibited) return Terracotta
+
+  // Permit zone: everything else is green (metered/limited don't apply)
+  if (isInPermitZone) return SageGreen
+
   return when (activeType) {
-    is IntervalType.Forbidden -> Terracotta
-    is IntervalType.Restricted -> Terracotta
     is IntervalType.Metered -> Goldenrod
     is IntervalType.Limited -> WildIris
-    // No active interval = free parking right now
     is IntervalType.Open,
     null -> SagePrimary
+    // Forbidden/Restricted already handled above
+    is IntervalType.Forbidden,
+    is IntervalType.Restricted -> Terracotta
   }
 }
 

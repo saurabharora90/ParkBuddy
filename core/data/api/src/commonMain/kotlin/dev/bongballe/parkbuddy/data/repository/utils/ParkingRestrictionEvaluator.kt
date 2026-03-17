@@ -42,7 +42,14 @@ object ParkingRestrictionEvaluator {
     val activeCleaning = spot.sweepingSchedules.firstOrNull { it.isWithinWindow(currentTime, zone) }
     if (activeCleaning != null) {
       val today = currentTime.toLocalDateTime(zone).date
-      val cleaningEnd = LocalDateTime(today, LocalTime(activeCleaning.toHour, 0)).toInstant(zone)
+      val candidate = LocalDateTime(today, LocalTime(activeCleaning.toHour, 0)).toInstant(zone)
+      // Overnight cleaning (e.g. 10 PM - 2 AM): if the computed end is in the past, it wraps
+      // to tomorrow. Also handles toHour=0 (midnight) which would land at start-of-today.
+      val cleaningEnd =
+        if (candidate <= currentTime)
+          LocalDateTime(today.plus(1, DateTimeUnit.DAY), LocalTime(activeCleaning.toHour, 0))
+            .toInstant(zone)
+        else candidate
       return ParkingRestrictionState.CleaningActive(
         cleaningEnd = cleaningEnd,
         nextCleaning = nextCleaning,
@@ -57,6 +64,16 @@ object ParkingRestrictionEvaluator {
       val nextInterval = findNextInterval(spot.timeline, currentTime, zone)
       if (nextInterval != null) {
         val (startInstant, interval) = nextInterval
+
+        // Permit exemption applies to upcoming intervals too.
+        if (
+          userPermitZone != null &&
+            userPermitZone in interval.exemptPermitZones &&
+            isPermitExemptible(interval)
+        ) {
+          return ParkingRestrictionState.PermitSafe(nextCleaning)
+        }
+
         return when (val type = interval.type) {
           is IntervalType.Forbidden ->
             ParkingRestrictionState.ForbiddenUpcoming(
@@ -95,7 +112,15 @@ object ParkingRestrictionEvaluator {
                 nextCleaning = nextCleaning,
               )
             } else {
-              ParkingRestrictionState.Unrestricted(nextCleaning)
+              // No time limit (e.g. metered with no cap). Expiry = window end.
+              val endDate = startInstant.toLocalDateTime(zone).date
+              val windowEnd = LocalDateTime(endDate, interval.endTime).toInstant(zone)
+              ParkingRestrictionState.PendingTimed(
+                startsAt = startInstant,
+                expiry = windowEnd,
+                paymentRequired = interval.requiresPayment,
+                nextCleaning = nextCleaning,
+              )
             }
           }
 
@@ -106,18 +131,10 @@ object ParkingRestrictionEvaluator {
     }
 
     // 3. Permit exemption: if the user holds a permit for one of the exempt zones, they're safe.
-    // Forbidden and non-RPP restricted intervals (commercial, loading) are never permit-exempt,
-    // even if exemptPermitZones is populated (defense against upstream data issues).
-    val permitExemptible =
-      activeInterval.type is IntervalType.Limited ||
-        activeInterval.type is IntervalType.Metered ||
-        (activeInterval.type is IntervalType.Restricted &&
-          (activeInterval.type as IntervalType.Restricted).reason ==
-            ProhibitionReason.RESIDENTIAL_PERMIT)
     if (
-      permitExemptible &&
-        userPermitZone != null &&
-        userPermitZone in activeInterval.exemptPermitZones
+      userPermitZone != null &&
+        userPermitZone in activeInterval.exemptPermitZones &&
+        isPermitExemptible(activeInterval)
     ) {
       return ParkingRestrictionState.PermitSafe(nextCleaning)
     }
@@ -289,4 +306,18 @@ object ParkingRestrictionEvaluator {
 
     return candidates.minOrNull() ?: limitExpiry
   }
+
+  /**
+   * Whether the given interval's type is eligible for permit exemption. Forbidden and non-RPP
+   * restricted intervals (commercial, loading) are never permit-exempt, even if exemptPermitZones
+   * is populated (defense against upstream data issues).
+   */
+  private fun isPermitExemptible(interval: ParkingInterval): Boolean =
+    when (interval.type) {
+      is IntervalType.Limited,
+      is IntervalType.Metered -> true
+      is IntervalType.Restricted ->
+        (interval.type as IntervalType.Restricted).reason == ProhibitionReason.RESIDENTIAL_PERMIT
+      else -> false
+    }
 }

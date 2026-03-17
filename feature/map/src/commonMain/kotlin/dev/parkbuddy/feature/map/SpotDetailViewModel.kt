@@ -204,8 +204,12 @@ private fun buildUpcomingDisplay(
     }
 
     if (state is ParkingRestrictionState.ActiveTimed) {
-      val reason = if (state.paymentRequired) "Meter expires" else "Time limit expires"
-      add(Candidate(state.expiry, formatEventLabel(state.expiry), reason, ""))
+      // Skip timed candidate when expiry is clamped to cleaning (cleaning candidate covers it)
+      val clampedToCleaning = state.nextCleaning != null && state.expiry == state.nextCleaning
+      if (!clampedToCleaning) {
+        val reason = if (state.paymentRequired) "Meter expires" else "Time limit expires"
+        add(Candidate(state.expiry, formatEventLabel(state.expiry), reason, ""))
+      }
     }
 
     if (state is ParkingRestrictionState.PendingTimed) {

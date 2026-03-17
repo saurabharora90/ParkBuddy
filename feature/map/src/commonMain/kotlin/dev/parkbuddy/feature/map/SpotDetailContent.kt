@@ -212,8 +212,6 @@ private fun CurrentStateCard(state: SpotDetailState) {
               add("${upcoming.reason} ${formatRelativeTime(upcoming.duration)}" to "")
               add("Window" to upcoming.window)
             },
-          segments = state.timelineSegments,
-          currentMinute = state.currentMinute,
         )
       } else {
         StateCard(
@@ -225,8 +223,6 @@ private fun CurrentStateCard(state: SpotDetailState) {
               add("Permit $permitZone active" to "")
               upcoming?.let { add("Next: ${it.label}" to "") }
             },
-          segments = state.timelineSegments,
-          currentMinute = state.currentMinute,
         )
       }
     }
