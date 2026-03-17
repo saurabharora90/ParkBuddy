@@ -6,24 +6,24 @@ import kotlin.time.Instant
 sealed class ParkingRestrictionState {
   abstract val nextCleaning: Instant?
 
-  /** Street cleaning is currently in progress */
+  /** Street cleaning is currently in progress. */
   data class CleaningActive(val cleaningEnd: Instant, override val nextCleaning: Instant?) :
     ParkingRestrictionState()
 
-  /** No restrictions apply (except maybe street cleaning) */
+  /** No restrictions apply (except maybe street cleaning). */
   data class Unrestricted(override val nextCleaning: Instant?) : ParkingRestrictionState()
 
-  /** User is in their permit zone, only street cleaning applies */
+  /** User is in their permit zone, only street cleaning applies. */
   data class PermitSafe(override val nextCleaning: Instant?) : ParkingRestrictionState()
 
-  /** Time limit is currently active */
+  /** Time limit is currently active. */
   data class ActiveTimed(
     val expiry: Instant,
     val paymentRequired: Boolean,
     override val nextCleaning: Instant?,
   ) : ParkingRestrictionState()
 
-  /** Time limit will start in the future */
+  /** Time limit will start in the future. */
   data class PendingTimed(
     val startsAt: Instant,
     val expiry: Instant,
@@ -31,10 +31,14 @@ sealed class ParkingRestrictionState {
     override val nextCleaning: Instant?,
   ) : ParkingRestrictionState()
 
-  /** Parking is prohibited (No Parking, No Stopping, Tow Away, Commercial Only, etc.) */
-  data class Forbidden(
+  /** Parking is prohibited right now (No Parking, No Stopping, Tow Away, etc.). */
+  data class Forbidden(val reason: ProhibitionReason, override val nextCleaning: Instant?) :
+    ParkingRestrictionState()
+
+  /** A prohibition is coming (tow zone starts at 7 AM, commercial zone at noon, etc.). */
+  data class ForbiddenUpcoming(
     val reason: ProhibitionReason,
-    val startsAt: Instant? = null,
+    val startsAt: Instant,
     override val nextCleaning: Instant?,
   ) : ParkingRestrictionState()
 }

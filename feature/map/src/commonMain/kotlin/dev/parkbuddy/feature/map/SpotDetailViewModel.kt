@@ -9,8 +9,8 @@ import dev.bongballe.parkbuddy.model.IntervalType
 import dev.bongballe.parkbuddy.model.ParkingInterval
 import dev.bongballe.parkbuddy.model.ParkingRestrictionState
 import dev.bongballe.parkbuddy.model.ParkingSpot
+import dev.bongballe.parkbuddy.model.ProhibitionReason
 import dev.bongballe.parkbuddy.model.SweepingSchedule
-import dev.bongballe.parkbuddy.theme.Terracotta
 import dev.parkbuddy.core.ui.TimelineSegment
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.Assisted
@@ -22,34 +22,33 @@ import dev.zacsweers.metrox.viewmodel.ManualViewModelAssistedFactoryKey
 import kotlin.time.Clock
 import kotlin.time.Duration
 import kotlin.time.Instant
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.datetime.DateTimeUnit
-import kotlinx.datetime.DayOfWeek
-import kotlinx.datetime.LocalDate
-import kotlinx.datetime.LocalTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.plus
-import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
+
+private const val IMMINENT_THRESHOLD_HOURS = 3L
 
 data class SpotDetailState(
   val spot: ParkingSpot,
   val restrictionState: ParkingRestrictionState,
+  val now: Instant,
   val permitZone: String?,
+  val isPermitExempt: Boolean,
   val timelineSegments: List<TimelineSegment>,
   val currentMinute: Int,
-  val upcoming: UpcomingEnforcement?,
-  val isImminent: Boolean,
+  val upcoming: UpcomingEnforcementDisplay?,
   val sortedIntervals: List<IntervalDisplay>,
   val sweepingDisplay: List<SweepingDisplay>,
-)
+) {
+  val isImminent: Boolean
+    get() = upcoming != null && upcoming.duration.inWholeHours < IMMINENT_THRESHOLD_HOURS
+}
 
 data class IntervalDisplay(val interval: ParkingInterval, val isActive: Boolean)
 
@@ -59,14 +58,12 @@ data class SweepingDisplay(
   val relativeTimeText: String?,
 )
 
-data class UpcomingEnforcement(
+data class UpcomingEnforcementDisplay(
   val duration: Duration,
   val reason: String,
   val window: String,
   val label: String,
 )
-
-private const val IMMINENT_THRESHOLD_HOURS = 3L
 
 @AssistedInject
 class SpotDetailViewModel(
@@ -96,13 +93,6 @@ class SpotDetailViewModel(
   }
 }
 
-private fun tickerFlow(periodMs: Long = 30_000L): Flow<Instant> = flow {
-  while (true) {
-    emit(Clock.System.now())
-    delay(periodMs)
-  }
-}
-
 // ---------------------------------------------------------------------------
 // Pure evaluation function (internal for testing)
 // ---------------------------------------------------------------------------
@@ -122,21 +112,20 @@ internal fun evaluate(
       zone = zone,
     )
 
+  val isPermitExempt = restrictionState is ParkingRestrictionState.PermitSafe
+
   val currentMinute = currentMinuteOfDay(now, zone)
   val allSegments = buildTodaySegments(spot, now, zone)
-  // Permit holders only care about cleaning/forbidden segments, not meters/limits
   val segments =
-    if (restrictionState is ParkingRestrictionState.PermitSafe)
-      allSegments.filter { it.color == Terracotta }
+    if (isPermitExempt)
+      allSegments.filter { it.intervalType == null || it.intervalType?.isProhibited == true }
     else allSegments
-  val isPermitSafe = restrictionState is ParkingRestrictionState.PermitSafe
-  val upcoming = findNextEnforcement(spot, now, zone, isPermitSafe)
-  val isImminent = upcoming != null && upcoming.duration.inWholeHours < IMMINENT_THRESHOLD_HOURS
+
+  val upcoming = buildUpcomingDisplay(restrictionState, spot, now, zone)
 
   val sortedIntervals =
     spot.timeline.sortedWith(compareBy({ it.days.minOrNull() }, { it.startTime })).map {
-      // Permit holders are exempt from timed intervals, don't mark them active
-      val isActive = it.isActiveAt(now) && !(isPermitSafe && isExemptForPermit(it))
+      val isActive = it.isActiveAt(now) && !(isPermitExempt && isPermitExemptible(it))
       IntervalDisplay(it, isActive)
     }
 
@@ -152,126 +141,109 @@ internal fun evaluate(
   return SpotDetailState(
     spot = spot,
     restrictionState = restrictionState,
+    now = now,
     permitZone = permitZone,
+    isPermitExempt = isPermitExempt,
     timelineSegments = segments,
     currentMinute = currentMinute,
     upcoming = upcoming,
-    isImminent = isImminent,
     sortedIntervals = sortedIntervals,
     sweepingDisplay = sweepingDisplay,
   )
 }
 
 // ---------------------------------------------------------------------------
-// Helpers (moved from SpotDetailContent)
+// Helpers
 // ---------------------------------------------------------------------------
+
+private fun isPermitExemptible(interval: ParkingInterval): Boolean =
+  when (interval.type) {
+    is IntervalType.Limited,
+    is IntervalType.Metered -> true
+
+    is IntervalType.Restricted ->
+      (interval.type as IntervalType.Restricted).reason == ProhibitionReason.RESIDENTIAL_PERMIT
+
+    else -> false
+  }
 
 private fun currentMinuteOfDay(now: Instant, zone: TimeZone): Int {
   val local = now.toLocalDateTime(zone)
   return local.hour * 60 + local.minute
 }
 
-private fun findNextEnforcement(
+/**
+ * Builds the upcoming enforcement display from the [ParkingRestrictionState]. Uses state-specific
+ * data (nextCleaning, forbidden startsAt, pending startsAt) to find the nearest upcoming event.
+ */
+private fun buildUpcomingDisplay(
+  state: ParkingRestrictionState,
   spot: ParkingSpot,
   now: Instant,
   zone: TimeZone,
-  isPermitSafe: Boolean = false,
-): UpcomingEnforcement? {
-  val local = now.toLocalDateTime(zone)
-  val today = local.dayOfWeek
-  val currentTime = local.time
+): UpcomingEnforcementDisplay? {
+  val today = now.toLocalDateTime(zone).date
 
-  // Permit holders: only forbidden/restricted intervals matter, skip metered/limited
-  val relevantTimeline =
-    if (isPermitSafe) spot.timeline.filter { !isExemptForPermit(it) } else spot.timeline
+  fun formatEventLabel(instant: Instant): String {
+    val eventLocal = instant.toLocalDateTime(zone)
+    val timeStr = DateTimeUtils.formatHour(eventLocal.hour)
+    val dayStr =
+      if (eventLocal.date == today) ""
+      else if (eventLocal.date == today.plus(1, DateTimeUnit.DAY)) " tomorrow"
+      else " " + eventLocal.dayOfWeek.shortName
+    return "$timeStr$dayStr"
+  }
 
-  data class Candidate(
-    val time: Instant,
-    val timeLabel: String,
-    val reason: String,
-    val window: String,
-  )
-
-  val todayNext =
-    relevantTimeline
-      .filter { today in it.days && it.startTime > currentTime }
-      .minByOrNull { it.startTime }
-
-  val tomorrow = DayOfWeek.entries[(today.ordinal + 1) % 7]
-  val tomorrowNext =
-    if (todayNext == null)
-      relevantTimeline.filter { tomorrow in it.days }.minByOrNull { it.startTime }
-    else null
-
-  val nextSweeping = spot.nextCleaning(now, zone)
+  data class Candidate(val time: Instant, val label: String, val reason: String, val window: String)
 
   val candidates = buildList {
-    todayNext?.let {
-      val startInstant = instantFromLocalTime(it.startTime, local.date, zone)
-      val reason = intervalReason(it.type)
-      val window =
-        "${formatTime(it.startTime)}-${formatTime(it.endTime)}, ${formatDayRange(it.days)}"
-      add(Candidate(startInstant, formatTime(it.startTime), reason, window))
+    if (state is ParkingRestrictionState.ForbiddenUpcoming) {
+      add(
+        Candidate(state.startsAt, formatEventLabel(state.startsAt), state.reason.displayText(), "")
+      )
     }
-    tomorrowNext?.let {
-      val tomorrowDate = local.date.plus(1, DateTimeUnit.DAY)
-      val startInstant = instantFromLocalTime(it.startTime, tomorrowDate, zone)
-      val reason = intervalReason(it.type)
-      val window =
-        "${formatTime(it.startTime)}-${formatTime(it.endTime)}, ${formatDayRange(it.days)}"
-      add(Candidate(startInstant, "${formatTime(it.startTime)} tomorrow", reason, window))
+
+    if (state is ParkingRestrictionState.ActiveTimed) {
+      val reason = if (state.paymentRequired) "Meter expires" else "Time limit expires"
+      add(Candidate(state.expiry, formatEventLabel(state.expiry), reason, ""))
     }
-    nextSweeping?.let { sweepInstant ->
-      val sweepLocal = sweepInstant.toLocalDateTime(zone)
-      val timeStr = DateTimeUtils.formatHour(sweepLocal.hour)
-      val dayStr =
-        if (sweepLocal.date == local.date) ""
-        else if (sweepLocal.date == local.date.plus(1, DateTimeUnit.DAY)) " tomorrow"
-        else " " + sweepLocal.dayOfWeek.shortName
+
+    if (state is ParkingRestrictionState.PendingTimed) {
+      val reason = if (state.paymentRequired) "Metered parking" else "Time-limited parking"
+      add(Candidate(state.startsAt, formatEventLabel(state.startsAt), reason, ""))
+    }
+
+    state.nextCleaning?.let { cleaningInstant ->
       val schedule = spot.sweepingSchedules.sortedBy { it.nextOccurrence(now, zone) }.firstOrNull()
+      val label = formatEventLabel(cleaningInstant)
       val window =
         if (schedule != null) {
           val from = DateTimeUtils.formatHour(schedule.fromHour)
           val to = DateTimeUtils.formatHour(schedule.toHour)
           "$from-$to, ${schedule.weekday.name}"
-        } else "$timeStr$dayStr"
-      add(Candidate(sweepInstant, "$timeStr$dayStr", "Street cleaning", window))
+        } else label
+      add(Candidate(cleaningInstant, label, "Street cleaning", window))
     }
   }
 
   val nearest = candidates.minByOrNull { it.time } ?: return null
   val duration = nearest.time - now
+  if (duration.isNegative()) return null
 
   val label =
     if (duration.inWholeHours < 12) {
-      "${nearest.timeLabel} (${formatRelativeTime(duration)})"
+      "${nearest.label} (${formatRelativeTime(duration)})"
     } else {
-      nearest.timeLabel
+      nearest.label
     }
 
-  return UpcomingEnforcement(
+  return UpcomingEnforcementDisplay(
     duration = duration,
     reason = nearest.reason,
     window = nearest.window,
     label = label,
   )
 }
-
-/** Metered and limited intervals are exempt for permit holders (they don't pay or have limits). */
-private fun isExemptForPermit(interval: ParkingInterval): Boolean =
-  interval.type is IntervalType.Metered || interval.type is IntervalType.Limited
-
-private fun intervalReason(type: IntervalType): String =
-  when (type) {
-    is IntervalType.Forbidden -> type.reason.displayText()
-    is IntervalType.Restricted -> type.reason.displayText()
-    is IntervalType.Metered -> "Metered parking"
-    is IntervalType.Limited -> "Time-limited parking"
-    is IntervalType.Open -> "Enforcement"
-  }
-
-private fun instantFromLocalTime(time: LocalTime, date: LocalDate, zone: TimeZone): Instant =
-  kotlinx.datetime.LocalDateTime(date, time).toInstant(zone)
 
 private fun buildTodaySegments(
   spot: ParkingSpot,
@@ -292,7 +264,7 @@ private fun buildTodaySegments(
         TimelineSegment(
           startMinute = startMin,
           endMinute = effectiveEnd,
-          color = intervalColor(interval.type),
+          intervalType = interval.type,
         )
       )
     }
@@ -301,11 +273,7 @@ private fun buildTodaySegments(
     .filter { it.weekday.toDayOfWeek() == today }
     .forEach { schedule ->
       segments.add(
-        TimelineSegment(
-          startMinute = schedule.fromHour * 60,
-          endMinute = schedule.toHour * 60,
-          color = Terracotta,
-        )
+        TimelineSegment(startMinute = schedule.fromHour * 60, endMinute = schedule.toHour * 60)
       )
     }
 

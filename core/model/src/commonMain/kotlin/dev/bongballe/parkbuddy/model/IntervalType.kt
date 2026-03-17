@@ -29,6 +29,10 @@ enum class ProhibitionReason {
 sealed interface IntervalType : Comparable<IntervalType> {
   val priority: Int
 
+  /** True for Forbidden and Restricted: the user cannot park here at all. */
+  val isProhibited: Boolean
+    get() = this is Forbidden || this is Restricted
+
   override fun compareTo(other: IntervalType): Int = priority.compareTo(other.priority)
 
   /** No restrictions. Free parking. */

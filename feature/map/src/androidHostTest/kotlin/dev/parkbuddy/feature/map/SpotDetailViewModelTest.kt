@@ -11,7 +11,6 @@ import dev.bongballe.parkbuddy.model.ProhibitionReason
 import dev.bongballe.parkbuddy.model.StreetSide
 import dev.bongballe.parkbuddy.model.SweepingSchedule
 import dev.bongballe.parkbuddy.model.Weekday
-import dev.bongballe.parkbuddy.theme.Terracotta
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
@@ -166,7 +165,7 @@ class SpotDetailViewModelTest {
 
     assertThat(state.isImminent).isTrue()
     assertThat(state.upcoming).isNotNull()
-    assertThat(state.upcoming!!.reason).isEqualTo("Street cleaning")
+    assertThat(requireNotNull(state.upcoming).reason).isEqualTo("Street cleaning")
   }
 
   @Test
@@ -319,6 +318,7 @@ class SpotDetailViewModelTest {
     val state = evaluate(spot, "A", wednesdayAfternoon, zone)
 
     assertThat(state.restrictionState).isInstanceOf(ParkingRestrictionState.PermitSafe::class.java)
+    assertThat(state.isPermitExempt).isTrue()
     assertThat(state.permitZone).isEqualTo("A")
   }
 
@@ -354,7 +354,7 @@ class SpotDetailViewModelTest {
     val state = evaluate(spot, "A", wednesday6am, zone)
 
     assertThat(state.upcoming).isNotNull()
-    assertThat(state.upcoming!!.reason).isEqualTo("Tow Away Zone")
+    assertThat(requireNotNull(state.upcoming).reason).isEqualTo("Tow Away Zone")
   }
 
   @Test
@@ -404,6 +404,7 @@ class SpotDetailViewModelTest {
 
     // Commercial zone should NOT be PermitSafe, even with matching permit
     assertThat(state.restrictionState).isInstanceOf(ParkingRestrictionState.Forbidden::class.java)
+    assertThat(state.isPermitExempt).isFalse()
   }
 
   @Test
@@ -450,7 +451,12 @@ class SpotDetailViewModelTest {
     assertThat(state.restrictionState).isInstanceOf(ParkingRestrictionState.PermitSafe::class.java)
     // Only forbidden (tow-away) + sweeping segments, limited is filtered out
     assertThat(state.timelineSegments).hasSize(2)
-    assertThat(state.timelineSegments.all { it.color == Terracotta }).isTrue()
+    assertThat(
+        state.timelineSegments.all {
+          it.intervalType == null || it.intervalType?.isProhibited == true
+        }
+      )
+      .isTrue()
   }
 
   @Test
@@ -651,5 +657,103 @@ class SpotDetailViewModelTest {
     val state = evaluate(makeSpot(), null, wednesdayAfternoon, zone)
     // 2 PM = 14 * 60 = 840
     assertThat(state.currentMinute).isEqualTo(14 * 60)
+  }
+
+  // -- Sweeping priority --
+
+  @Test
+  fun `sweeping during forbidden returns CleaningActive not Forbidden`() {
+    val spot =
+      makeSpot(
+        timeline =
+          listOf(
+            ParkingInterval(
+              type = IntervalType.Forbidden(reason = ProhibitionReason.TOW_AWAY),
+              days = setOf(DayOfWeek.MONDAY),
+              startTime = LocalTime(0, 0),
+              endTime = LocalTime(6, 0),
+              source = IntervalSource.TOW,
+            )
+          ),
+        sweepingSchedules =
+          listOf(
+            SweepingSchedule(
+              weekday = Weekday.Mon,
+              fromHour = 0,
+              toHour = 2,
+              week1 = true,
+              week2 = true,
+              week3 = true,
+              week4 = true,
+              week5 = true,
+              holidays = false,
+            )
+          ),
+      )
+
+    val state = evaluate(spot, null, mondayDuringCleaning, zone)
+
+    // CleaningActive takes priority, UI gets a single state to render
+    assertThat(state.restrictionState)
+      .isInstanceOf(ParkingRestrictionState.CleaningActive::class.java)
+  }
+
+  // -- Browse mode expiry --
+
+  @Test
+  fun `browse mode ActiveTimed expiry is based on now, not window end`() {
+    val spot =
+      makeSpot(
+        timeline =
+          listOf(
+            ParkingInterval(
+              type = IntervalType.Limited(timeLimitMinutes = 120),
+              days = monFri,
+              startTime = LocalTime(8, 0),
+              endTime = LocalTime(18, 0),
+              source = IntervalSource.REGULATION,
+            )
+          )
+      )
+
+    // Browse mode: evaluate passes now as parkedAt
+    val state = evaluate(spot, null, wednesdayAfternoon, zone)
+
+    assertThat(state.restrictionState).isInstanceOf(ParkingRestrictionState.ActiveTimed::class.java)
+    val timed = state.restrictionState as ParkingRestrictionState.ActiveTimed
+    // 2 PM + 120 min = 4 PM, not 6 PM (window end)
+    val expected = LocalDateTime(LocalDate(2026, 3, 18), LocalTime(16, 0)).toInstant(zone)
+    assertThat(timed.expiry).isEqualTo(expected)
+  }
+
+  // -- isImminent for ActiveTimed --
+
+  @Test
+  fun `isImminent is true when ActiveTimed expiry is less than 3 hours away`() {
+    // Wed 4:30 PM, 2hr limit started at 2 PM. Expiry = 4 PM (30 min ago, but evaluate
+    // passes now as parkedAt so expiry = 4:30 PM + 120 min = 6:30 PM).
+    // Actually, at 4:30 PM with 120 min limit, expiry = 6:30 PM which is 2 hours away.
+    val wednesday430 = LocalDateTime(LocalDate(2026, 3, 18), LocalTime(16, 30)).toInstant(zone)
+    val spot =
+      makeSpot(
+        timeline =
+          listOf(
+            ParkingInterval(
+              type = IntervalType.Limited(timeLimitMinutes = 120),
+              days = monFri,
+              startTime = LocalTime(8, 0),
+              endTime = LocalTime(18, 0),
+              source = IntervalSource.REGULATION,
+            )
+          )
+      )
+
+    val state = evaluate(spot, null, wednesday430, zone)
+
+    assertThat(state.restrictionState).isInstanceOf(ParkingRestrictionState.ActiveTimed::class.java)
+    // Expiry is 2 hours away, which is < 3 hour threshold
+    assertThat(state.isImminent).isTrue()
+    assertThat(state.upcoming).isNotNull()
+    assertThat(requireNotNull(state.upcoming).reason).contains("expires")
   }
 }

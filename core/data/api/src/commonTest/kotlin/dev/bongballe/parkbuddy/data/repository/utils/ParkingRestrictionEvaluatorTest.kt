@@ -308,7 +308,7 @@ class ParkingRestrictionEvaluatorTest {
   }
 
   // ---------------------------------------------------------------------------
-  // True limit: clamped by next forbidden interval
+  // True limit: clamped by next prohibited interval
   // ---------------------------------------------------------------------------
 
   @Test
@@ -501,5 +501,227 @@ class ParkingRestrictionEvaluatorTest {
     val state = ParkingRestrictionEvaluator.evaluate(spot, "A", now, now, zone)
 
     assertThat(state).isInstanceOf(ParkingRestrictionState.PermitSafe::class.java)
+  }
+
+  // ---------------------------------------------------------------------------
+  // Browse mode (parkedAt == now): expiry should be now + timeLimit, not windowEnd
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun `browse mode expiry is now plus time limit, not window end`() {
+    // At 2 PM, 2hr limit. Browse mode passes parkedAt == now.
+    // Expiry should be 4 PM (now + 120 min), NOT 6 PM (window end).
+    val now = dateTime(2024, 1, 1, 14, 0) // Monday 2 PM
+    val spot = createTestSpot(id = "1", limitMinutes = null, timeline = listOf(weekdayLimited))
+
+    val state = ParkingRestrictionEvaluator.evaluate(spot, null, now, now, zone)
+
+    assertThat(state).isInstanceOf(ParkingRestrictionState.ActiveTimed::class.java)
+    val active = state as ParkingRestrictionState.ActiveTimed
+    assertThat(active.expiry).isEqualTo(dateTime(2024, 1, 1, 16, 0))
+  }
+
+  @Test
+  fun `browse mode near window end clamps expiry to window end`() {
+    // At 5:30 PM, 2hr limit, window ends 6 PM. parkedAt == now.
+    // Raw expiry would be 7:30 PM but window ends at 6 PM.
+    // Since the limit (5:30 + 120 min = 7:30 PM) exceeds window end,
+    // the expiry is still 7:30 PM (enforcement doesn't stop mid-limit).
+    // But a Forbidden interval at 6 PM would clamp it.
+    val now = dateTime(2024, 1, 1, 17, 30) // Monday 5:30 PM
+    val spot = createTestSpot(id = "1", limitMinutes = null, timeline = listOf(weekdayLimited))
+
+    val state = ParkingRestrictionEvaluator.evaluate(spot, null, now, now, zone)
+
+    assertThat(state).isInstanceOf(ParkingRestrictionState.ActiveTimed::class.java)
+    val active = state as ParkingRestrictionState.ActiveTimed
+    // 5:30 PM + 120 min = 7:30 PM
+    assertThat(active.expiry).isEqualTo(dateTime(2024, 1, 1, 19, 30))
+  }
+
+  // ---------------------------------------------------------------------------
+  // Sweeping takes priority: CleaningActive short-circuits even with active forbidden
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun `sweeping returns CleaningActive even when forbidden interval is simultaneously active`() {
+    val now = dateTime(2024, 1, 1, 8, 30) // Monday, during both sweeping (8-10) and tow (7-9)
+    val sweeping =
+      SweepingSchedule(
+        weekday = Weekday.Mon,
+        fromHour = 8,
+        toHour = 10,
+        week1 = true,
+        week2 = true,
+        week3 = true,
+        week4 = true,
+        week5 = true,
+        holidays = false,
+      )
+    val spot =
+      createTestSpot(id = "1", sweepingSchedules = listOf(sweeping), timeline = listOf(towAway))
+
+    val state = ParkingRestrictionEvaluator.evaluate(spot, null, now, now, zone)
+
+    // Must be CleaningActive, NOT Forbidden. Sweeping takes priority.
+    assertThat(state).isInstanceOf(ParkingRestrictionState.CleaningActive::class.java)
+    val cleaning = state as ParkingRestrictionState.CleaningActive
+    assertThat(cleaning.cleaningEnd).isEqualTo(dateTime(2024, 1, 1, 10, 0))
+  }
+
+  @Test
+  fun `sweeping returns CleaningActive even when metered interval is simultaneously active`() {
+    val now = dateTime(2024, 1, 1, 9, 30) // Monday, during both sweeping (8-10) and metered (9-18)
+    val sweeping =
+      SweepingSchedule(
+        weekday = Weekday.Mon,
+        fromHour = 8,
+        toHour = 10,
+        week1 = true,
+        week2 = true,
+        week3 = true,
+        week4 = true,
+        week5 = true,
+        holidays = false,
+      )
+    val spot =
+      createTestSpot(
+        id = "1",
+        sweepingSchedules = listOf(sweeping),
+        timeline = listOf(weekdayMetered),
+      )
+
+    val state = ParkingRestrictionEvaluator.evaluate(spot, null, now, now, zone)
+
+    // Must be CleaningActive, NOT ActiveTimed
+    assertThat(state).isInstanceOf(ParkingRestrictionState.CleaningActive::class.java)
+  }
+
+  // ---------------------------------------------------------------------------
+  // Restricted interval clamping (new behavior: clamp to Restricted, not just Forbidden)
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun `evaluate clamps expiry to next restricted interval start`() {
+    // Parked at 10 AM. 2hr limit. Commercial zone starts at 11 AM.
+    // Expiry should be 11 AM (clamped), not noon.
+    val now = dateTime(2024, 1, 1, 10, 0)
+    val limited =
+      ParkingInterval(
+        type = IntervalType.Limited(timeLimitMinutes = 120),
+        days = setOf(DayOfWeek.MONDAY),
+        startTime = LocalTime(8, 0),
+        endTime = LocalTime(18, 0),
+        source = IntervalSource.REGULATION,
+      )
+    val commercial =
+      ParkingInterval(
+        type = IntervalType.Restricted(ProhibitionReason.COMMERCIAL),
+        days = setOf(DayOfWeek.MONDAY),
+        startTime = LocalTime(11, 0),
+        endTime = LocalTime(14, 0),
+        source = IntervalSource.REGULATION,
+      )
+    val spot = createTestSpot(id = "1", limitMinutes = null, timeline = listOf(limited, commercial))
+
+    val state = ParkingRestrictionEvaluator.evaluate(spot, null, now, now, zone)
+
+    assertThat(state).isInstanceOf(ParkingRestrictionState.ActiveTimed::class.java)
+    val active = state as ParkingRestrictionState.ActiveTimed
+    assertThat(active.expiry).isEqualTo(dateTime(2024, 1, 1, 11, 0))
+  }
+
+  // ---------------------------------------------------------------------------
+  // Overnight interval: windowStart must use yesterday's date
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun `overnight interval returns ActiveTimed at 1 AM, not PendingTimed`() {
+    // Overnight limited: 10 PM - 6 AM, Mon-Fri, 2hr limit.
+    // At 1 AM Tuesday, the user is inside the window (opened Mon 10 PM).
+    // parkedAt = midnight (they parked at midnight).
+    val overnight =
+      ParkingInterval(
+        type = IntervalType.Limited(timeLimitMinutes = 120),
+        days = weekdays,
+        startTime = LocalTime(22, 0),
+        endTime = LocalTime(6, 0),
+        source = IntervalSource.REGULATION,
+      )
+    val parkedAt = dateTime(2024, 1, 2, 0, 0) // Tuesday midnight
+    val now = dateTime(2024, 1, 2, 1, 0) // Tuesday 1 AM
+    val spot = createTestSpot(id = "1", limitMinutes = null, timeline = listOf(overnight))
+
+    val state = ParkingRestrictionEvaluator.evaluate(spot, null, parkedAt, now, zone)
+
+    // Must be ActiveTimed (inside the window), NOT PendingTimed
+    assertThat(state).isInstanceOf(ParkingRestrictionState.ActiveTimed::class.java)
+    val active = state as ParkingRestrictionState.ActiveTimed
+    // parkedAt midnight + 120 min = 2 AM
+    assertThat(active.expiry).isEqualTo(dateTime(2024, 1, 2, 2, 0))
+  }
+
+  @Test
+  fun `overnight interval windowStart uses yesterday when parked before window opened`() {
+    // Parked at 9 PM Monday (before 10 PM window). Now 1 AM Tuesday.
+    // Effective start = max(9 PM, 10 PM yesterday) = 10 PM Monday.
+    // Expiry = 10 PM + 120 min = midnight.
+    val overnight =
+      ParkingInterval(
+        type = IntervalType.Limited(timeLimitMinutes = 120),
+        days = weekdays,
+        startTime = LocalTime(22, 0),
+        endTime = LocalTime(6, 0),
+        source = IntervalSource.REGULATION,
+      )
+    val parkedAt = dateTime(2024, 1, 1, 21, 0) // Monday 9 PM
+    val now = dateTime(2024, 1, 2, 1, 0) // Tuesday 1 AM
+    val spot = createTestSpot(id = "1", limitMinutes = null, timeline = listOf(overnight))
+
+    val state = ParkingRestrictionEvaluator.evaluate(spot, null, parkedAt, now, zone)
+
+    assertThat(state).isInstanceOf(ParkingRestrictionState.ActiveTimed::class.java)
+    val active = state as ParkingRestrictionState.ActiveTimed
+    // windowStart = Mon 10 PM, effectiveStart = max(9 PM, 10 PM) = 10 PM. 10 PM + 120 = midnight.
+    assertThat(active.expiry).isEqualTo(dateTime(2024, 1, 2, 0, 0))
+  }
+
+  // ---------------------------------------------------------------------------
+  // PendingTimed expiry clamped to next prohibited interval
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun `pending timed expiry is clamped by next forbidden interval`() {
+    // Saturday noon. Limited M-F 8-6 (2hr limit). Tow M-F 10-11 AM.
+    // Next limited starts Monday 8 AM. Raw expiry = 8 AM + 120 = 10 AM.
+    // But tow starts at 10 AM. Expiry should be clamped to 10 AM.
+    // Actually both are 10 AM, so let's use a different scenario:
+    // Limited 8-6 (3hr limit), tow 10-11. Raw expiry = 8 + 180 = 11 AM. Clamped to 10 AM.
+    val now = dateTime(2024, 1, 6, 12, 0) // Saturday noon
+    val limited =
+      ParkingInterval(
+        type = IntervalType.Limited(timeLimitMinutes = 180),
+        days = weekdays,
+        startTime = LocalTime(8, 0),
+        endTime = LocalTime(18, 0),
+        source = IntervalSource.REGULATION,
+      )
+    val forbidden =
+      ParkingInterval(
+        type = IntervalType.Forbidden(ProhibitionReason.TOW_AWAY),
+        days = weekdays,
+        startTime = LocalTime(10, 0),
+        endTime = LocalTime(11, 0),
+        source = IntervalSource.TOW,
+      )
+    val spot = createTestSpot(id = "1", limitMinutes = null, timeline = listOf(limited, forbidden))
+
+    val state = ParkingRestrictionEvaluator.evaluate(spot, null, now, now, zone)
+
+    // Next limited starts Monday 8 AM -> PendingTimed
+    assertThat(state).isInstanceOf(ParkingRestrictionState.PendingTimed::class.java)
+    val pending = state as ParkingRestrictionState.PendingTimed
+    // Raw expiry = Mon 8 AM + 180 min = 11 AM. Clamped by tow at 10 AM.
+    assertThat(pending.expiry).isEqualTo(dateTime(2024, 1, 8, 10, 0)) // Monday
   }
 }

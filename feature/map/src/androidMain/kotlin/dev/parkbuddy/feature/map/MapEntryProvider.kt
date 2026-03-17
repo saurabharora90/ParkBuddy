@@ -2,6 +2,7 @@ package dev.parkbuddy.feature.map
 
 import dev.bongballe.parkbuddy.core.navigation.NavEntryItem
 import dev.bongballe.parkbuddy.core.navigation.Navigator
+import dev.bongballe.parkbuddy.core.navigation.ParkedSpotDetailRoute
 import dev.bongballe.parkbuddy.core.navigation.SpotDetailRoute
 import dev.bongballe.parkbuddy.core.navigation.bottomSheetMetadata
 import dev.zacsweers.metro.AppScope
@@ -22,6 +23,18 @@ interface MapEntryProvider {
           create(key.spot, key.permitZone)
         }
       SpotDetailContent(viewModel = vm, navigator = navigator)
+    }
+  }
+
+  @Provides
+  @IntoSet
+  fun provideParkedSpotDetailEntry(navigator: Navigator): NavEntryItem = {
+    entry<ParkedSpotDetailRoute>(metadata = bottomSheetMetadata()) { key ->
+      val vm =
+        assistedMetroViewModel<ParkedSpotDetailViewModel, ParkedSpotDetailViewModel.Factory> {
+          create(key.spot, key.parkedAt, key.permitZone)
+        }
+      ParkedSpotDetailContent(viewModel = vm, navigator = navigator)
     }
   }
 }

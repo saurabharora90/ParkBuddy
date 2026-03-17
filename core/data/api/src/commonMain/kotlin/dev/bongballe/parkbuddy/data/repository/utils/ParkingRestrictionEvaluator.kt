@@ -12,6 +12,7 @@ import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
 import kotlinx.datetime.TimeZone
+import kotlinx.datetime.minus
 import kotlinx.datetime.plus
 import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
@@ -52,32 +53,41 @@ object ParkingRestrictionEvaluator {
     val activeInterval = spot.timeline.firstOrNull { it.isActiveAt(currentTime, zone) }
 
     // No active interval: check what's coming up next.
-    // This handles the gap between enforcement windows (e.g., parking at 7pm when rules are
-    // 8am-6pm).
     if (activeInterval == null) {
       val nextInterval = findNextInterval(spot.timeline, currentTime, zone)
       if (nextInterval != null) {
         val (startInstant, interval) = nextInterval
         return when (val type = interval.type) {
           is IntervalType.Forbidden ->
-            ParkingRestrictionState.Forbidden(
+            ParkingRestrictionState.ForbiddenUpcoming(
               reason = type.reason,
               startsAt = startInstant,
               nextCleaning = nextCleaning,
             )
 
           is IntervalType.Restricted ->
-            ParkingRestrictionState.Forbidden(
+            ParkingRestrictionState.ForbiddenUpcoming(
               reason = type.reason,
               startsAt = startInstant,
               nextCleaning = nextCleaning,
             )
-          // Upcoming timed enforcement: PendingTimed
+
           is IntervalType.Metered,
           is IntervalType.Limited -> {
             val limitMinutes = interval.timeLimitMinutes
             if (limitMinutes != null) {
-              val expiry = startInstant + limitMinutes.minutes
+              val rawExpiry = startInstant + limitMinutes.minutes
+              // Use startInstant as anchor so clamp scans the day enforcement begins, not today
+              val clampedExpiry =
+                clampToNextProhibited(rawExpiry, spot.timeline, startInstant, zone)
+              val expiry =
+                if (
+                  nextCleaning != null &&
+                    nextCleaning >= startInstant &&
+                    nextCleaning < clampedExpiry
+                )
+                  nextCleaning
+                else clampedExpiry
               ParkingRestrictionState.PendingTimed(
                 startsAt = startInstant,
                 expiry = expiry,
@@ -127,7 +137,6 @@ object ParkingRestrictionEvaluator {
         evaluateTimedInterval(
           activeInterval,
           spot.timeline,
-          spot.sweepingSchedules.mapNotNull { it.nextOccurrence(currentTime, zone) }.minOrNull(),
           parkedAt,
           currentTime,
           zone,
@@ -137,11 +146,12 @@ object ParkingRestrictionEvaluator {
   }
 
   /**
-   * Computes [ActiveTimed] or [PendingTimed] for a metered/limited interval.
+   * Computes [ParkingRestrictionState.ActiveTimed] or [ParkingRestrictionState.PendingTimed] for a
+   * metered/limited interval.
    *
    * "True limit" calculation: the effective deadline is the earliest of:
    * - parkedAt + timeLimit (the regulation's time limit)
-   * - next Forbidden interval start on the applicable day
+   * - next Forbidden or Restricted interval start on the applicable day
    * - next street cleaning start
    *
    * This prevents the user from thinking they have 2 hours when a tow-away window starts in 1.
@@ -149,7 +159,6 @@ object ParkingRestrictionEvaluator {
   private fun evaluateTimedInterval(
     interval: ParkingInterval,
     timeline: List<ParkingInterval>,
-    nextCleaningStart: Instant?,
     parkedAt: Instant,
     currentTime: Instant,
     zone: TimeZone,
@@ -157,7 +166,13 @@ object ParkingRestrictionEvaluator {
   ): ParkingRestrictionState {
     val local = currentTime.toLocalDateTime(zone)
     val today = local.date
-    val windowStart = LocalDateTime(today, interval.startTime).toInstant(zone)
+    val windowStart = run {
+      val candidate = LocalDateTime(today, interval.startTime).toInstant(zone)
+      // Overnight interval (e.g. 10 PM - 6 AM): at 1 AM, the window opened yesterday
+      if (candidate > currentTime && interval.startTime > interval.endTime)
+        LocalDateTime(today.minus(1, DateTimeUnit.DAY), interval.startTime).toInstant(zone)
+      else candidate
+    }
 
     // The enforcement clock starts when the user parked or when the window opened, whichever is
     // later
@@ -165,8 +180,13 @@ object ParkingRestrictionEvaluator {
     val limitMinutes = interval.timeLimitMinutes
 
     if (limitMinutes == null) {
-      // No time limit (e.g. metered with 0-minute limit means "pay, no cap").
-      val windowEnd = LocalDateTime(today, interval.endTime).toInstant(zone)
+      val windowEnd = run {
+        val candidate = LocalDateTime(today, interval.endTime).toInstant(zone)
+        // Overnight interval: at 11 PM inside a 10 PM - 6 AM window, endTime (6 AM) is tomorrow
+        if (interval.startTime > interval.endTime && candidate < currentTime)
+          LocalDateTime(today.plus(1, DateTimeUnit.DAY), interval.endTime).toInstant(zone)
+        else candidate
+      }
       return ParkingRestrictionState.ActiveTimed(
         expiry = windowEnd,
         paymentRequired = interval.requiresPayment,
@@ -176,17 +196,13 @@ object ParkingRestrictionEvaluator {
 
     val limitExpiry = effectiveStart + limitMinutes.minutes
 
-    // Clamp to next Forbidden interval on the correct day
-    val trueExpiry = clampToNextForbidden(limitExpiry, timeline, currentTime, zone)
+    // Clamp to next prohibited (Forbidden or Restricted) interval on the correct day
+    val trueExpiry = clampToNextProhibited(limitExpiry, timeline, currentTime, zone)
 
     // Also clamp to next cleaning (sweeping creates a hard deadline too)
     val finalExpiry =
-      if (
-        nextCleaningStart != null &&
-          nextCleaningStart > currentTime &&
-          nextCleaningStart < trueExpiry
-      ) {
-        nextCleaningStart
+      if (nextCleaning != null && nextCleaning > currentTime && nextCleaning < trueExpiry) {
+        nextCleaning
       } else {
         trueExpiry
       }
@@ -232,7 +248,6 @@ object ParkingRestrictionEvaluator {
           }
         }
       }
-      // If we found something on this day, return it (earlier day always wins over later day)
       if (best != null) return best
       candidateDate = candidateDate.plus(1, DateTimeUnit.DAY)
     }
@@ -240,13 +255,13 @@ object ParkingRestrictionEvaluator {
   }
 
   /**
-   * If a FORBIDDEN interval starts before [limitExpiry], returns the earlier of the two so the user
-   * is warned before a tow-away or no-parking window begins.
+   * If a Forbidden or Restricted interval starts before [limitExpiry], returns the earlier of the
+   * two so the user is warned before a tow-away, no-parking, or commercial window begins.
    *
    * Checks both today and tomorrow to handle overnight scenarios (e.g., parked at 23:30 with a
    * 2-hour limit, tow zone starts at 00:00 tomorrow).
    */
-  private fun clampToNextForbidden(
+  private fun clampToNextProhibited(
     limitExpiry: Instant,
     timeline: List<ParkingInterval>,
     currentTime: Instant,
@@ -258,18 +273,16 @@ object ParkingRestrictionEvaluator {
 
     val candidates = mutableListOf<Instant>()
 
-    for (forbidden in timeline) {
-      if (forbidden.type !is IntervalType.Forbidden) continue
+    for (interval in timeline) {
+      if (!interval.type.isProhibited) continue
 
-      // Check today
-      if (today.dayOfWeek in forbidden.days) {
-        val start = LocalDateTime(today, forbidden.startTime).toInstant(zone)
+      if (today.dayOfWeek in interval.days) {
+        val start = LocalDateTime(today, interval.startTime).toInstant(zone)
         if (start > currentTime && start < limitExpiry) candidates.add(start)
       }
 
-      // Check tomorrow (handles overnight limit windows crossing midnight)
-      if (tomorrow.dayOfWeek in forbidden.days) {
-        val start = LocalDateTime(tomorrow, forbidden.startTime).toInstant(zone)
+      if (tomorrow.dayOfWeek in interval.days) {
+        val start = LocalDateTime(tomorrow, interval.startTime).toInstant(zone)
         if (start > currentTime && start < limitExpiry) candidates.add(start)
       }
     }

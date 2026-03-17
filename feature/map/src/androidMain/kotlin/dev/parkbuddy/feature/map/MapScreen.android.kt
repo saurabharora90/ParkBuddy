@@ -60,6 +60,7 @@ import com.google.maps.android.compose.Polyline
 import com.google.maps.android.compose.rememberCameraPositionState
 import dev.bongballe.parkbuddy.core.navigation.MainRoute
 import dev.bongballe.parkbuddy.core.navigation.Navigator
+import dev.bongballe.parkbuddy.core.navigation.ParkedSpotDetailRoute
 import dev.bongballe.parkbuddy.core.navigation.SpotDetailRoute
 import dev.bongballe.parkbuddy.model.Geometry
 import dev.bongballe.parkbuddy.model.IntervalType
@@ -70,7 +71,6 @@ import dev.bongballe.parkbuddy.theme.SagePrimary
 import dev.bongballe.parkbuddy.theme.Terracotta
 import dev.bongballe.parkbuddy.theme.WildIris
 import dev.parkbuddy.core.ui.BannerNudge
-import dev.parkbuddy.core.ui.ParkBuddyAlertDialog
 import dev.parkbuddy.core.ui.ParkBuddyIcons
 import dev.parkbuddy.feature.map.model.GeoBounds
 import dev.parkbuddy.feature.map.model.MapViewport
@@ -88,7 +88,6 @@ private val SF_BOUNDS = LatLngBounds(LatLng(37.703397, -122.519967), LatLng(37.8
 @Composable
 actual fun MapScreen(navigator: Navigator, modifier: Modifier, viewModel: MapViewModel) {
   val state by viewModel.stateFlow.collectAsState()
-  val parkedState = state.parkedState
 
   // Pre-compute LatLng points for visible spots
   val visibleSpotsWithPoints =
@@ -150,6 +149,15 @@ actual fun MapScreen(navigator: Navigator, modifier: Modifier, viewModel: MapVie
       }
   }
 
+  // Navigate to parked spot detail when parked location appears
+  LaunchedEffect(state.parkedLocation, state.parkedSpot) {
+    val parked = state.parkedLocation
+    val spot = state.parkedSpot
+    if (parked != null && spot != null) {
+      navigator.goTo(ParkedSpotDetailRoute(spot, parked.parkedAt, state.permitZone))
+    }
+  }
+
   // Permission banner: re-check on every resume in case user granted from Settings
   var permissionCheckTrigger by remember { mutableIntStateOf(0) }
   LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { permissionCheckTrigger++ }
@@ -201,17 +209,20 @@ actual fun MapScreen(navigator: Navigator, modifier: Modifier, viewModel: MapVie
         }
       }
 
-      parkedState?.let { ps ->
+      val parkedLocation = state.parkedLocation
+      if (parkedLocation != null) {
         Marker(
           state =
             MarkerState(
-              position =
-                LatLng(ps.parkedLocation.location.latitude, ps.parkedLocation.location.longitude)
+              position = LatLng(parkedLocation.location.latitude, parkedLocation.location.longitude)
             ),
           title = "Your Car",
           icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ROSE),
           onClick = {
-            viewModel.requestParkedLocationBottomSheet()
+            val spot = state.parkedSpot
+            if (spot != null) {
+              navigator.goTo(ParkedSpotDetailRoute(spot, parkedLocation.parkedAt, state.permitZone))
+            }
             true
           },
         )
@@ -296,64 +307,6 @@ actual fun MapScreen(navigator: Navigator, modifier: Modifier, viewModel: MapVie
         onDismiss = { viewModel.dismissZoneNudge() },
         containerColor = MaterialTheme.colorScheme.secondaryContainer,
         contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-      )
-    }
-
-    var isShowingConfirmCarMovedPrompt by remember { mutableStateOf(false) }
-    var isShowingClearParkedLocationPrompt by remember { mutableStateOf(false) }
-
-    if (state.shouldShowParkedLocationBottomSheet && parkedState != null) {
-      ModalBottomSheet(
-        onDismissRequest = { viewModel.dismissParkedLocationBottomSheet() },
-        sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.background,
-      ) {
-        ParkedSpotDetailContent(
-          spot = parkedState.spot,
-          restrictionState = parkedState.restrictionState,
-          reminders = parkedState.reminders,
-          onMovedCar = { isShowingConfirmCarMovedPrompt = true },
-          onEndSession = { isShowingClearParkedLocationPrompt = true },
-        )
-      }
-    }
-
-    if (isShowingConfirmCarMovedPrompt) {
-      ParkBuddyAlertDialog(
-        title = "Are you sure?",
-        text =
-          "Marking your car as moved will clear your parked location and cancel the reminders.",
-        confirmLabel = "Yes",
-        dismissLabel = "No",
-        onConfirm = {
-          coroutineScope.launch { sheetState.hide() }
-          isShowingConfirmCarMovedPrompt = false
-          viewModel.clearParkedLocation()
-        },
-        onDismiss = {
-          coroutineScope.launch { sheetState.hide() }
-          isShowingConfirmCarMovedPrompt = false
-        },
-      )
-    }
-
-    if (isShowingClearParkedLocationPrompt) {
-      ParkBuddyAlertDialog(
-        title = "Are you sure?",
-        text =
-          "We are sorry for detecting the wrong location. " +
-            "Proceeding will clear this as parked location and cancel the reminders.",
-        confirmLabel = "Yes",
-        dismissLabel = "No",
-        onConfirm = {
-          coroutineScope.launch { sheetState.hide() }
-          isShowingClearParkedLocationPrompt = false
-          viewModel.reportWrongLocation()
-        },
-        onDismiss = {
-          coroutineScope.launch { sheetState.hide() }
-          isShowingClearParkedLocationPrompt = false
-        },
       )
     }
 

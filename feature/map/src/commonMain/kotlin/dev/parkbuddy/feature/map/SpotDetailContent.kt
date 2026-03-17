@@ -79,7 +79,6 @@ internal fun SpotDetailContent(
   )
 }
 
-/** Pure renderer that takes pre-computed state. Used by previews and the VM overload. */
 @Composable
 internal fun SpotDetailContent(
   state: SpotDetailState,
@@ -176,18 +175,15 @@ private fun SpotHeader(spot: ParkingSpot) {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Current Status Card (thin renderer, pattern-matches on restrictionState)
-// ---------------------------------------------------------------------------
-
 @Composable
 private fun CurrentStateCard(state: SpotDetailState) {
   val upcoming = state.upcoming
   val isImminent = state.isImminent
+  val now = state.now
 
   when (val restriction = state.restrictionState) {
     is ParkingRestrictionState.CleaningActive -> {
-      val remaining = restriction.cleaningEnd - Clock.System.now()
+      val remaining = restriction.cleaningEnd - now
       StateCard(
         icon = ParkBuddyIcons.Error,
         accentColor = Terracotta,
@@ -235,6 +231,72 @@ private fun CurrentStateCard(state: SpotDetailState) {
       }
     }
 
+    is ParkingRestrictionState.Forbidden -> {
+      StateCard(
+        icon = ParkBuddyIcons.Error,
+        accentColor = Terracotta,
+        title = "YOU CANNOT PARK HERE",
+        details = buildList { add("Reason" to restriction.reason.displayText()) },
+        showBorder = true,
+        segments = state.timelineSegments,
+        currentMinute = state.currentMinute,
+      )
+    }
+
+    is ParkingRestrictionState.ForbiddenUpcoming -> {
+      val startsIn = restriction.startsAt - now
+      StateCard(
+        icon = ParkBuddyIcons.Error,
+        accentColor = Terracotta,
+        title = "RESTRICTION AHEAD",
+        details =
+          buildList {
+            add("Reason" to restriction.reason.displayText())
+            if (!startsIn.isNegative()) add("Starts" to formatRelativeTime(startsIn))
+          },
+        segments = state.timelineSegments,
+        currentMinute = state.currentMinute,
+      )
+    }
+
+    is ParkingRestrictionState.ActiveTimed -> {
+      val accentColor = if (restriction.paymentRequired) Goldenrod else WildIris
+      val title = if (restriction.paymentRequired) "PAY AT METER" else "TIME LIMITED"
+      val remaining = restriction.expiry - now
+      val enforcement = if (!remaining.isNegative()) formatDurationCompact(remaining) else "Expired"
+
+      StateCard(
+        icon = ParkBuddyIcons.AccessTime,
+        accentColor = accentColor,
+        title = title,
+        details =
+          buildList {
+            add("Time remaining" to enforcement)
+            if (restriction.paymentRequired) add("Payment" to "Required")
+          },
+        segments = state.timelineSegments,
+        currentMinute = state.currentMinute,
+      )
+    }
+
+    is ParkingRestrictionState.PendingTimed -> {
+      val startsIn = restriction.startsAt - now
+      val accentColor = if (restriction.paymentRequired) Goldenrod else WildIris
+      val title = if (restriction.paymentRequired) "METERED SOON" else "TIME LIMIT SOON"
+      StateCard(
+        icon = ParkBuddyIcons.AccessTime,
+        accentColor = accentColor,
+        title = title,
+        details =
+          buildList {
+            add("Starts" to formatRelativeTime(startsIn))
+            if (restriction.paymentRequired) add("Payment" to "Required")
+          },
+        segments = state.timelineSegments,
+        currentMinute = state.currentMinute,
+      )
+    }
+
     is ParkingRestrictionState.Unrestricted -> {
       if (isImminent && upcoming != null) {
         StateCard(
@@ -263,66 +325,6 @@ private fun CurrentStateCard(state: SpotDetailState) {
           currentMinute = state.currentMinute,
         )
       }
-    }
-
-    is ParkingRestrictionState.ActiveTimed -> {
-      val icon =
-        if (restriction.paymentRequired) ParkBuddyIcons.AccessTime else ParkBuddyIcons.AccessTime
-      val accentColor = if (restriction.paymentRequired) Goldenrod else WildIris
-      val title = if (restriction.paymentRequired) "PAY AT METER" else "TIME LIMITED"
-
-      val remaining = restriction.expiry - Clock.System.now()
-      val enforcement = if (!remaining.isNegative()) formatDurationCompact(remaining) else "Expired"
-
-      StateCard(
-        icon = icon,
-        accentColor = accentColor,
-        title = title,
-        details =
-          buildList {
-            add("Time remaining" to enforcement)
-            if (restriction.paymentRequired) add("Payment" to "Required")
-          },
-        segments = state.timelineSegments,
-        currentMinute = state.currentMinute,
-      )
-    }
-
-    is ParkingRestrictionState.PendingTimed -> {
-      val startsIn = restriction.startsAt - Clock.System.now()
-      StateCard(
-        icon = ParkBuddyIcons.AccessTime,
-        accentColor = if (restriction.paymentRequired) Goldenrod else WildIris,
-        title = if (restriction.paymentRequired) "METERED SOON" else "TIME LIMIT SOON",
-        details =
-          buildList {
-            add("Starts" to formatRelativeTime(startsIn))
-            if (restriction.paymentRequired) add("Payment" to "Required")
-          },
-        segments = state.timelineSegments,
-        currentMinute = state.currentMinute,
-      )
-    }
-
-    is ParkingRestrictionState.Forbidden -> {
-      val remaining = restriction.startsAt?.let { it - Clock.System.now() }
-      val isFuture = remaining != null && !remaining.isNegative()
-
-      StateCard(
-        icon = ParkBuddyIcons.Error,
-        accentColor = Terracotta,
-        title = if (isFuture) "RESTRICTION AHEAD" else "YOU CANNOT PARK HERE",
-        details =
-          buildList {
-            add("Reason" to restriction.reason.displayText())
-            if (isFuture && remaining != null) {
-              add("Starts" to formatRelativeTime(remaining))
-            }
-          },
-        showBorder = !isFuture,
-        segments = state.timelineSegments,
-        currentMinute = state.currentMinute,
-      )
     }
   }
 }

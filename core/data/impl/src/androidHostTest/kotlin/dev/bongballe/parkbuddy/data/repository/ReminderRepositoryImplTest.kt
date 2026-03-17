@@ -147,7 +147,8 @@ class ReminderRepositoryImplTest {
 
     context.repository.scheduleReminders(spot, showNotification = true)
 
-    assertThat(context.alarmScheduler.scheduledAlarms).hasSize(2)
+    // 2 enforcement-start (15 min warning + at start) + 2 expiry (15 min warning + at expiry)
+    assertThat(context.alarmScheduler.scheduledAlarms).hasSize(4)
   }
 
   @Test
@@ -330,7 +331,8 @@ class ReminderRepositoryImplTest {
     context.repository.addReminder(ReminderMinutes(60))
     context.repository.scheduleReminders(spot, showNotification = false)
 
-    assertThat(context.alarmScheduler.scheduledAlarms).hasSize(3)
+    // 1 cleaning + 2 enforcement-start (15 min warning + at start) + 2 expiry
+    assertThat(context.alarmScheduler.scheduledAlarms).hasSize(5)
   }
 
   @Test
@@ -382,7 +384,8 @@ class ReminderRepositoryImplTest {
       context.repository.addReminder(ReminderMinutes(60))
       context.repository.scheduleReminders(spot, showNotification = false)
 
-      assertThat(context.alarmScheduler.scheduledAlarms).hasSize(2)
+      // 2 enforcement-start (15 min warning + at start) + 2 expiry (cleaning skipped)
+      assertThat(context.alarmScheduler.scheduledAlarms).hasSize(4)
     }
 
   @Test
