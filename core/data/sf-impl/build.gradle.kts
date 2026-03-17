@@ -31,7 +31,7 @@ kotlin {
     commonTest.dependencies { implementation(kotlin("test")) }
     androidMain.dependencies { implementation(libs.androidx.datastore.preferences) }
     getByName("androidHostTest").dependencies {
-      implementation(project(":core:testing"))
+      implementation(project(":core:fakes"))
       implementation(libs.androidx.junit)
       implementation(libs.androidx.test.core)
       implementation(libs.junit)

@@ -35,7 +35,7 @@ kotlin {
       implementation(libs.metrox.android)
     }
     getByName("androidHostTest").dependencies {
-      implementation(project(":core:testing"))
+      implementation(project(":core:fakes"))
       implementation(libs.junit)
       implementation(libs.kotlinx.coroutines.test)
       implementation(libs.robolectric)

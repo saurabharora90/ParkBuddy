@@ -5,20 +5,24 @@ import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import com.google.common.truth.Truth.assertThat
+import dev.bongballe.parkbuddy.fakes.FakeParkingRepository
+import dev.bongballe.parkbuddy.fakes.FakePreferencesRepository
+import dev.bongballe.parkbuddy.fakes.FakeReminderNotificationManager
+import dev.bongballe.parkbuddy.fixtures.WEEKDAYS
+import dev.bongballe.parkbuddy.fixtures.createSpot
+import dev.bongballe.parkbuddy.fixtures.createSweepingSchedule
+import dev.bongballe.parkbuddy.fixtures.toWeekday
+import dev.bongballe.parkbuddy.model.Location
 import dev.bongballe.parkbuddy.model.ParkedLocation
 import dev.bongballe.parkbuddy.model.ReminderMinutes
-import dev.bongballe.parkbuddy.model.SweepingSchedule
 import dev.bongballe.parkbuddy.model.Weekday
-import dev.bongballe.parkbuddy.testing.FakeParkingRepository
-import dev.bongballe.parkbuddy.testing.FakePreferencesRepository
-import dev.bongballe.parkbuddy.testing.FakeReminderNotificationManager
-import dev.bongballe.parkbuddy.testing.createTestSpot
 import kotlin.time.Clock
 import kotlin.time.Instant
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.DateTimeUnit
-import kotlinx.datetime.DayOfWeek
+import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.LocalTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.plus
 import kotlinx.datetime.toInstant
@@ -36,6 +40,8 @@ import org.robolectric.annotation.Config
 class ReminderRepositoryImplTest {
 
   @get:Rule val tempFolder = TemporaryFolder()
+
+  private val zone = TimeZone.of("America/Los_Angeles")
 
   private class FakeAlarmScheduler : AlarmScheduler {
     data class ScheduledAlarm(
@@ -92,6 +98,20 @@ class ReminderRepositoryImplTest {
     init {
       runBlocking { dataStore.edit { it.clear() } }
     }
+
+    suspend fun parkAt(now: Instant, spotId: String = "1") {
+      preferencesRepository.setParkedLocation(
+        ParkedLocation(spotId = spotId, location = Location(0.0, 0.0), parkedAt = now)
+      )
+    }
+  }
+
+  private fun dateTime(year: Int, month: Int, day: Int, hour: Int, minute: Int): Instant =
+    LocalDateTime(year, month, day, hour, minute).toInstant(zone)
+
+  private fun tomorrowWeekday(now: Instant): Weekday {
+    val tomorrow = now.toLocalDateTime(zone).date.plus(1, DateTimeUnit.DAY)
+    return tomorrow.dayOfWeek.toWeekday()
   }
 
   @Test
@@ -100,14 +120,8 @@ class ReminderRepositoryImplTest {
     val now = Clock.System.now()
     context.clock.instant = now
 
-    val spot = createTestSpot(id = "1")
-    val parkedLocation =
-      ParkedLocation(
-        spotId = "1",
-        location = dev.bongballe.parkbuddy.model.Location(0.0, 0.0),
-        parkedAt = now,
-      )
-    context.preferencesRepository.setParkedLocation(parkedLocation)
+    val spot = createSpot(id = "1")
+    context.parkAt(now)
 
     context.repository.scheduleReminders(spot, showNotification = true)
 
@@ -117,33 +131,18 @@ class ReminderRepositoryImplTest {
   @Test
   fun `scheduleReminders for timed parking after hours sets future alarms`() = runTest {
     val context = TestContext()
-    val now =
-      kotlinx.datetime.LocalDateTime(2024, 1, 1, 19, 0).toInstant(TimeZone.currentSystemDefault())
+    val now = dateTime(2024, 1, 1, 19, 0)
     context.clock.instant = now
 
     val spot =
-      createTestSpot(
+      createSpot(
         id = "1",
         limitMinutes = 120,
-        enforcementDays =
-          setOf(
-            DayOfWeek.MONDAY,
-            DayOfWeek.TUESDAY,
-            DayOfWeek.WEDNESDAY,
-            DayOfWeek.THURSDAY,
-            DayOfWeek.FRIDAY,
-          ),
-        enforcementStart = kotlinx.datetime.LocalTime(8, 0),
-        enforcementEnd = kotlinx.datetime.LocalTime(18, 0),
+        enforcementDays = WEEKDAYS,
+        enforcementStart = LocalTime(8, 0),
+        enforcementEnd = LocalTime(18, 0),
       )
-
-    val parkedLocation =
-      ParkedLocation(
-        spotId = "1",
-        location = dev.bongballe.parkbuddy.model.Location(0.0, 0.0),
-        parkedAt = now,
-      )
-    context.preferencesRepository.setParkedLocation(parkedLocation)
+    context.parkAt(now)
 
     context.repository.scheduleReminders(spot, showNotification = true)
 
@@ -154,35 +153,14 @@ class ReminderRepositoryImplTest {
   @Test
   fun `scheduleReminders with showNotification true shows notification`() = runTest {
     val context = TestContext()
-    val now =
-      kotlinx.datetime.LocalDateTime(2024, 1, 1, 12, 0).toInstant(TimeZone.currentSystemDefault())
+    val now = dateTime(2024, 1, 1, 12, 0)
     context.clock.instant = now
+    context.parkAt(now)
 
-    val parkedLocation =
-      ParkedLocation(
-        spotId = "1",
-        location = dev.bongballe.parkbuddy.model.Location(0.0, 0.0),
-        parkedAt = now,
-      )
-    context.preferencesRepository.setParkedLocation(parkedLocation)
-
-    val localNow = now.toLocalDateTime(TimeZone.currentSystemDefault())
-    val tomorrow = localNow.date.plus(1, DateTimeUnit.DAY)
     val schedule =
-      SweepingSchedule(
-        weekday = tomorrow.dayOfWeek.toWeekday(),
-        fromHour = 8,
-        toHour = 10,
-        week1 = true,
-        week2 = true,
-        week3 = true,
-        week4 = true,
-        week5 = true,
-        holidays = true,
-      )
-
+      createSweepingSchedule(tomorrowWeekday(now), fromHour = 8, toHour = 10, holidays = true)
     val spot =
-      createTestSpot(id = "1").copy(sweepingSchedules = listOf(schedule), streetName = "Main St")
+      createSpot(id = "1").copy(sweepingSchedules = listOf(schedule), streetName = "Main St")
 
     context.repository.addReminder(ReminderMinutes(30))
     context.repository.scheduleReminders(spot, showNotification = true)
@@ -193,14 +171,8 @@ class ReminderRepositoryImplTest {
   @Test
   fun `scheduleReminders with showNotification false suppresses notification`() = runTest {
     val context = TestContext()
-    val spot = createTestSpot(id = "1")
-    val parkedLocation =
-      ParkedLocation(
-        spotId = "1",
-        location = dev.bongballe.parkbuddy.model.Location(0.0, 0.0),
-        parkedAt = context.clock.now(),
-      )
-    context.preferencesRepository.setParkedLocation(parkedLocation)
+    val spot = createSpot(id = "1")
+    context.parkAt(context.clock.now())
 
     context.repository.scheduleReminders(spot, showNotification = false)
 
@@ -210,34 +182,13 @@ class ReminderRepositoryImplTest {
   @Test
   fun `scheduleReminders sets alarms`() = runTest {
     val context = TestContext()
-    val now =
-      kotlinx.datetime.LocalDateTime(2024, 1, 1, 12, 0).toInstant(TimeZone.currentSystemDefault())
+    val now = dateTime(2024, 1, 1, 12, 0)
     context.clock.instant = now
+    context.parkAt(now)
 
-    val parkedLocation =
-      ParkedLocation(
-        spotId = "1",
-        location = dev.bongballe.parkbuddy.model.Location(0.0, 0.0),
-        parkedAt = now,
-      )
-    context.preferencesRepository.setParkedLocation(parkedLocation)
-
-    val localNow = now.toLocalDateTime(TimeZone.currentSystemDefault())
-    val tomorrow = localNow.date.plus(1, DateTimeUnit.DAY)
     val schedule =
-      SweepingSchedule(
-        weekday = tomorrow.dayOfWeek.toWeekday(),
-        fromHour = 8,
-        toHour = 10,
-        week1 = true,
-        week2 = true,
-        week3 = true,
-        week4 = true,
-        week5 = true,
-        holidays = true,
-      )
-
-    val spot = createTestSpot(id = "1").copy(sweepingSchedules = listOf(schedule))
+      createSweepingSchedule(tomorrowWeekday(now), fromHour = 8, toHour = 10, holidays = true)
+    val spot = createSpot(id = "1").copy(sweepingSchedules = listOf(schedule))
 
     context.repository.addReminder(ReminderMinutes(60))
     context.repository.scheduleReminders(spot, showNotification = false)
@@ -248,34 +199,13 @@ class ReminderRepositoryImplTest {
   @Test
   fun `scheduleReminders for ActiveTimed skips cleaning reminders`() = runTest {
     val context = TestContext()
-    val now =
-      kotlinx.datetime.LocalDateTime(2024, 1, 1, 12, 0).toInstant(TimeZone.currentSystemDefault())
+    val now = dateTime(2024, 1, 1, 12, 0)
     context.clock.instant = now
+    context.parkAt(now)
 
-    val parkedLocation =
-      ParkedLocation(
-        spotId = "1",
-        location = dev.bongballe.parkbuddy.model.Location(0.0, 0.0),
-        parkedAt = now,
-      )
-    context.preferencesRepository.setParkedLocation(parkedLocation)
-
-    val localNow = now.toLocalDateTime(TimeZone.currentSystemDefault())
-    val tomorrow = localNow.date.plus(1, DateTimeUnit.DAY)
-    val cleaningSchedule =
-      SweepingSchedule(
-        weekday = tomorrow.dayOfWeek.toWeekday(),
-        fromHour = 8,
-        toHour = 10,
-        week1 = true,
-        week2 = true,
-        week3 = true,
-        week4 = true,
-        week5 = true,
-        holidays = true,
-      )
-
-    val spot = createTestSpot(id = "1").copy(sweepingSchedules = listOf(cleaningSchedule))
+    val schedule =
+      createSweepingSchedule(tomorrowWeekday(now), fromHour = 8, toHour = 10, holidays = true)
+    val spot = createSpot(id = "1").copy(sweepingSchedules = listOf(schedule))
 
     context.repository.addReminder(ReminderMinutes(60))
     context.repository.scheduleReminders(spot, showNotification = false)
@@ -286,45 +216,19 @@ class ReminderRepositoryImplTest {
   @Test
   fun `scheduleReminders for PendingTimed includes cleaning when before enforcement`() = runTest {
     val context = TestContext()
-    val now =
-      kotlinx.datetime.LocalDateTime(2024, 1, 1, 19, 0).toInstant(TimeZone.currentSystemDefault())
+    val now = dateTime(2024, 1, 1, 19, 0)
     context.clock.instant = now
-
-    val parkedLocation =
-      ParkedLocation(
-        spotId = "1",
-        location = dev.bongballe.parkbuddy.model.Location(0.0, 0.0),
-        parkedAt = now,
-      )
-    context.preferencesRepository.setParkedLocation(parkedLocation)
+    context.parkAt(now)
 
     val cleaningSchedule =
-      SweepingSchedule(
-        weekday = Weekday.Tues,
-        fromHour = 6,
-        toHour = 7,
-        week1 = true,
-        week2 = true,
-        week3 = true,
-        week4 = true,
-        week5 = true,
-        holidays = true,
-      )
-
+      createSweepingSchedule(Weekday.Tues, fromHour = 6, toHour = 7, holidays = true)
     val spot =
-      createTestSpot(
+      createSpot(
           id = "1",
           limitMinutes = 120,
-          enforcementDays =
-            setOf(
-              DayOfWeek.MONDAY,
-              DayOfWeek.TUESDAY,
-              DayOfWeek.WEDNESDAY,
-              DayOfWeek.THURSDAY,
-              DayOfWeek.FRIDAY,
-            ),
-          enforcementStart = kotlinx.datetime.LocalTime(8, 0),
-          enforcementEnd = kotlinx.datetime.LocalTime(18, 0),
+          enforcementDays = WEEKDAYS,
+          enforcementStart = LocalTime(8, 0),
+          enforcementEnd = LocalTime(18, 0),
         )
         .copy(sweepingSchedules = listOf(cleaningSchedule))
 
@@ -339,45 +243,19 @@ class ReminderRepositoryImplTest {
   fun `scheduleReminders for PendingTimed skips cleaning when after enforcement starts`() =
     runTest {
       val context = TestContext()
-      val now =
-        kotlinx.datetime.LocalDateTime(2024, 1, 1, 19, 0).toInstant(TimeZone.currentSystemDefault())
+      val now = dateTime(2024, 1, 1, 19, 0)
       context.clock.instant = now
-
-      val parkedLocation =
-        ParkedLocation(
-          spotId = "1",
-          location = dev.bongballe.parkbuddy.model.Location(0.0, 0.0),
-          parkedAt = now,
-        )
-      context.preferencesRepository.setParkedLocation(parkedLocation)
+      context.parkAt(now)
 
       val cleaningSchedule =
-        SweepingSchedule(
-          weekday = Weekday.Tues,
-          fromHour = 9,
-          toHour = 10,
-          week1 = true,
-          week2 = true,
-          week3 = true,
-          week4 = true,
-          week5 = true,
-          holidays = true,
-        )
-
+        createSweepingSchedule(Weekday.Tues, fromHour = 9, toHour = 10, holidays = true)
       val spot =
-        createTestSpot(
+        createSpot(
             id = "1",
             limitMinutes = 120,
-            enforcementDays =
-              setOf(
-                DayOfWeek.MONDAY,
-                DayOfWeek.TUESDAY,
-                DayOfWeek.WEDNESDAY,
-                DayOfWeek.THURSDAY,
-                DayOfWeek.FRIDAY,
-              ),
-            enforcementStart = kotlinx.datetime.LocalTime(8, 0),
-            enforcementEnd = kotlinx.datetime.LocalTime(18, 0),
+            enforcementDays = WEEKDAYS,
+            enforcementStart = LocalTime(8, 0),
+            enforcementEnd = LocalTime(18, 0),
           )
           .copy(sweepingSchedules = listOf(cleaningSchedule))
 
@@ -396,15 +274,4 @@ class ReminderRepositoryImplTest {
     assertThat(context.notificationManager.cancelAllCalled).isTrue()
     assertThat(context.alarmScheduler.cancelAllCalled).isTrue()
   }
-
-  private fun DayOfWeek.toWeekday(): Weekday =
-    when (this) {
-      DayOfWeek.MONDAY -> Weekday.Mon
-      DayOfWeek.TUESDAY -> Weekday.Tues
-      DayOfWeek.WEDNESDAY -> Weekday.Wed
-      DayOfWeek.THURSDAY -> Weekday.Thu
-      DayOfWeek.FRIDAY -> Weekday.Fri
-      DayOfWeek.SATURDAY -> Weekday.Sat
-      DayOfWeek.SUNDAY -> Weekday.Sun
-    }
 }

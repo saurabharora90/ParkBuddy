@@ -7,7 +7,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import androidx.core.app.ActivityCompat
 import dev.bongballe.parkbuddy.core.bluetooth.BluetoothController
-import dev.bongballe.parkbuddy.core.bluetooth.BluetoothDeviceUiModel
+import dev.bongballe.parkbuddy.model.BluetoothDeviceUiModel
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesBinding
 import dev.zacsweers.metro.Inject
@@ -29,7 +29,7 @@ class BluetoothControllerImpl(private val context: Context) : BluetoothControlle
     val pairedDevices: Set<BluetoothDevice> =
       if (
         ActivityCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT) !=
-          PackageManager.PERMISSION_GRANTED
+        PackageManager.PERMISSION_GRANTED
       ) {
         emptySet()
       } else {

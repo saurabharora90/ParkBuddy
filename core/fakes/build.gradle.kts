@@ -7,6 +7,7 @@ kotlin {
 
   sourceSets {
     commonMain.dependencies {
+      api(project(":core:fixtures"))
       implementation(project(":core:base"))
       implementation(project(":core:model"))
       implementation(project(":core:data:api"))

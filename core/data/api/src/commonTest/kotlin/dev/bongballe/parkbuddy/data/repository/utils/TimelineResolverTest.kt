@@ -101,7 +101,7 @@ class TimelineResolverTest {
     val result = TimelineResolver.resolve(input)
 
     assertThat(result).hasSize(1)
-    assertThat(result[0].type).isInstanceOf(IntervalType.Forbidden::class.java)
+    assertThat(result[0].type).isEqualTo(IntervalType.Forbidden(ProhibitionReason.TOW_AWAY))
   }
 
   @Test

@@ -75,11 +75,7 @@ class SpotDetailViewModel(
   val stateFlow: StateFlow<SpotDetailState> =
     tickerFlow()
       .map { now -> evaluate(spot, userPermitZone, now) }
-      .stateIn(
-        viewModelScope,
-        SharingStarted.WhileSubscribed(5000),
-        evaluate(spot, userPermitZone, Clock.System.now()),
-      )
+      .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), evaluate(spot, userPermitZone))
 
   fun parkHere() {
     viewModelScope.launch { parkingManager.parkHere(spot) }
@@ -100,7 +96,7 @@ class SpotDetailViewModel(
 internal fun evaluate(
   spot: ParkingSpot,
   permitZone: String?,
-  now: Instant,
+  now: Instant = Clock.System.now(),
   zone: TimeZone = TimeZone.currentSystemDefault(),
 ): SpotDetailState {
   val restrictionState =
@@ -125,14 +121,14 @@ internal fun evaluate(
 
   val sortedIntervals =
     spot.timeline.sortedWith(compareBy({ it.days.minOrNull() }, { it.startTime })).map {
-      val isActive = it.isActiveAt(now) && !(isPermitExempt && isPermitExemptible(it))
+      val isActive = it.isActiveAt(now, zone) && !(isPermitExempt && isPermitExemptible(it))
       IntervalDisplay(it, isActive)
     }
 
   val sweepingDisplay =
     spot.sweepingSchedules.map { schedule ->
-      val isActive = schedule.isWithinWindow(now)
-      val nextOccurrence = schedule.nextOccurrence(now)
+      val isActive = schedule.isWithinWindow(now, zone)
+      val nextOccurrence = schedule.nextOccurrence(now, zone)
       val relativeText =
         if (isActive) null else nextOccurrence?.let { formatRelativeTime(it - now) }
       SweepingDisplay(schedule, isActive, relativeText)
