@@ -398,7 +398,8 @@ private fun SecondaryCleaningInfo(restriction: ParkingRestrictionState, now: Ins
   val showSecondary =
     restriction is ParkingRestrictionState.ActiveTimed ||
       restriction is ParkingRestrictionState.PendingTimed ||
-      restriction is ParkingRestrictionState.Forbidden
+      restriction is ParkingRestrictionState.Forbidden ||
+      restriction is ParkingRestrictionState.ForbiddenUpcoming
   if (!showSecondary) return
 
   val nextCleaning = restriction.nextCleaning ?: return
@@ -456,7 +457,26 @@ private fun AlertsSection(
       ForbiddenAlertsSection(restriction.reason.displayText())
     }
 
-    is ParkingRestrictionState.ForbiddenUpcoming -> {}
+    is ParkingRestrictionState.ForbiddenUpcoming -> {
+      val startsIn = restriction.startsAt - now
+      if (!startsIn.isNegative()) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+          Text(
+            text = "UPCOMING ALERTS",
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 0.5.sp,
+          )
+
+          AlertCard(
+            title = "Restriction: ${restriction.reason.displayText()}",
+            subtitle = "Starts ${formatRelativeTime(startsIn)}",
+            timeLabel = timeLabelFor(startsIn),
+          )
+        }
+      }
+    }
 
     is ParkingRestrictionState.ActiveTimed -> {
       if (restriction.paymentRequired) PaymentRequiredAlertsSection()
