@@ -31,7 +31,7 @@ kotlin {
       implementation(libs.play.services.location)
     }
     getByName("androidHostTest").dependencies {
-      implementation(project(":core:testing"))
+      implementation(project(":core:fakes"))
       implementation(libs.androidx.junit)
       implementation(libs.androidx.test.core)
       implementation(libs.junit)

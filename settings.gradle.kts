@@ -48,7 +48,9 @@ include(":core:data:sf-impl")
 
 include(":core:navigation")
 
-include(":core:testing")
+include(":core:fixtures")
+
+include(":core:fakes")
 
 include(":feature:map")
 

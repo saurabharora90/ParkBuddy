@@ -398,6 +398,7 @@ class ParkingRepositoryImplTest {
         val sunday =
           meteredIntervals.first { (it.type as IntervalType.Metered).timeLimitMinutes == 240 }
         assertThat(sunday.startTime.hour).isEqualTo(12)
+        assertThat(sunday.endTime.hour).isEqualTo(18)
       }
     }
 

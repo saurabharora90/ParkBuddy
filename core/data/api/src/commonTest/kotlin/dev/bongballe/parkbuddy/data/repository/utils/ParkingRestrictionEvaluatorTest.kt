@@ -1,14 +1,14 @@
 package dev.bongballe.parkbuddy.data.repository.utils
 
 import com.google.common.truth.Truth.assertThat
+import dev.bongballe.parkbuddy.fixtures.createSpot
+import dev.bongballe.parkbuddy.fixtures.createSweepingSchedule
 import dev.bongballe.parkbuddy.model.IntervalSource
 import dev.bongballe.parkbuddy.model.IntervalType
 import dev.bongballe.parkbuddy.model.ParkingInterval
 import dev.bongballe.parkbuddy.model.ParkingRestrictionState
 import dev.bongballe.parkbuddy.model.ProhibitionReason
-import dev.bongballe.parkbuddy.model.SweepingSchedule
 import dev.bongballe.parkbuddy.model.Weekday
-import dev.bongballe.parkbuddy.testing.createTestSpot
 import kotlin.time.Instant
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDateTime
@@ -19,7 +19,7 @@ import org.junit.Test
 
 class ParkingRestrictionEvaluatorTest {
 
-  private val zone = TimeZone.currentSystemDefault()
+  private val zone = TimeZone.of("America/Los_Angeles")
   private val weekdays =
     setOf(
       DayOfWeek.MONDAY,
@@ -70,48 +70,14 @@ class ParkingRestrictionEvaluatorTest {
   @Test
   fun `evaluate returns CleaningActive when street cleaning is in progress`() {
     val now = dateTime(2024, 1, 1, 9, 0) // Monday 9 AM
-    val sweeping =
-      SweepingSchedule(
-        weekday = Weekday.Mon,
-        fromHour = 8,
-        toHour = 10,
-        week1 = true,
-        week2 = true,
-        week3 = true,
-        week4 = true,
-        week5 = true,
-        holidays = false,
-      )
-    val spot = createTestSpot(id = "1", sweepingSchedules = listOf(sweeping))
+    val sweeping = createSweepingSchedule(Weekday.Mon, fromHour = 8, toHour = 10)
+    val spot = createSpot(id = "1", sweepingSchedules = listOf(sweeping))
 
     val state = ParkingRestrictionEvaluator.evaluate(spot, null, now, now, zone)
 
     assertThat(state).isInstanceOf(ParkingRestrictionState.CleaningActive::class.java)
     val cleaning = state as ParkingRestrictionState.CleaningActive
     assertThat(cleaning.cleaningEnd).isEqualTo(dateTime(2024, 1, 1, 10, 0))
-  }
-
-  @Test
-  fun `sweeping takes priority over forbidden timeline interval`() {
-    val now = dateTime(2024, 1, 1, 8, 30) // Monday, during both sweeping and tow-away
-    val sweeping =
-      SweepingSchedule(
-        weekday = Weekday.Mon,
-        fromHour = 8,
-        toHour = 10,
-        week1 = true,
-        week2 = true,
-        week3 = true,
-        week4 = true,
-        week5 = true,
-        holidays = false,
-      )
-    val spot =
-      createTestSpot(id = "1", sweepingSchedules = listOf(sweeping), timeline = listOf(towAway))
-
-    val state = ParkingRestrictionEvaluator.evaluate(spot, null, now, now, zone)
-
-    assertThat(state).isInstanceOf(ParkingRestrictionState.CleaningActive::class.java)
   }
 
   // ---------------------------------------------------------------------------
@@ -121,7 +87,7 @@ class ParkingRestrictionEvaluatorTest {
   @Test
   fun `evaluate returns Unrestricted when timeline is empty`() {
     val now = dateTime(2024, 1, 1, 12, 0)
-    val spot = createTestSpot(id = "1", limitMinutes = null, timeline = emptyList())
+    val spot = createSpot(id = "1", limitMinutes = null, timeline = emptyList())
 
     val state = ParkingRestrictionEvaluator.evaluate(spot, null, now, now, zone)
 
@@ -129,9 +95,9 @@ class ParkingRestrictionEvaluatorTest {
   }
 
   @Test
-  fun `evaluate returns PendingTimed when current time is in a gap between intervals`() {
+  fun `evaluate returns PendingTimed when current time is after enforcement hours`() {
     val now = dateTime(2024, 1, 1, 20, 0) // Monday 8 PM, outside 8am-6pm window
-    val spot = createTestSpot(id = "1", limitMinutes = null, timeline = listOf(weekdayLimited))
+    val spot = createSpot(id = "1", limitMinutes = null, timeline = listOf(weekdayLimited))
 
     val state = ParkingRestrictionEvaluator.evaluate(spot, null, now, now, zone)
 
@@ -142,7 +108,7 @@ class ParkingRestrictionEvaluatorTest {
   @Test
   fun `evaluate returns PendingTimed when no interval matches the day`() {
     val now = dateTime(2024, 1, 6, 12, 0) // Saturday noon, interval is M-F
-    val spot = createTestSpot(id = "1", limitMinutes = null, timeline = listOf(weekdayLimited))
+    val spot = createSpot(id = "1", limitMinutes = null, timeline = listOf(weekdayLimited))
 
     val state = ParkingRestrictionEvaluator.evaluate(spot, null, now, now, zone)
 
@@ -165,7 +131,7 @@ class ParkingRestrictionEvaluatorTest {
         endTime = LocalTime(18, 0),
         source = IntervalSource.REGULATION,
       )
-    val spot = createTestSpot(id = "1", limitMinutes = null, timeline = listOf(openInterval))
+    val spot = createSpot(id = "1", limitMinutes = null, timeline = listOf(openInterval))
 
     val state = ParkingRestrictionEvaluator.evaluate(spot, null, now, now, zone)
 
@@ -179,7 +145,7 @@ class ParkingRestrictionEvaluatorTest {
   @Test
   fun `evaluate returns PermitSafe when user permit matches exempt zone on active interval`() {
     val now = dateTime(2024, 1, 1, 12, 0) // Monday noon, inside weekdayLimited (exempt: "A")
-    val spot = createTestSpot(id = "1", limitMinutes = null, timeline = listOf(weekdayLimited))
+    val spot = createSpot(id = "1", limitMinutes = null, timeline = listOf(weekdayLimited))
 
     val state = ParkingRestrictionEvaluator.evaluate(spot, "A", now, now, zone)
 
@@ -189,7 +155,7 @@ class ParkingRestrictionEvaluatorTest {
   @Test
   fun `evaluate does not return PermitSafe when user permit does not match`() {
     val now = dateTime(2024, 1, 1, 12, 0)
-    val spot = createTestSpot(id = "1", limitMinutes = null, timeline = listOf(weekdayLimited))
+    val spot = createSpot(id = "1", limitMinutes = null, timeline = listOf(weekdayLimited))
 
     val state = ParkingRestrictionEvaluator.evaluate(spot, "Z", now, now, zone)
 
@@ -200,7 +166,7 @@ class ParkingRestrictionEvaluatorTest {
   fun `evaluate returns PermitSafe when interval has multiple exempt zones and user has one`() {
     val now = dateTime(2024, 1, 1, 12, 0)
     val interval = weekdayLimited.copy(exemptPermitZones = listOf("A", "B", "C"))
-    val spot = createTestSpot(id = "1", limitMinutes = null, timeline = listOf(interval))
+    val spot = createSpot(id = "1", limitMinutes = null, timeline = listOf(interval))
 
     val stateB = ParkingRestrictionEvaluator.evaluate(spot, "B", now, now, zone)
     assertThat(stateB).isInstanceOf(ParkingRestrictionState.PermitSafe::class.java)
@@ -216,7 +182,7 @@ class ParkingRestrictionEvaluatorTest {
   @Test
   fun `evaluate returns Forbidden during a tow-away interval`() {
     val now = dateTime(2024, 1, 1, 8, 0) // Monday 8 AM, inside tow-away 7-9am
-    val spot = createTestSpot(id = "1", limitMinutes = null, timeline = listOf(towAway))
+    val spot = createSpot(id = "1", limitMinutes = null, timeline = listOf(towAway))
 
     val state = ParkingRestrictionEvaluator.evaluate(spot, null, now, now, zone)
 
@@ -236,7 +202,7 @@ class ParkingRestrictionEvaluatorTest {
         endTime = LocalTime(18, 0),
         source = IntervalSource.REGULATION,
       )
-    val spot = createTestSpot(id = "1", limitMinutes = null, timeline = listOf(restricted))
+    val spot = createSpot(id = "1", limitMinutes = null, timeline = listOf(restricted))
 
     val state = ParkingRestrictionEvaluator.evaluate(spot, null, now, now, zone)
 
@@ -252,7 +218,7 @@ class ParkingRestrictionEvaluatorTest {
   @Test
   fun `evaluate returns ActiveTimed when parked during a limited interval`() {
     val now = dateTime(2024, 1, 1, 14, 0) // Monday 2 PM
-    val spot = createTestSpot(id = "1", limitMinutes = null, timeline = listOf(weekdayLimited))
+    val spot = createSpot(id = "1", limitMinutes = null, timeline = listOf(weekdayLimited))
 
     val state = ParkingRestrictionEvaluator.evaluate(spot, "Z", now, now, zone)
 
@@ -266,7 +232,7 @@ class ParkingRestrictionEvaluatorTest {
   fun `evaluate returns ActiveTimed with correct expiry when parked mid-window`() {
     val parkedAt = dateTime(2024, 1, 1, 10, 0) // Parked at 10 AM
     val now = dateTime(2024, 1, 1, 11, 0) // Now 11 AM
-    val spot = createTestSpot(id = "1", limitMinutes = null, timeline = listOf(weekdayLimited))
+    val spot = createSpot(id = "1", limitMinutes = null, timeline = listOf(weekdayLimited))
 
     val state = ParkingRestrictionEvaluator.evaluate(spot, "Z", parkedAt, now, zone)
 
@@ -280,7 +246,7 @@ class ParkingRestrictionEvaluatorTest {
   fun `evaluate uses window start when parked before window opens`() {
     val parkedAt = dateTime(2024, 1, 1, 6, 0) // Parked at 6 AM, before 8 AM window
     val now = dateTime(2024, 1, 1, 9, 0) // Now 9 AM, inside window
-    val spot = createTestSpot(id = "1", limitMinutes = null, timeline = listOf(weekdayLimited))
+    val spot = createSpot(id = "1", limitMinutes = null, timeline = listOf(weekdayLimited))
 
     val state = ParkingRestrictionEvaluator.evaluate(spot, "Z", parkedAt, now, zone)
 
@@ -297,7 +263,7 @@ class ParkingRestrictionEvaluatorTest {
   @Test
   fun `evaluate returns ActiveTimed with paymentRequired for metered interval`() {
     val now = dateTime(2024, 1, 1, 10, 0) // Monday 10 AM
-    val spot = createTestSpot(id = "1", limitMinutes = null, timeline = listOf(weekdayMetered))
+    val spot = createSpot(id = "1", limitMinutes = null, timeline = listOf(weekdayMetered))
 
     val state = ParkingRestrictionEvaluator.evaluate(spot, null, now, now, zone)
 
@@ -332,7 +298,7 @@ class ParkingRestrictionEvaluatorTest {
         endTime = LocalTime(9, 0),
         source = IntervalSource.TOW,
       )
-    val spot = createTestSpot(id = "1", limitMinutes = null, timeline = listOf(limited, forbidden))
+    val spot = createSpot(id = "1", limitMinutes = null, timeline = listOf(limited, forbidden))
 
     val state = ParkingRestrictionEvaluator.evaluate(spot, null, now, now, zone)
 
@@ -361,7 +327,7 @@ class ParkingRestrictionEvaluatorTest {
         endTime = LocalTime(20, 0),
         source = IntervalSource.TOW,
       )
-    val spot = createTestSpot(id = "1", limitMinutes = null, timeline = listOf(limited, forbidden))
+    val spot = createSpot(id = "1", limitMinutes = null, timeline = listOf(limited, forbidden))
 
     val state = ParkingRestrictionEvaluator.evaluate(spot, null, now, now, zone)
 
@@ -375,14 +341,143 @@ class ParkingRestrictionEvaluatorTest {
   // ---------------------------------------------------------------------------
 
   @Test
-  fun `evaluate always includes nextCleaning from spot`() {
+  fun `evaluate returns null nextCleaning when no sweeping schedules`() {
     val now = dateTime(2024, 1, 1, 12, 0)
-    val spot = createTestSpot(id = "1", limitMinutes = null, timeline = emptyList())
+    val spot = createSpot(id = "1", limitMinutes = null, timeline = emptyList())
 
     val state = ParkingRestrictionEvaluator.evaluate(spot, null, now, now, zone)
 
-    // No sweeping schedules, so nextCleaning is null
     assertThat(state.nextCleaning).isNull()
+  }
+
+  @Test
+  fun `evaluate populates nextCleaning when sweeping schedule exists`() {
+    val now = dateTime(2024, 1, 1, 12, 0) // Monday noon
+    val sweeping = createSweepingSchedule(Weekday.Tues, fromHour = 8, toHour = 10)
+    val spot =
+      createSpot(
+        id = "1",
+        limitMinutes = null,
+        timeline = emptyList(),
+        sweepingSchedules = listOf(sweeping),
+      )
+
+    val state = ParkingRestrictionEvaluator.evaluate(spot, null, now, now, zone)
+
+    assertThat(state).isInstanceOf(ParkingRestrictionState.Unrestricted::class.java)
+    assertThat(state.nextCleaning).isEqualTo(dateTime(2024, 1, 2, 8, 0))
+  }
+
+  @Test
+  fun `evaluate populates nextCleaning on ActiveTimed state`() {
+    val now = dateTime(2024, 1, 1, 14, 0) // Monday 2 PM
+    val sweeping = createSweepingSchedule(Weekday.Tues, fromHour = 8, toHour = 10)
+    val spot =
+      createSpot(
+        id = "1",
+        limitMinutes = null,
+        timeline = listOf(weekdayLimited),
+        sweepingSchedules = listOf(sweeping),
+      )
+
+    val state = ParkingRestrictionEvaluator.evaluate(spot, "Z", now, now, zone)
+
+    assertThat(state).isInstanceOf(ParkingRestrictionState.ActiveTimed::class.java)
+    assertThat(state.nextCleaning).isEqualTo(dateTime(2024, 1, 2, 8, 0))
+  }
+
+  // ---------------------------------------------------------------------------
+  // nextCleaning clamps ActiveTimed expiry
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun `evaluate clamps ActiveTimed expiry to nextCleaning when cleaning is sooner`() {
+    // Monday 2 PM, 2hr limit -> raw expiry 4 PM. Cleaning starts at 3 PM.
+    // True expiry should be 3 PM (cleaning deadline).
+    val now = dateTime(2024, 1, 1, 14, 0) // Monday 2 PM
+    val sweeping = createSweepingSchedule(Weekday.Mon, fromHour = 15, toHour = 17)
+    val spot =
+      createSpot(
+        id = "1",
+        limitMinutes = null,
+        timeline = listOf(weekdayLimited),
+        sweepingSchedules = listOf(sweeping),
+      )
+
+    val state = ParkingRestrictionEvaluator.evaluate(spot, "Z", now, now, zone)
+
+    assertThat(state).isInstanceOf(ParkingRestrictionState.ActiveTimed::class.java)
+    val active = state as ParkingRestrictionState.ActiveTimed
+    assertThat(active.expiry).isEqualTo(dateTime(2024, 1, 1, 15, 0))
+  }
+
+  // ---------------------------------------------------------------------------
+  // ForbiddenUpcoming
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun `evaluate returns ForbiddenUpcoming for upcoming tow-away zone`() {
+    // Monday 6 AM. Tow-away starts at 7 AM. Should be ForbiddenUpcoming.
+    val now = dateTime(2024, 1, 1, 6, 0) // Monday 6 AM
+    val spot = createSpot(id = "1", limitMinutes = null, timeline = listOf(towAway))
+
+    val state = ParkingRestrictionEvaluator.evaluate(spot, null, now, now, zone)
+
+    assertThat(state).isInstanceOf(ParkingRestrictionState.ForbiddenUpcoming::class.java)
+    val upcoming = state as ParkingRestrictionState.ForbiddenUpcoming
+    assertThat(upcoming.reason).isEqualTo(ProhibitionReason.TOW_AWAY)
+    assertThat(upcoming.startsAt).isEqualTo(dateTime(2024, 1, 1, 7, 0))
+  }
+
+  @Test
+  fun `evaluate returns ForbiddenUpcoming for upcoming restricted interval on different day`() {
+    // Saturday noon. Commercial M-F 7-10 PM. Next commercial starts Monday 7 AM.
+    val now = dateTime(2024, 1, 6, 12, 0) // Saturday noon
+    val commercial =
+      ParkingInterval(
+        type = IntervalType.Restricted(ProhibitionReason.COMMERCIAL),
+        days = weekdays,
+        startTime = LocalTime(7, 0),
+        endTime = LocalTime(22, 0),
+        source = IntervalSource.REGULATION,
+      )
+    val spot = createSpot(id = "1", limitMinutes = null, timeline = listOf(commercial))
+
+    val state = ParkingRestrictionEvaluator.evaluate(spot, null, now, now, zone)
+
+    assertThat(state).isInstanceOf(ParkingRestrictionState.ForbiddenUpcoming::class.java)
+    val upcoming = state as ParkingRestrictionState.ForbiddenUpcoming
+    assertThat(upcoming.reason).isEqualTo(ProhibitionReason.COMMERCIAL)
+    assertThat(upcoming.startsAt).isEqualTo(dateTime(2024, 1, 8, 7, 0)) // Monday
+  }
+
+  // ---------------------------------------------------------------------------
+  // Metered with no time limit (timeLimitMinutes = 0): active path
+  // ---------------------------------------------------------------------------
+
+  @Test
+  fun `evaluate returns ActiveTimed with window end expiry for metered with no time limit`() {
+    // Metered(0) means "pay but no cap." timeLimitMinutes returns null via takeIf { it > 0 }.
+    // evaluateTimedInterval falls through to the limitMinutes == null branch, returning
+    // ActiveTimed with expiry = windowEnd.
+    val now = dateTime(2024, 1, 1, 10, 0) // Monday 10 AM
+    val noLimitMetered =
+      ParkingInterval(
+        type = IntervalType.Metered(timeLimitMinutes = 0),
+        days = weekdays,
+        startTime = LocalTime(9, 0),
+        endTime = LocalTime(18, 0),
+        source = IntervalSource.METER,
+      )
+    val spot = createSpot(id = "1", limitMinutes = null, timeline = listOf(noLimitMetered))
+
+    val state = ParkingRestrictionEvaluator.evaluate(spot, null, now, now, zone)
+
+    assertThat(state).isInstanceOf(ParkingRestrictionState.ActiveTimed::class.java)
+    val active = state as ParkingRestrictionState.ActiveTimed
+    assertThat(active.paymentRequired).isTrue()
+    // Expiry is the window end (6 PM), not now + some limit
+    assertThat(active.expiry).isEqualTo(dateTime(2024, 1, 1, 18, 0))
   }
 
   // ---------------------------------------------------------------------------
@@ -394,8 +489,7 @@ class ParkingRestrictionEvaluatorTest {
     val now = dateTime(2024, 1, 1, 8, 0) // Monday 8 AM
     // Timeline has tow-away 7-9am and meter 9-6pm. At 8am, tow-away should match first
     // because isActiveAt will match the tow-away interval.
-    val spot =
-      createTestSpot(id = "1", limitMinutes = null, timeline = listOf(towAway, weekdayMetered))
+    val spot = createSpot(id = "1", limitMinutes = null, timeline = listOf(towAway, weekdayMetered))
 
     val state = ParkingRestrictionEvaluator.evaluate(spot, null, now, now, zone)
 
@@ -419,7 +513,7 @@ class ParkingRestrictionEvaluatorTest {
         endTime = LocalTime(18, 0),
         source = IntervalSource.REGULATION,
       )
-    val spot = createTestSpot(id = "1", limitMinutes = null, timeline = listOf(interval))
+    val spot = createSpot(id = "1", limitMinutes = null, timeline = listOf(interval))
 
     val state = ParkingRestrictionEvaluator.evaluate(spot, null, now, now, zone)
 
@@ -444,8 +538,7 @@ class ParkingRestrictionEvaluatorTest {
         exemptPermitZones = listOf("Y"),
         source = IntervalSource.REGULATION,
       )
-    val spot =
-      createTestSpot(id = "1", zone = "Y", limitMinutes = null, timeline = listOf(commercial))
+    val spot = createSpot(id = "1", zone = "Y", limitMinutes = null, timeline = listOf(commercial))
 
     val state = ParkingRestrictionEvaluator.evaluate(spot, "Y", now, now, zone)
 
@@ -466,7 +559,7 @@ class ParkingRestrictionEvaluatorTest {
         exemptPermitZones = listOf("A"),
         source = IntervalSource.REGULATION,
       )
-    val spot = createTestSpot(id = "1", zone = "A", limitMinutes = null, timeline = listOf(loading))
+    val spot = createSpot(id = "1", zone = "A", limitMinutes = null, timeline = listOf(loading))
 
     val state = ParkingRestrictionEvaluator.evaluate(spot, "A", now, now, zone)
 
@@ -485,7 +578,7 @@ class ParkingRestrictionEvaluatorTest {
         exemptPermitZones = listOf("N"),
         source = IntervalSource.REGULATION,
       )
-    val spot = createTestSpot(id = "1", zone = "N", limitMinutes = null, timeline = listOf(rppOnly))
+    val spot = createSpot(id = "1", zone = "N", limitMinutes = null, timeline = listOf(rppOnly))
 
     val state = ParkingRestrictionEvaluator.evaluate(spot, "N", now, now, zone)
 
@@ -496,7 +589,7 @@ class ParkingRestrictionEvaluatorTest {
   fun `limited interval with permit zone remains permit-exempt`() {
     val now = dateTime(2024, 1, 1, 10, 0)
     val spot =
-      createTestSpot(id = "1", zone = "A", limitMinutes = null, timeline = listOf(weekdayLimited))
+      createSpot(id = "1", zone = "A", limitMinutes = null, timeline = listOf(weekdayLimited))
 
     val state = ParkingRestrictionEvaluator.evaluate(spot, "A", now, now, zone)
 
@@ -512,7 +605,7 @@ class ParkingRestrictionEvaluatorTest {
     // At 2 PM, 2hr limit. Browse mode passes parkedAt == now.
     // Expiry should be 4 PM (now + 120 min), NOT 6 PM (window end).
     val now = dateTime(2024, 1, 1, 14, 0) // Monday 2 PM
-    val spot = createTestSpot(id = "1", limitMinutes = null, timeline = listOf(weekdayLimited))
+    val spot = createSpot(id = "1", limitMinutes = null, timeline = listOf(weekdayLimited))
 
     val state = ParkingRestrictionEvaluator.evaluate(spot, null, now, now, zone)
 
@@ -522,14 +615,12 @@ class ParkingRestrictionEvaluatorTest {
   }
 
   @Test
-  fun `browse mode near window end clamps expiry to window end`() {
+  fun `browse mode near window end does not clamp to window end`() {
     // At 5:30 PM, 2hr limit, window ends 6 PM. parkedAt == now.
-    // Raw expiry would be 7:30 PM but window ends at 6 PM.
-    // Since the limit (5:30 + 120 min = 7:30 PM) exceeds window end,
-    // the expiry is still 7:30 PM (enforcement doesn't stop mid-limit).
-    // But a Forbidden interval at 6 PM would clamp it.
+    // Raw expiry = 5:30 + 120 min = 7:30 PM. The limit extends past the window
+    // because enforcement doesn't stop mid-limit. Only a Forbidden interval would clamp it.
     val now = dateTime(2024, 1, 1, 17, 30) // Monday 5:30 PM
-    val spot = createTestSpot(id = "1", limitMinutes = null, timeline = listOf(weekdayLimited))
+    val spot = createSpot(id = "1", limitMinutes = null, timeline = listOf(weekdayLimited))
 
     val state = ParkingRestrictionEvaluator.evaluate(spot, null, now, now, zone)
 
@@ -546,20 +637,9 @@ class ParkingRestrictionEvaluatorTest {
   @Test
   fun `sweeping returns CleaningActive even when forbidden interval is simultaneously active`() {
     val now = dateTime(2024, 1, 1, 8, 30) // Monday, during both sweeping (8-10) and tow (7-9)
-    val sweeping =
-      SweepingSchedule(
-        weekday = Weekday.Mon,
-        fromHour = 8,
-        toHour = 10,
-        week1 = true,
-        week2 = true,
-        week3 = true,
-        week4 = true,
-        week5 = true,
-        holidays = false,
-      )
+    val sweeping = createSweepingSchedule(Weekday.Mon, fromHour = 8, toHour = 10)
     val spot =
-      createTestSpot(id = "1", sweepingSchedules = listOf(sweeping), timeline = listOf(towAway))
+      createSpot(id = "1", sweepingSchedules = listOf(sweeping), timeline = listOf(towAway))
 
     val state = ParkingRestrictionEvaluator.evaluate(spot, null, now, now, zone)
 
@@ -572,24 +652,9 @@ class ParkingRestrictionEvaluatorTest {
   @Test
   fun `sweeping returns CleaningActive even when metered interval is simultaneously active`() {
     val now = dateTime(2024, 1, 1, 9, 30) // Monday, during both sweeping (8-10) and metered (9-18)
-    val sweeping =
-      SweepingSchedule(
-        weekday = Weekday.Mon,
-        fromHour = 8,
-        toHour = 10,
-        week1 = true,
-        week2 = true,
-        week3 = true,
-        week4 = true,
-        week5 = true,
-        holidays = false,
-      )
+    val sweeping = createSweepingSchedule(Weekday.Mon, fromHour = 8, toHour = 10)
     val spot =
-      createTestSpot(
-        id = "1",
-        sweepingSchedules = listOf(sweeping),
-        timeline = listOf(weekdayMetered),
-      )
+      createSpot(id = "1", sweepingSchedules = listOf(sweeping), timeline = listOf(weekdayMetered))
 
     val state = ParkingRestrictionEvaluator.evaluate(spot, null, now, now, zone)
 
@@ -622,7 +687,7 @@ class ParkingRestrictionEvaluatorTest {
         endTime = LocalTime(14, 0),
         source = IntervalSource.REGULATION,
       )
-    val spot = createTestSpot(id = "1", limitMinutes = null, timeline = listOf(limited, commercial))
+    val spot = createSpot(id = "1", limitMinutes = null, timeline = listOf(limited, commercial))
 
     val state = ParkingRestrictionEvaluator.evaluate(spot, null, now, now, zone)
 
@@ -650,7 +715,7 @@ class ParkingRestrictionEvaluatorTest {
       )
     val parkedAt = dateTime(2024, 1, 2, 0, 0) // Tuesday midnight
     val now = dateTime(2024, 1, 2, 1, 0) // Tuesday 1 AM
-    val spot = createTestSpot(id = "1", limitMinutes = null, timeline = listOf(overnight))
+    val spot = createSpot(id = "1", limitMinutes = null, timeline = listOf(overnight))
 
     val state = ParkingRestrictionEvaluator.evaluate(spot, null, parkedAt, now, zone)
 
@@ -676,7 +741,7 @@ class ParkingRestrictionEvaluatorTest {
       )
     val parkedAt = dateTime(2024, 1, 1, 21, 0) // Monday 9 PM
     val now = dateTime(2024, 1, 2, 1, 0) // Tuesday 1 AM
-    val spot = createTestSpot(id = "1", limitMinutes = null, timeline = listOf(overnight))
+    val spot = createSpot(id = "1", limitMinutes = null, timeline = listOf(overnight))
 
     val state = ParkingRestrictionEvaluator.evaluate(spot, null, parkedAt, now, zone)
 
@@ -692,11 +757,8 @@ class ParkingRestrictionEvaluatorTest {
 
   @Test
   fun `pending timed expiry is clamped by next forbidden interval`() {
-    // Saturday noon. Limited M-F 8-6 (2hr limit). Tow M-F 10-11 AM.
-    // Next limited starts Monday 8 AM. Raw expiry = 8 AM + 120 = 10 AM.
-    // But tow starts at 10 AM. Expiry should be clamped to 10 AM.
-    // Actually both are 10 AM, so let's use a different scenario:
-    // Limited 8-6 (3hr limit), tow 10-11. Raw expiry = 8 + 180 = 11 AM. Clamped to 10 AM.
+    // Saturday noon. Limited M-F 8-6 (3hr limit), tow M-F 10-11 AM.
+    // Next limited starts Monday 8 AM. Raw expiry = 8 + 180 = 11 AM. Clamped by tow at 10 AM.
     val now = dateTime(2024, 1, 6, 12, 0) // Saturday noon
     val limited =
       ParkingInterval(
@@ -714,7 +776,7 @@ class ParkingRestrictionEvaluatorTest {
         endTime = LocalTime(11, 0),
         source = IntervalSource.TOW,
       )
-    val spot = createTestSpot(id = "1", limitMinutes = null, timeline = listOf(limited, forbidden))
+    val spot = createSpot(id = "1", limitMinutes = null, timeline = listOf(limited, forbidden))
 
     val state = ParkingRestrictionEvaluator.evaluate(spot, null, now, now, zone)
 
@@ -734,7 +796,7 @@ class ParkingRestrictionEvaluatorTest {
     // Monday 8 PM, outside 8 AM-6 PM window. Next interval: limited with exempt zone "A".
     // User has permit "A". Should be PermitSafe, not PendingTimed.
     val now = dateTime(2024, 1, 1, 20, 0) // Monday 8 PM
-    val spot = createTestSpot(id = "1", limitMinutes = null, timeline = listOf(weekdayLimited))
+    val spot = createSpot(id = "1", limitMinutes = null, timeline = listOf(weekdayLimited))
 
     val state = ParkingRestrictionEvaluator.evaluate(spot, "A", now, now, zone)
 
@@ -745,7 +807,7 @@ class ParkingRestrictionEvaluatorTest {
   fun `upcoming metered interval is PermitSafe when user has matching permit`() {
     val now = dateTime(2024, 1, 1, 20, 0) // Monday 8 PM
     val metered = weekdayMetered.copy(exemptPermitZones = listOf("B"))
-    val spot = createTestSpot(id = "1", limitMinutes = null, timeline = listOf(metered))
+    val spot = createSpot(id = "1", limitMinutes = null, timeline = listOf(metered))
 
     val state = ParkingRestrictionEvaluator.evaluate(spot, "B", now, now, zone)
 
@@ -755,7 +817,7 @@ class ParkingRestrictionEvaluatorTest {
   @Test
   fun `upcoming limited interval is PendingTimed when permit does not match`() {
     val now = dateTime(2024, 1, 1, 20, 0) // Monday 8 PM
-    val spot = createTestSpot(id = "1", limitMinutes = null, timeline = listOf(weekdayLimited))
+    val spot = createSpot(id = "1", limitMinutes = null, timeline = listOf(weekdayLimited))
 
     val state = ParkingRestrictionEvaluator.evaluate(spot, "Z", now, now, zone)
 
@@ -776,7 +838,7 @@ class ParkingRestrictionEvaluatorTest {
         exemptPermitZones = listOf("Y"),
         source = IntervalSource.REGULATION,
       )
-    val spot = createTestSpot(id = "1", limitMinutes = null, timeline = listOf(commercial))
+    val spot = createSpot(id = "1", limitMinutes = null, timeline = listOf(commercial))
 
     val state = ParkingRestrictionEvaluator.evaluate(spot, "Y", now, now, zone)
 
@@ -795,7 +857,7 @@ class ParkingRestrictionEvaluatorTest {
         exemptPermitZones = listOf("N"),
         source = IntervalSource.REGULATION,
       )
-    val spot = createTestSpot(id = "1", zone = "N", limitMinutes = null, timeline = listOf(rppOnly))
+    val spot = createSpot(id = "1", zone = "N", limitMinutes = null, timeline = listOf(rppOnly))
 
     val state = ParkingRestrictionEvaluator.evaluate(spot, "N", now, now, zone)
 
@@ -817,7 +879,7 @@ class ParkingRestrictionEvaluatorTest {
         endTime = LocalTime(18, 0),
         source = IntervalSource.METER,
       )
-    val spot = createTestSpot(id = "1", limitMinutes = null, timeline = listOf(noLimitMetered))
+    val spot = createSpot(id = "1", limitMinutes = null, timeline = listOf(noLimitMetered))
 
     val state = ParkingRestrictionEvaluator.evaluate(spot, null, now, now, zone)
 
@@ -833,19 +895,8 @@ class ParkingRestrictionEvaluatorTest {
   @Test
   fun `overnight cleaning ending at midnight computes cleaningEnd correctly`() {
     val now = dateTime(2024, 1, 1, 23, 30) // Monday 11:30 PM
-    val sweeping =
-      SweepingSchedule(
-        weekday = Weekday.Mon,
-        fromHour = 22,
-        toHour = 0,
-        week1 = true,
-        week2 = true,
-        week3 = true,
-        week4 = true,
-        week5 = true,
-        holidays = false,
-      )
-    val spot = createTestSpot(id = "1", sweepingSchedules = listOf(sweeping))
+    val sweeping = createSweepingSchedule(Weekday.Mon, fromHour = 22, toHour = 0)
+    val spot = createSpot(id = "1", sweepingSchedules = listOf(sweeping))
 
     val state = ParkingRestrictionEvaluator.evaluate(spot, null, now, now, zone)
 

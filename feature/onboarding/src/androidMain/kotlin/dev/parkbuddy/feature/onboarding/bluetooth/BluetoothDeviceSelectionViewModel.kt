@@ -4,8 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dev.bongballe.parkbuddy.analytics.AnalyticsTracker
 import dev.bongballe.parkbuddy.core.bluetooth.BluetoothController
-import dev.bongballe.parkbuddy.core.bluetooth.BluetoothDeviceUiModel
 import dev.bongballe.parkbuddy.data.repository.PreferencesRepository
+import dev.bongballe.parkbuddy.model.BluetoothDeviceUiModel
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesIntoMap
 import dev.zacsweers.metro.Inject

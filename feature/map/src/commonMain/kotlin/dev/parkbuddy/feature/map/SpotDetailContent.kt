@@ -37,15 +37,16 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.bongballe.parkbuddy.core.navigation.Navigator
 import dev.bongballe.parkbuddy.data.repository.utils.formatSchedule
-import dev.bongballe.parkbuddy.model.Geometry
-import dev.bongballe.parkbuddy.model.IntervalSource
+import dev.bongballe.parkbuddy.fixtures.ALL_DAYS
+import dev.bongballe.parkbuddy.fixtures.createSpot
+import dev.bongballe.parkbuddy.fixtures.createSweepingSchedule
+import dev.bongballe.parkbuddy.fixtures.limitedInterval
+import dev.bongballe.parkbuddy.fixtures.meteredInterval
+import dev.bongballe.parkbuddy.fixtures.towInterval
 import dev.bongballe.parkbuddy.model.IntervalType
 import dev.bongballe.parkbuddy.model.ParkingInterval
 import dev.bongballe.parkbuddy.model.ParkingRestrictionState
 import dev.bongballe.parkbuddy.model.ParkingSpot
-import dev.bongballe.parkbuddy.model.ProhibitionReason
-import dev.bongballe.parkbuddy.model.StreetSide
-import dev.bongballe.parkbuddy.model.SweepingSchedule
 import dev.bongballe.parkbuddy.model.Weekday
 import dev.bongballe.parkbuddy.theme.Goldenrod
 import dev.bongballe.parkbuddy.theme.ParkBuddyTheme
@@ -57,8 +58,6 @@ import dev.parkbuddy.core.ui.DayTimelineBar
 import dev.parkbuddy.core.ui.ParkBuddyButton
 import dev.parkbuddy.core.ui.ParkBuddyIcons
 import dev.parkbuddy.core.ui.SquircleIcon
-import kotlin.time.Clock
-import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalTime
 
 /** Entry point that collects state from the ViewModel. */
@@ -510,79 +509,35 @@ private fun intervalIcon(type: IntervalType): ImageVector =
 
 @VisibleForTesting
 internal val previewSpot =
-  ParkingSpot(
-    objectId = "1",
-    geometry = Geometry(type = "Line", coordinates = listOf(listOf(1.0, 2.0), listOf(3.0, 4.0))),
-    streetName = "Market Street",
-    blockLimits = "1st Ave - 2nd Ave",
-    neighborhood = "Downtown",
-    rppAreas = listOf("A"),
-    sweepingCnn = "12345",
-    sweepingSide = StreetSide.LEFT,
-    sweepingSchedules =
-      listOf(
-        SweepingSchedule(
-          weekday = Weekday.Mon,
-          fromHour = 8,
-          toHour = 10,
-          week1 = true,
-          week2 = true,
-          week3 = true,
-          week4 = true,
-          week5 = true,
-          holidays = false,
-        )
-      ),
+  createSpot(
+    id = "1",
+    zone = "A",
+    limitMinutes = null,
     timeline =
       listOf(
-        ParkingInterval(
-          type = IntervalType.Limited(timeLimitMinutes = 120),
-          days = DayOfWeek.entries.toSet(),
-          startTime = LocalTime(8, 0),
-          endTime = LocalTime(18, 0),
-          exemptPermitZones = listOf("A"),
-          source = IntervalSource.REGULATION,
-        )
+        limitedInterval(120, ALL_DAYS, LocalTime(8, 0), LocalTime(18, 0), permitZones = listOf("A"))
       ),
+    sweepingSchedules = listOf(createSweepingSchedule(Weekday.Mon, fromHour = 8, toHour = 10)),
   )
 
 @VisibleForTesting
 internal val previewMeteredSpot =
-  ParkingSpot(
-    objectId = "2",
-    geometry = Geometry(type = "Line", coordinates = listOf(listOf(1.0, 2.0), listOf(3.0, 4.0))),
-    streetName = "Post Street",
-    blockLimits = "Kearny - Montgomery",
-    neighborhood = "Financial District",
-    rppAreas = emptyList(),
-    sweepingCnn = "54321",
-    sweepingSide = StreetSide.RIGHT,
-    sweepingSchedules = emptyList(),
+  createSpot(
+    id = "2",
+    limitMinutes = null,
     timeline =
       listOf(
-        ParkingInterval(
-          type = IntervalType.Metered(timeLimitMinutes = 60),
-          days = DayOfWeek.entries.toSet(),
-          startTime = LocalTime(9, 0),
-          endTime = LocalTime(18, 0),
-          source = IntervalSource.METER,
-        ),
-        ParkingInterval(
-          type = IntervalType.Forbidden(reason = ProhibitionReason.TOW_AWAY),
-          days = DayOfWeek.entries.toSet(),
-          startTime = LocalTime(7, 0),
-          endTime = LocalTime(9, 0),
-          source = IntervalSource.TOW,
-        ),
+        meteredInterval(60, ALL_DAYS, LocalTime(9, 0), LocalTime(18, 0)),
+        towInterval(ALL_DAYS, LocalTime(7, 0), LocalTime(9, 0)),
       ),
   )
 
+@VisibleForTesting
 private fun previewState(
   spot: ParkingSpot = previewSpot,
   permitZone: String? = null,
 ): SpotDetailState {
-  val now = Clock.System.now()
-  return evaluate(spot, permitZone, now)
+  return evaluate(spot, permitZone)
 }
 
 @Preview(showBackground = true)
@@ -608,18 +563,6 @@ private fun SpotDetailContentPreview_Metered() {
 @Preview(showBackground = true, name = "Free Parking (no timeline)")
 @Composable
 private fun SpotDetailContentPreview_Free() {
-  val freeSpot =
-    ParkingSpot(
-      objectId = "3",
-      geometry = Geometry(type = "Line", coordinates = listOf(listOf(1.0, 2.0), listOf(3.0, 4.0))),
-      streetName = "Residential Lane",
-      blockLimits = "Oak - Pine",
-      neighborhood = "Sunset",
-      rppAreas = emptyList(),
-      sweepingCnn = "99999",
-      sweepingSide = StreetSide.LEFT,
-      sweepingSchedules = emptyList(),
-      timeline = emptyList(),
-    )
+  val freeSpot = createSpot(id = "3", limitMinutes = null)
   ParkBuddyTheme { SpotDetailContent(state = previewState(spot = freeSpot), onParkHere = {}) }
 }

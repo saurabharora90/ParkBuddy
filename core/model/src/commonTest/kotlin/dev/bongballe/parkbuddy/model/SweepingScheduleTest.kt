@@ -71,7 +71,7 @@ class SweepingScheduleTest {
   }
 
   @Test
-  fun `reproduction - nextOccurrence skips current window`() {
+  fun `nextOccurrence returns current window when called during active cleaning`() {
     val schedule =
       SweepingSchedule(
         weekday = Weekday.Mon,
@@ -85,14 +85,13 @@ class SweepingScheduleTest {
         holidays = false,
       )
 
-    // Monday, Feb 23, 2026 at 9:00 AM (During cleaning)
+    // Monday, Feb 23, 2026 at 9:00 AM (during cleaning 8-10 AM)
     val now = LocalDateTime(2026, 2, 23, 9, 0).toInstant(zone)
     val next = schedule.nextOccurrence(now, zone)
 
     assertNotNull(next)
     val nextLocal = next.toLocalDateTime(zone)
-    // FAILURE: It currently returns the NEXT week because it only looks for cleaningStart > now
-    // We want to know if we are IN a window.
+    // nextOccurrence checks cleaningEnd > now, so it returns today's 8 AM start
     assertEquals(23, nextLocal.dayOfMonth, "Should return current day if we are within the window")
   }
 }

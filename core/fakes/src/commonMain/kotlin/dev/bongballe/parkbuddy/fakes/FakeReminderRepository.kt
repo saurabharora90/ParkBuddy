@@ -1,4 +1,4 @@
-package dev.bongballe.parkbuddy.testing
+package dev.bongballe.parkbuddy.fakes
 
 import dev.bongballe.parkbuddy.data.repository.ReminderRepository
 import dev.bongballe.parkbuddy.model.ParkingSpot

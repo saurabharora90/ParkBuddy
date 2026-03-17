@@ -51,8 +51,8 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
-import dev.bongballe.parkbuddy.core.bluetooth.BluetoothDeviceUiModel
 import dev.bongballe.parkbuddy.core.navigation.Navigator
+import dev.bongballe.parkbuddy.model.BluetoothDeviceUiModel
 import dev.bongballe.parkbuddy.theme.ParkBuddyTheme
 import dev.bongballe.parkbuddy.theme.SageContainer
 import dev.bongballe.parkbuddy.theme.SageGreen

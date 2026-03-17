@@ -20,6 +20,7 @@ kotlin {
       implementation(project(":core:navigation"))
       implementation(project(":core:data:api"))
       implementation(project(":core:model"))
+      implementation(project(":core:fixtures"))
       implementation(project(":core:shared-ui"))
       implementation(project(":core:theme"))
       implementation(libs.androidx.annotation)
@@ -33,7 +34,7 @@ kotlin {
       implementation(libs.metrox.viewmodel.compose)
     }
     getByName("androidHostTest").dependencies {
-      implementation(project(":core:testing"))
+      implementation(project(":core:fakes"))
       implementation(libs.junit)
       implementation(libs.kotlinx.coroutines.test)
       implementation(libs.robolectric)

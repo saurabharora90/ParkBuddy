@@ -1,5 +1,6 @@
-package dev.bongballe.parkbuddy.testing
+package dev.bongballe.parkbuddy.fixtures
 
+import androidx.annotation.VisibleForTesting
 import dev.bongballe.parkbuddy.model.Geometry
 import dev.bongballe.parkbuddy.model.IntervalSource
 import dev.bongballe.parkbuddy.model.IntervalType
@@ -11,12 +12,13 @@ import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalTime
 
 /**
- * Creates a test [ParkingSpot] with sensible defaults.
+ * Creates a [ParkingSpot] with sensible defaults for tests and previews.
  *
  * If [limitMinutes] is provided and [timeline] is empty, automatically builds a [ParkingInterval]
  * on the timeline so the evaluator can see it.
  */
-fun createTestSpot(
+@VisibleForTesting
+fun createSpot(
   id: String,
   zone: String? = null,
   lat: Double = 37.7749,
@@ -29,7 +31,6 @@ fun createTestSpot(
   timeline: List<ParkingInterval> = emptyList(),
   sweepingSchedules: List<SweepingSchedule> = emptyList(),
 ): ParkingSpot {
-  // Auto-build a timeline interval from the limit parameters if no explicit timeline was provided
   val effectiveTimeline =
     if (timeline.isEmpty() && limitMinutes != null && enforcementDays != null) {
       listOf(
