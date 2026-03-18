@@ -23,9 +23,11 @@ class ParkBuddyTypeConverters {
   fun toDayOfWeekSet(value: String): Set<DayOfWeek> =
     if (value.isBlank()) emptySet() else value.split(",").map { DayOfWeek.valueOf(it) }.toSet()
 
-  @TypeConverter fun fromGeometry(geometry: Geometry): String = json.encodeToString(geometry)
+  @TypeConverter
+  fun fromGeometry(geometry: Geometry?): String? = geometry?.let { json.encodeToString(it) }
 
-  @TypeConverter fun toGeometry(value: String): Geometry = json.decodeFromString(value)
+  @TypeConverter
+  fun toGeometry(value: String?): Geometry? = value?.let { json.decodeFromString(it) }
 
   @TypeConverter fun fromStreetSide(side: StreetSide?): String? = side?.name
 

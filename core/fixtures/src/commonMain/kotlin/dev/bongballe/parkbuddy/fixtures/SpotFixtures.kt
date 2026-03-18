@@ -24,6 +24,9 @@ fun createSpot(
   lat: Double = 37.7749,
   lng: Double = -122.4194,
   side: StreetSide = StreetSide.RIGHT,
+  cnn: String = "123",
+  geometry: Geometry? = null,
+  centerlineGeometry: Geometry? = null,
   limitMinutes: Int? = 120,
   enforcementDays: Set<DayOfWeek>? = DayOfWeek.entries.toSet(),
   enforcementStart: LocalTime? = null,
@@ -47,18 +50,22 @@ fun createSpot(
       timeline
     }
 
-  return ParkingSpot(
-    objectId = id,
-    geometry =
-      Geometry(
+  val effectiveGeometry =
+    geometry
+      ?: Geometry(
         type = "LineString",
         coordinates = listOf(listOf(lng, lat), listOf(lng + 0.00001, lat + 0.00001)),
-      ),
+      )
+
+  return ParkingSpot(
+    objectId = id,
+    geometry = effectiveGeometry,
+    centerlineGeometry = centerlineGeometry,
     streetName = "Test St",
     blockLimits = "100-200",
     neighborhood = "Test Neighborhood",
     rppAreas = zone?.let { listOf(it) }.orEmpty(),
-    sweepingCnn = "123",
+    sweepingCnn = cnn,
     sweepingSide = side,
     sweepingSchedules = sweepingSchedules,
     timeline = effectiveTimeline,
