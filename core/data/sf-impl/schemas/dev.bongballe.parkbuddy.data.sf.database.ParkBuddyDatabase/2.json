@@ -2,11 +2,11 @@
   "formatVersion": 1,
   "database": {
     "version": 2,
-    "identityHash": "6df4ed8b1ff7049ea5036581ac0a0e4c",
+    "identityHash": "135a47c44ffa7cceb98da1f29c44eecc",
     "entities": [
       {
         "tableName": "parking_spots",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`objectId` TEXT NOT NULL, `geometry` TEXT NOT NULL, `streetName` TEXT, `blockLimits` TEXT, `neighborhood` TEXT, `rppAreas` TEXT NOT NULL, `timeline` TEXT NOT NULL, `sweepingCnn` TEXT, `sweepingSide` TEXT, PRIMARY KEY(`objectId`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`objectId` TEXT NOT NULL, `geometry` TEXT NOT NULL, `centerlineGeometry` TEXT, `streetName` TEXT, `blockLimits` TEXT, `neighborhood` TEXT, `rppAreas` TEXT NOT NULL, `timeline` TEXT NOT NULL, `sweepingCnn` TEXT, `sweepingSide` TEXT, PRIMARY KEY(`objectId`))",
         "fields": [
           {
             "fieldPath": "objectId",
@@ -19,6 +19,11 @@
             "columnName": "geometry",
             "affinity": "TEXT",
             "notNull": true
+          },
+          {
+            "fieldPath": "centerlineGeometry",
+            "columnName": "centerlineGeometry",
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "streetName",
@@ -190,7 +195,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '6df4ed8b1ff7049ea5036581ac0a0e4c')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '135a47c44ffa7cceb98da1f29c44eecc')"
     ]
   }
 }

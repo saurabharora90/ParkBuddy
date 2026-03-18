@@ -29,27 +29,43 @@ object LocationUtils {
   }
 
   /**
-   * Determine which side of the line the point is on using cross product. Returns [StreetSide.LEFT]
-   * or [StreetSide.RIGHT].
+   * Determine which side of the street centerline the point is on.
+   *
+   * Projects the point onto the closest segment of the polyline, then uses the cross product of
+   * that segment's direction vector with the point-to-segment vector. This is accurate even on
+   * curved streets because it uses the local tangent at the closest point rather than a single
+   * first-to-last vector.
+   *
+   * centerline direction ──► ╲ ╲ cross > 0 → LEFT ╲ ─────────●──────────── centerline ╱ ╱ cross < 0
+   * → RIGHT ╱
    */
   fun determineSide(latitude: Double, longitude: Double, lineGeometry: Geometry): StreetSide {
     val coords = lineGeometry.coordinates
     if (coords.size < 2) return StreetSide.RIGHT
 
-    // Use first and last points for the general vector of the segment
-    val p1 = coords.first()
-    val p2 = coords.last()
+    var bestSegIdx = 0
+    var bestDist = Double.MAX_VALUE
+
+    for (i in 0 until coords.size - 1) {
+      val a = coords[i]
+      val b = coords[i + 1]
+      if (a.size < 2 || b.size < 2) continue
+      val dist = distanceToSegment(latitude, longitude, a[1], a[0], b[1], b[0])
+      if (dist < bestDist) {
+        bestDist = dist
+        bestSegIdx = i
+      }
+    }
+
+    val p1 = coords[bestSegIdx]
+    val p2 = coords[bestSegIdx + 1]
     if (p1.size < 2 || p2.size < 2) return StreetSide.RIGHT
 
-    // Cross product: (p2 - p1) × (point - p1)
-    // dx/dy must be adjusted by SF latitude for accurate orientation
-    val latFactor = 1.0
-    val lngFactor = cos(toRadians(37.7749))
-
+    val lngFactor = cos(toRadians((p1[1] + p2[1]) / 2.0))
     val dx = (p2[0] - p1[0]) * lngFactor
-    val dy = (p2[1] - p1[1]) * latFactor
+    val dy = p2[1] - p1[1]
     val px = (longitude - p1[0]) * lngFactor
-    val py = (latitude - p1[1]) * latFactor
+    val py = latitude - p1[1]
 
     val cross = dx * py - dy * px
     return if (cross > 0) StreetSide.LEFT else StreetSide.RIGHT

@@ -8,7 +8,9 @@ import dev.bongballe.parkbuddy.fakes.FakePreferencesRepository
 import dev.bongballe.parkbuddy.fakes.FakeReminderNotificationManager
 import dev.bongballe.parkbuddy.fakes.FakeReminderRepository
 import dev.bongballe.parkbuddy.fixtures.createSpot
+import dev.bongballe.parkbuddy.model.Geometry
 import dev.bongballe.parkbuddy.model.Location
+import dev.bongballe.parkbuddy.model.ParkingSpot
 import dev.bongballe.parkbuddy.model.StreetSide
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
@@ -209,5 +211,205 @@ class ParkingManagerTest {
 
     assertThat(context.preferencesRepository.parkedLocation.value).isNull()
     assertThat(context.reminderRepository.clearAllRemindersCalled).isTrue()
+  }
+
+  // ── Two-phase matching: centerline + cross product ──
+  //
+  // These tests simulate a narrow street (e.g., Bryant St or Colin P Kelly Jr) where L and R
+  // curbside polylines are close together. The centerline runs west→east at lat 37.775:
+  //
+  //   North (37.7751)   ← LEFT curbside (offset ~5m north of center)
+  //   ──────────────────── centerline at 37.775
+  //   South (37.7749)   ← RIGHT curbside (offset ~5m south of center)
+  //
+  // A GPS point north of center should match LEFT, south should match RIGHT, regardless of which
+  // curbside polyline is numerically closer.
+
+  private val narrowStreetCenterline =
+    Geometry(
+      type = "LineString",
+      coordinates =
+        listOf(listOf(-122.420, 37.775), listOf(-122.419, 37.775), listOf(-122.418, 37.775)),
+    )
+
+  // LEFT curbside: ~5m north of centerline
+  private val leftCurbside =
+    Geometry(
+      type = "LineString",
+      coordinates =
+        listOf(listOf(-122.420, 37.77504), listOf(-122.419, 37.77504), listOf(-122.418, 37.77504)),
+    )
+
+  // RIGHT curbside: ~5m south of centerline
+  private val rightCurbside =
+    Geometry(
+      type = "LineString",
+      coordinates =
+        listOf(listOf(-122.420, 37.77496), listOf(-122.419, 37.77496), listOf(-122.418, 37.77496)),
+    )
+
+  private fun narrowStreetSpots(): Pair<ParkingSpot, ParkingSpot> {
+    val leftSpot =
+      createSpot(
+        id = "left",
+        cnn = "999",
+        side = StreetSide.LEFT,
+        geometry = leftCurbside,
+        centerlineGeometry = narrowStreetCenterline,
+      )
+    val rightSpot =
+      createSpot(
+        id = "right",
+        cnn = "999",
+        side = StreetSide.RIGHT,
+        geometry = rightCurbside,
+        centerlineGeometry = narrowStreetCenterline,
+      )
+    return leftSpot to rightSpot
+  }
+
+  @Test
+  fun `findMatchingSpot picks LEFT side when user is north of centerline`() {
+    val context = TestContext()
+    val (leftSpot, rightSpot) = narrowStreetSpots()
+
+    // User is ~3m north of centerline (on the LEFT side of the street)
+    val userLocation = Location(37.77503, -122.419)
+
+    val result = context.parkingManager.findMatchingSpot(userLocation, listOf(leftSpot, rightSpot))
+
+    assertThat(result?.objectId).isEqualTo("left")
+  }
+
+  @Test
+  fun `findMatchingSpot picks RIGHT side when user is south of centerline`() {
+    val context = TestContext()
+    val (leftSpot, rightSpot) = narrowStreetSpots()
+
+    // User is ~3m south of centerline (on the RIGHT side of the street)
+    val userLocation = Location(37.77497, -122.419)
+
+    val result = context.parkingManager.findMatchingSpot(userLocation, listOf(leftSpot, rightSpot))
+
+    assertThat(result?.objectId).isEqualTo("right")
+  }
+
+  @Test
+  fun `findMatchingSpot uses cross product even when GPS is closer to wrong curbside`() {
+    val context = TestContext()
+    val (leftSpot, rightSpot) = narrowStreetSpots()
+
+    // User is barely north of centerline (~1m). On a 10m wide street, the LEFT curbside is ~5m
+    // away but the RIGHT curbside is ~4m away. Pure distance matching would pick RIGHT (wrong).
+    // Cross product correctly identifies this as LEFT.
+    val userLocation = Location(37.77501, -122.419)
+
+    val result = context.parkingManager.findMatchingSpot(userLocation, listOf(leftSpot, rightSpot))
+
+    assertThat(result?.objectId).isEqualTo("left")
+  }
+
+  @Test
+  fun `findMatchingSpot returns single side when only one exists for CNN`() {
+    val context = TestContext()
+    val (leftSpot, _) = narrowStreetSpots()
+
+    // Only LEFT side exists. User is on the right side, but we should still return the only
+    // available spot.
+    val userLocation = Location(37.77497, -122.419)
+
+    val result = context.parkingManager.findMatchingSpot(userLocation, listOf(leftSpot))
+
+    assertThat(result?.objectId).isEqualTo("left")
+  }
+
+  @Test
+  fun `findMatchingSpot picks closest CNN when multiple streets are nearby`() {
+    val context = TestContext()
+
+    // Street A at lat 37.775
+    val streetACenterline =
+      Geometry("LineString", listOf(listOf(-122.420, 37.775), listOf(-122.418, 37.775)))
+    val streetALeft =
+      createSpot(
+        id = "A-left",
+        cnn = "100",
+        side = StreetSide.LEFT,
+        geometry =
+          Geometry("LineString", listOf(listOf(-122.420, 37.77504), listOf(-122.418, 37.77504))),
+        centerlineGeometry = streetACenterline,
+      )
+
+    // Street B at lat 37.776 (one block north, ~111m away)
+    val streetBCenterline =
+      Geometry("LineString", listOf(listOf(-122.420, 37.776), listOf(-122.418, 37.776)))
+    val streetBLeft =
+      createSpot(
+        id = "B-left",
+        cnn = "200",
+        side = StreetSide.LEFT,
+        geometry =
+          Geometry("LineString", listOf(listOf(-122.420, 37.77604), listOf(-122.418, 37.77604))),
+        centerlineGeometry = streetBCenterline,
+      )
+
+    // User is near street A
+    val userLocation = Location(37.77503, -122.419)
+
+    val result =
+      context.parkingManager.findMatchingSpot(userLocation, listOf(streetALeft, streetBLeft))
+
+    assertThat(result?.objectId).isEqualTo("A-left")
+  }
+
+  @Test
+  fun `findMatchingSpot falls back to curbside distance for spots without centerline`() {
+    val context = TestContext()
+
+    // Regulation-only spot with no centerline (e.g., meter_12345)
+    val orphanSpot = createSpot(id = "orphan", lat = 37.775, lng = -122.419, cnn = "orphan")
+
+    // User is ~4m away
+    val userLocation = Location(37.77504, -122.419)
+
+    val result = context.parkingManager.findMatchingSpot(userLocation, listOf(orphanSpot))
+
+    assertThat(result?.objectId).isEqualTo("orphan")
+  }
+
+  @Test
+  fun `findMatchingSpot returns null when all spots are too far`() {
+    val context = TestContext()
+    val (leftSpot, rightSpot) = narrowStreetSpots()
+
+    // User is 50m away
+    val userLocation = Location(37.776, -122.419)
+
+    val result = context.parkingManager.findMatchingSpot(userLocation, listOf(leftSpot, rightSpot))
+
+    assertThat(result).isNull()
+  }
+
+  @Test
+  fun `findMatchingSpot prefers centerline match over curbside fallback`() {
+    val context = TestContext()
+    val (leftSpot, rightSpot) = narrowStreetSpots()
+
+    // Also add an orphan spot that happens to be slightly closer by curbside distance
+    val orphanSpot =
+      createSpot(
+        id = "orphan",
+        cnn = "orphan_cnn",
+        geometry =
+          Geometry("LineString", listOf(listOf(-122.419, 37.77502), listOf(-122.4189, 37.77502))),
+      )
+
+    val userLocation = Location(37.77503, -122.419)
+
+    val result =
+      context.parkingManager.findMatchingSpot(userLocation, listOf(leftSpot, rightSpot, orphanSpot))
+
+    // Should pick left via centerline+cross-product, not the orphan via curbside distance
+    assertThat(result?.objectId).isEqualTo("left")
   }
 }

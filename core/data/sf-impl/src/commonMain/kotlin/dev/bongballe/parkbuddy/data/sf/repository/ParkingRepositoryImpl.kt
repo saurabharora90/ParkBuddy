@@ -403,6 +403,7 @@ class ParkingRepositoryImpl(
             ParkingSpotEntity(
               sId,
               geom,
+              ctx.centerline,
               ctx.streetName,
               ctx.blockLimits,
               ctx.neighborhood,
@@ -543,8 +544,10 @@ class ParkingRepositoryImpl(
     when (type) {
       is IntervalType.Limited,
       is IntervalType.Metered -> rppAreas
+
       is IntervalType.Restricted ->
         if (type.reason == ProhibitionReason.RESIDENTIAL_PERMIT) rppAreas else emptyList()
+
       is IntervalType.Forbidden,
       is IntervalType.Open -> emptyList()
     }
@@ -740,6 +743,7 @@ class ParkingRepositoryImpl(
     ParkingSpot(
       objectId = spot.objectId,
       geometry = spot.geometry,
+      centerlineGeometry = spot.centerlineGeometry,
       streetName = spot.streetName,
       blockLimits = spot.blockLimits,
       neighborhood = spot.neighborhood,

@@ -39,7 +39,16 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class ParkingSpot(
   val objectId: String,
+  /**
+   * Curbside polyline for this side of the street. Used for map rendering and fallback matching.
+   */
   val geometry: Geometry,
+  /**
+   * Raw street centerline shared by both sides of the same block. Used at match time to determine
+   * LEFT vs RIGHT via cross product. Null for virtual segments (regulation-only or meter-only spots
+   * that have no sweeping CNN).
+   */
+  val centerlineGeometry: Geometry?,
   val streetName: String?,
   val blockLimits: String?,
   val neighborhood: String?,

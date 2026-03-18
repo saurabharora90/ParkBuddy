@@ -24,7 +24,10 @@ import dev.bongballe.parkbuddy.model.StreetSide
 @Entity(tableName = "parking_spots")
 data class ParkingSpotEntity(
   @PrimaryKey val objectId: String,
+  /** Curbside polyline for this side of the street. Used for map rendering and fallback matching. */
   val geometry: Geometry,
+  /** Raw street centerline shared by both sides. Used for LEFT/RIGHT disambiguation at match time. */
+  val centerlineGeometry: Geometry?,
   val streetName: String?,
   val blockLimits: String?,
   val neighborhood: String?,
