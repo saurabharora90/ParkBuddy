@@ -26,6 +26,14 @@ subprojects {
   apply(plugin = "com.ncorti.ktfmt.gradle")
   configure<com.ncorti.ktfmt.gradle.KtfmtExtension> { googleStyle() }
 
+  pluginManager.withPlugin("org.jetbrains.kotlin.plugin.compose") {
+    configure<org.jetbrains.kotlin.compose.compiler.gradle.ComposeCompilerGradlePluginExtension> {
+      stabilityConfigurationFile.set(rootProject.layout.projectDirectory.file("compose_stability_config.conf"))
+      metricsDestination.set(layout.buildDirectory.dir("compose-metrics"))
+      reportsDestination.set(layout.buildDirectory.dir("compose-reports"))
+    }
+  }
+
   val catalog = rootProject.extensions.getByType<VersionCatalogsExtension>().named("libs")
 
   // Compose Multiplatform preview tooling for KMP Android library modules (AGP 9.0+).
