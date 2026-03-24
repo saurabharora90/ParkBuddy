@@ -273,20 +273,35 @@ private fun CurrentStateCard(state: SpotDetailState) {
 
     is ParkingRestrictionState.PendingTimed -> {
       val startsIn = restriction.startsAt - now
-      val accentColor = if (restriction.paymentRequired) Goldenrod else WildIris
-      val title = if (restriction.paymentRequired) "METERED SOON" else "TIME LIMIT SOON"
-      StateCard(
-        icon = ParkBuddyIcons.AccessTime,
-        accentColor = accentColor,
-        title = title,
-        details =
-          buildList {
-            add("Starts" to formatRelativeTime(startsIn))
-            if (restriction.paymentRequired) add("Payment" to "Required")
-          },
-        segments = state.timelineSegments,
-        currentMinute = state.currentMinute,
-      )
+      if (startsIn.inWholeMinutes <= 30) {
+        val accentColor = if (restriction.paymentRequired) Goldenrod else WildIris
+        val title = if (restriction.paymentRequired) "METERED SOON" else "TIME LIMIT SOON"
+        StateCard(
+          icon = ParkBuddyIcons.AccessTime,
+          accentColor = accentColor,
+          title = title,
+          details =
+            buildList {
+              add("Starts" to formatRelativeTime(startsIn))
+              if (restriction.paymentRequired) add("Payment" to "Required")
+            },
+          segments = state.timelineSegments,
+          currentMinute = state.currentMinute,
+        )
+      } else {
+        StateCard(
+          icon = ParkBuddyIcons.CheckCircle,
+          accentColor = SagePrimary,
+          title = "FREE PARKING",
+          details =
+            buildList {
+              val label = if (restriction.paymentRequired) "Metered" else "Time limit"
+              add("$label starts ${formatRelativeTime(startsIn)}" to "")
+            },
+          segments = state.timelineSegments,
+          currentMinute = state.currentMinute,
+        )
+      }
     }
 
     is ParkingRestrictionState.Unrestricted -> {
