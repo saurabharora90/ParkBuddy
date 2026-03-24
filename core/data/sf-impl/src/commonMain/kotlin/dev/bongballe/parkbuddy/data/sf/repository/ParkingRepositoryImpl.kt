@@ -147,7 +147,7 @@ class ParkingRepositoryImpl(
     private const val API_BATCH_LIMIT = 5000
   }
 
-  // ── Public API (ParkingRepository interface) ──
+  override suspend fun hasSpots(): Boolean = dao.getSpotCount() > 0
 
   override fun getAllSpots(): Flow<List<ParkingSpot>> =
     dao.getAllSpots().map { it.map { e -> e.toDomainModel() } }

@@ -44,9 +44,7 @@ class MainViewModel(
   init {
     viewModelScope.launch {
       // Check if data needs refresh - either first sync or database was wiped
-      val needsSync =
-        !preferencesRepository.isInitialSyncDone.first() ||
-          repository.getAllSpots().first().isEmpty()
+      val needsSync = !preferencesRepository.isInitialSyncDone.first() || !repository.hasSpots()
       if (needsSync) {
         isSyncing.value = true
         val didRefreshSucceed = repository.refreshData()
