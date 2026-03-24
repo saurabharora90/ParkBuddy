@@ -58,6 +58,7 @@ import dev.parkbuddy.core.ui.DayTimelineBar
 import dev.parkbuddy.core.ui.ParkBuddyButton
 import dev.parkbuddy.core.ui.ParkBuddyIcons
 import dev.parkbuddy.core.ui.SquircleIcon
+import dev.parkbuddy.core.ui.TimelineSegment
 import kotlinx.datetime.LocalTime
 
 /** Entry point that collects state from the ViewModel. */
@@ -85,11 +86,7 @@ internal fun SpotDetailContent(
   modifier: Modifier = Modifier,
 ) {
   Column(
-    modifier =
-      modifier
-        .background(MaterialTheme.colorScheme.background)
-        .padding(bottom = 16.dp)
-        .padding(horizontal = 16.dp),
+    modifier = modifier.padding(bottom = 16.dp).padding(horizontal = 16.dp),
     verticalArrangement = Arrangement.spacedBy(24.dp),
   ) {
     SpotHeader(state.spot)
@@ -331,7 +328,7 @@ private fun StateCard(
   title: String,
   details: List<Pair<String, String>>,
   showBorder: Boolean = false,
-  segments: List<dev.parkbuddy.core.ui.TimelineSegment> = emptyList(),
+  segments: List<TimelineSegment> = emptyList(),
   currentMinute: Int = 0,
 ) {
   val cardModifier =

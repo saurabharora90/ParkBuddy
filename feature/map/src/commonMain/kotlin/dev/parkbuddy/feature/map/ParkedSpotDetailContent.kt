@@ -79,11 +79,7 @@ internal fun ParkedSpotDetailContent(
   var isShowingClearParkedLocationPrompt by remember { mutableStateOf(false) }
 
   Column(
-    modifier =
-      modifier
-        .background(MaterialTheme.colorScheme.background)
-        .padding(horizontal = 16.dp)
-        .padding(bottom = 24.dp),
+    modifier = modifier.padding(horizontal = 16.dp).padding(bottom = 24.dp),
     verticalArrangement = Arrangement.spacedBy(20.dp),
   ) {
     val now = state.now
@@ -219,6 +215,7 @@ private fun Header(spot: ParkingSpot, restriction: ParkingRestrictionState, now:
           if (remaining.isNegative() || remaining.inWholeMinutes < 30) Terracotta
           else MaterialTheme.colorScheme.onSurfaceVariant
         }
+
         else -> MaterialTheme.colorScheme.onSurfaceVariant
       }
 

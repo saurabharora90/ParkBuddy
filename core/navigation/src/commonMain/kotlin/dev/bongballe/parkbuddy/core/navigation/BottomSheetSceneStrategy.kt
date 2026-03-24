@@ -1,6 +1,7 @@
 package dev.bongballe.parkbuddy.core.navigation
 
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
@@ -40,6 +41,11 @@ class BottomSheetScene<T : Any>(
 ) : OverlayScene<T> {
   override val entries: List<NavEntry<T>> = listOf(entry)
   override val content: @Composable () -> Unit = {
-    ModalBottomSheet(onDismissRequest = onBack) { entry.Content() }
+    ModalBottomSheet(
+      onDismissRequest = onBack,
+      containerColor = MaterialTheme.colorScheme.background,
+    ) {
+      entry.Content()
+    }
   }
 }
