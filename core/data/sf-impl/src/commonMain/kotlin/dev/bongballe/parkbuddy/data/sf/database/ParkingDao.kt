@@ -63,6 +63,8 @@ interface ParkingDao {
   )
   fun countSpotsByZone(zone: String): Flow<Int>
 
+  @Query("SELECT COUNT(*) FROM parking_spots") suspend fun getSpotCount(): Int
+
   /**
    * Get all unique RPP zone letters that have parking spots. Used to populate zone picker dropdown.
    */

@@ -17,4 +17,6 @@ interface ParkingRepository {
   suspend fun setUserPermitZone(zone: String?)
 
   suspend fun refreshData(): Boolean
+
+  suspend fun hasSpots(): Boolean
 }

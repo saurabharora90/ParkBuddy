@@ -33,6 +33,8 @@ class FakeParkingRepository : ParkingRepository {
 
   override suspend fun refreshData(): Boolean = true
 
+  override suspend fun hasSpots(): Boolean = _spots.value.isNotEmpty()
+
   fun setSpots(spots: List<ParkingSpot>) {
     _spots.value = spots
   }
