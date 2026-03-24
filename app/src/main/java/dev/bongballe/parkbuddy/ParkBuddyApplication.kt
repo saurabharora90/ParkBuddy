@@ -39,6 +39,7 @@ class ParkBuddyApplication : Application(), MetroApplication, Configuration.Prov
     val refreshRequest =
       PeriodicWorkRequestBuilder<DataRefreshWorker>(7, TimeUnit.DAYS)
         .setConstraints(constraints)
+        .setInitialDelay(7, TimeUnit.DAYS)
         .build()
 
     WorkManager.getInstance(this)
