@@ -7,9 +7,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 class FakePreferencesRepository : PreferencesRepository {
-  private val _isInitialSyncDone = MutableStateFlow(false)
-  override val isInitialSyncDone: Flow<Boolean> = _isInitialSyncDone.asStateFlow()
-
   private val _hasSeenOnboarding = MutableStateFlow(false)
   override val hasSeenOnboarding: Flow<Boolean> = _hasSeenOnboarding.asStateFlow()
 
@@ -22,10 +19,6 @@ class FakePreferencesRepository : PreferencesRepository {
 
   override suspend fun setHasSeenMapNux(hasSeen: Boolean) {
     _hasSeenMapNux.value = hasSeen
-  }
-
-  override suspend fun setInitialSyncDone(isDone: Boolean) {
-    _isInitialSyncDone.value = isDone
   }
 
   private val _bluetoothDeviceAddress = MutableStateFlow<String?>(null)

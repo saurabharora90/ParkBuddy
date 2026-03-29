@@ -51,31 +51,20 @@ kotlin {
 
 foundry { features { metro() } }
 
-// Single source of truth: commonMain/resources/sf-data/*.json.gz
-// Copied to platform-specific asset directories at build time.
-val sfDataDir = layout.projectDirectory.dir("src/commonMain/resources/sf-data")
-
-val copySfDataToAndroid by
-  tasks.registering(Sync::class) {
-    from(sfDataDir)
-    into(layout.projectDirectory.dir("src/androidMain/assets/sf-data"))
+// Source .json files live in sf-data/ (module root). The generated park_buddy_db lives in
+// commonMain/resources/sf-data/ so KMP bundles it automatically on Android. For iOS, we
+// copy it to iosMain/resources/ so it ends up in the app bundle.
+val copyPrebuiltDbToIos by
+  tasks.registering(Copy::class) {
+    from(layout.projectDirectory.dir("src/commonMain/resources/sf-data")) {
+      include("park_buddy_db")
+    }
+    into(layout.projectDirectory.dir("src/iosMain/resources"))
   }
 
-val copySfDataToIos by
-  tasks.registering(Sync::class) {
-    from(sfDataDir)
-    into(layout.projectDirectory.dir("src/iosMain/resources/sf-data"))
-  }
-
-// Ensure copies run before any Android or iOS compilation/packaging tasks.
 tasks.configureEach {
-  if (
-    name.startsWith("compileAndroid") || name.startsWith("merge") || name.contains("AndroidAssets")
-  ) {
-    dependsOn(copySfDataToAndroid)
-  }
   if (name.startsWith("compileKotlinIos")) {
-    dependsOn(copySfDataToIos)
+    dependsOn(copyPrebuiltDbToIos)
   }
 }
 

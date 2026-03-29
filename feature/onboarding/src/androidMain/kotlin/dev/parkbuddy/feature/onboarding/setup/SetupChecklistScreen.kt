@@ -37,14 +37,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateMapOf
@@ -97,8 +95,6 @@ fun SetupChecklistScreen(
   viewModel: SetupChecklistViewModel = metroViewModel(),
 ) {
   val context = LocalContext.current
-  val isSyncDone by viewModel.isSyncDone.collectAsState()
-
   var currentStepIndex by rememberSaveable { mutableIntStateOf(0) }
   val steps = SetupStep.entries
   val currentStep = steps.getOrNull(currentStepIndex)
@@ -241,8 +237,8 @@ fun SetupChecklistScreen(
   val allStepsDone = currentStepIndex >= steps.size
 
   val resultEventBus = LocalResultEventBus.current
-  LaunchedEffect(allStepsDone, isSyncDone) {
-    if (allStepsDone && isSyncDone) {
+  LaunchedEffect(allStepsDone) {
+    if (allStepsDone) {
       viewModel.markOnboardingComplete()
       resultEventBus.sendResult<OnboardingRoute>(result = OnboardingRoute.Complete)
       navigator.goBack()
@@ -419,39 +415,12 @@ fun SetupChecklistScreen(
         modifier = Modifier.padding(bottom = 8.dp),
       )
 
-      // Sync progress (only shown when all permissions done but data still downloading)
-      AnimatedVisibility(visible = allStepsDone && !isSyncDone) {
-        Column(
-          modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
-          horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-          LinearProgressIndicator(
-            modifier = Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)),
-            color = SagePrimary,
-            trackColor = SageContainer,
-          )
-          Spacer(modifier = Modifier.height(4.dp))
-          Text(
-            text = "Downloading SF parking data...",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-          )
-        }
-      }
-
       // Action button
       if (!allStepsDone) {
         ParkBuddyButton(
           label = currentStep?.buttonLabel ?: "Continue",
           onClick = onActionClick,
           modifier = Modifier.fillMaxWidth(),
-        )
-      } else if (!isSyncDone) {
-        ParkBuddyButton(
-          label = "Almost ready...",
-          onClick = {},
-          modifier = Modifier.fillMaxWidth(),
-          enabled = false,
         )
       }
 

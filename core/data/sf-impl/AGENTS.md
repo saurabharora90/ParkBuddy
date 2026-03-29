@@ -2,7 +2,9 @@
 
 ## Data Sources
 
-Two APIs, all responses bundled as gzipped JSON in `src/commonMain/resources/sf-data/`:
+Two APIs. Source `.json` files live in `sf-data/` (module root, tracked in git). The generated
+`park_buddy_db` lives in `src/commonMain/resources/sf-data/` (bundled into the app via KMP
+resources). At runtime, `refreshData()` downloads fresh JSON from the network and rebuilds the DB.
 
 | Source | API | Records | Key |
 |--------|-----|---------|-----|
@@ -79,9 +81,26 @@ sqlite3 /tmp/parkbuddy.db "SELECT objectId, streetName, blockLimits, timeline FR
 sqlite3 /tmp/parkbuddy.db "SELECT streetName, count(*) FROM parking_spots WHERE timeline = '[]' GROUP BY streetName ORDER BY count(*) DESC LIMIT 20;"
 ```
 
+## Updating the Pre-built Database
+
+**New source data** (API changes, new streets, updated regulations):
+1. Update `.json` files in `sf-data/`.
+2. Regenerate: `./gradlew :core:data:sf-impl:testAndroidHostTest --tests "*GeneratePrebuiltDb*"`
+3. Bump `DB_VERSION` in `ParkBuddyDatabase.kt`.
+4. Commit updated `.json` files, `park_buddy_db`, and version bump.
+
+**Pipeline bug fix** (parsing, spatial matching, timeline resolution, etc.):
+1. Fix the bug.
+2. Regenerate from existing `.json` files (same command).
+3. Bump `DB_VERSION` in `ParkBuddyDatabase.kt`.
+4. Commit code fix, `park_buddy_db`, and version bump.
+
+Bumping `DB_VERSION` is what triggers existing installs to replace their on-device DB on next launch.
+
 ## Test Commands
 
 ```bash
 ./gradlew :core:data:sf-impl:testAndroidHostTest                                       # All tests
 ./gradlew :core:data:sf-impl:testAndroidHostTest --tests "*ParkingRepositoryImplTest*"  # Pipeline
+./gradlew :core:data:sf-impl:testAndroidHostTest --tests "*GeneratePrebuiltDb*"         # Regenerate pre-built DB
 ```

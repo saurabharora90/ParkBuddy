@@ -17,13 +17,7 @@ interface ParkingRepository {
   suspend fun setUserPermitZone(zone: String?)
 
   /**
-   * Builds the DB from local JSON files on disk, falling back to bundled assets. No network calls.
-   * Used on first launch for instant startup.
-   */
-  suspend fun populateDb(): Boolean
-
-  /**
-   * Downloads fresh data from APIs, writes JSON to disk, then calls [populateDb]. Used by
+   * Downloads fresh data from APIs, rebuilds the DB, then cleans up temporary files. Used by
    * background workers for periodic updates.
    */
   suspend fun refreshData(): Boolean

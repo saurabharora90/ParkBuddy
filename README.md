@@ -36,12 +36,14 @@ Platform-specific code is minimal: `androidMain` for Android APIs, `iosMain` for
 
 ### How It Works
 
-1. **Sync**: Fetches four SF Open Data APIs in parallel (sweeping, regulations, meters, schedules)
-2. **Resolve**: Flattens overlapping rules into non-overlapping `ParkingInterval`s using priority:
-   FORBIDDEN > RESTRICTED > METERED > LIMITED > OPEN
-3. **Store**: Timeline stored as JSON on each parking spot in Room
-4. **Evaluate**: At runtime, finds the active interval for "right now" and checks permits
-5. **Remind**: Schedules alarms for the earliest deadline (time limit, tow zone, or cleaning)
+1. **Pre-built DB**: Each city ships a pre-built Room database as a bundled asset. First launch is
+   instant, no network or parsing required.
+2. **Refresh**: A background worker periodically downloads fresh data from city APIs, rebuilds the
+   DB, and cleans up temporary files.
+3. **Resolve**: Overlapping rules are flattened into non-overlapping `ParkingInterval`s using
+   priority: FORBIDDEN > RESTRICTED > METERED > LIMITED > OPEN.
+4. **Evaluate**: At runtime, finds the active interval for "right now" and checks permits.
+5. **Remind**: Schedules alarms for the earliest deadline (time limit, tow zone, or cleaning).
 
 ### Tech Stack
 
@@ -150,6 +152,84 @@ xcodebuild build \
 - **Stale builds**: Kotlin/Native incremental builds can occasionally miss changes. Use
   `--rerun-tasks` if edits don't seem to take effect.
 
+## Data Pipeline
+
+Each city module (`core/data/<city>-impl`) owns its parking data: raw API sources, parsing logic,
+spatial matching, and database schema. The app ships a **pre-built Room database** per city so first
+launch is instant.
+
+### How it works
+
+```
+sf-data/*.json ──▶ GeneratePrebuiltDb ──▶ park_buddy_db
+                                               │
+                                 bundled into app (KMP resources)
+                                               │
+                              first launch: copy to DB path if needed
+                                               │
+                                         Room opens DB ──▶ App ready
+```
+
+On first launch, the database provider copies the bundled `park_buddy_db` to the app's database
+directory and writes a `.version` marker file. On subsequent launches, the marker is checked and
+the copy is skipped. On app updates with a new `DB_VERSION`, the old DB is deleted and re-copied.
+
+At runtime, a background worker periodically downloads fresh data from city APIs, rebuilds the DB,
+and deletes the temporary files.
+
+### Regenerating the pre-built database
+
+Each city module has two data directories:
+
+- **`sf-data/`** (module root): Source `.json` files from city APIs (tracked in git, never bundled
+  into the app)
+- **`src/commonMain/resources/sf-data/`**: Generated `park_buddy_db` (tracked in git, bundled into
+  the app via KMP resources)
+
+Using SF as an example:
+
+```bash
+# Regenerate after updating source .json files or changing the pipeline:
+./gradlew :core:data:sf-impl:testAndroidHostTest --tests "*GeneratePrebuiltDb*"
+```
+
+This reads the `.json` files from `core/data/sf-impl/sf-data/`, runs the full pipeline (spatial
+matching, timeline resolution, etc.), and outputs `park_buddy_db` to
+`src/commonMain/resources/sf-data/`.
+
+### Updating the pre-built database for an app release
+
+There are two reasons to regenerate the pre-built database:
+
+**New source data** (city APIs changed, new streets, updated regulations):
+1. Update the `.json` source files in `sf-data/` (download fresh data from city APIs or pull from
+   a device that ran `refreshData`).
+2. Regenerate the pre-built database (see above).
+3. Bump `DB_VERSION` in the city's `Database` class (e.g., `ParkBuddyDatabase`).
+4. Commit the updated `.json` files, regenerated `park_buddy_db`, and version bump.
+
+**Pipeline bug fix** (changed parsing, spatial matching, timeline resolution, etc.):
+1. Fix the bug in the pipeline code.
+2. Regenerate the pre-built database from the existing `.json` files (see above).
+3. Bump `DB_VERSION` in the city's `Database` class.
+4. Commit the code fix, regenerated `park_buddy_db`, and version bump.
+
+In both cases, bumping `DB_VERSION` is what triggers existing installs to replace their on-device
+DB with the new bundled copy on next launch.
+
+### Adding a new city
+
+1. Create `core/data/<city>-impl` following the SF module's structure.
+2. Add `.json` source files to `<city>-data/` (module root, tracked in git).
+3. Implement the data pipeline: API models, parsers, spatial matching, `ParkingRepositoryImpl`.
+4. Create a Room database class with its own `DB_VERSION` constant.
+5. Create `DatabaseProvider` (Android) and `IosDatabaseProvider` (iOS) with the version-marker
+   copy logic (see SF's implementations for reference).
+6. Create a `GeneratePrebuiltDb` test in `androidHostTest/.../tools/` that reads the `.json`
+   files, runs the pipeline, and outputs `park_buddy_db` to `src/commonMain/resources/<city>-data/`.
+7. Add a Gradle copy task in `build.gradle.kts` to copy the `.db` to `iosMain/resources/` for iOS
+   (Android picks it up automatically from `commonMain/resources/`).
+
 ## Testing
 
 ```bash
@@ -157,6 +237,4 @@ xcodebuild build \
 ./gradlew globalCiVerifyRoborazzi     # Screenshot tests
 ```
 
-**No mocks.** Use fakes (in `:core:testing`) or real implementations. Mockito is forbidden.
-
-Raw SF data is available in `full_api_data/` for writing tests against real API responses.
+**No mocks.** Use fakes (in `:core:fakes`) or real implementations. Mockito is forbidden.
