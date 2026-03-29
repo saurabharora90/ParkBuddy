@@ -175,8 +175,8 @@ class ParkingManagerTest {
   @Test
   fun `processParkingEvent fails when spot is too far away`() = runTest {
     val context = TestContext()
-    // User is approx 14m away from base
-    val userLocation = Location(37.7748, -122.4193)
+    // User is approx 25m away from the spot (beyond the 20m curbside threshold)
+    val userLocation = Location(37.7747, -122.4192)
     context.locationRepository.locationResult = Result.success(userLocation)
 
     val spot = createSpot(id = "1", lat = 37.7749, lng = -122.4194)
@@ -184,7 +184,6 @@ class ParkingManagerTest {
 
     context.parkingManager.processParkingEvent()
 
-    // It should fail because 14m > 7m threshold.
     assertThat(context.preferencesRepository.parkedLocation.value).isNull()
     assertThat(context.notificationManager.parkingMatchFailureNotificationSent).isTrue()
   }
