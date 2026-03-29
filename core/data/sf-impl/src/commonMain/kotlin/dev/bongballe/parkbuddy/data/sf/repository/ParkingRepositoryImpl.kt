@@ -269,7 +269,7 @@ class ParkingRepositoryImpl(
       fileReader.write(fileName, json.encodeToString(response))
       log.d { "downloadAndSaveArcGis: $fileName -> ${features.size} features" }
       true
-    } catch (e: Exception) {
+    } catch (e: kotlinx.io.IOException) {
       log.w(e) { "downloadAndSaveArcGis: failed for $fileName" }
       false
     }
@@ -284,7 +284,7 @@ class ParkingRepositoryImpl(
       fileReader.write(fileName, json.encodeToString(all))
       log.d { "downloadAndSaveSocrata: $fileName -> ${all.size} records" }
       true
-    } catch (e: Exception) {
+    } catch (e: kotlinx.io.IOException) {
       log.w(e) { "downloadAndSaveSocrata: failed for $fileName" }
       false
     }
@@ -358,7 +358,7 @@ class ParkingRepositoryImpl(
           blockfaceIndex[bfId] =
             BlockfaceInfo(
               geom,
-              f.attributes.streetName ?: "",
+              f.attributes.streetName.orEmpty(),
               side,
               if (from != null && to != null) "$from-$to" else null,
             )
@@ -429,8 +429,10 @@ class ParkingRepositoryImpl(
         // separate lines when they're physically covered by a metered blockface.
         val metersByBlockface =
           filteredMeters
-            .filter { it.attributes.blockfaceId != null }
-            .groupBy { it.attributes.blockfaceId!!.toLong() }
+            .mapNotNull { meter ->
+              meter.attributes.blockfaceId?.let { bfId -> bfId.toLong() to meter }
+            }
+            .groupBy({ it.first }, { it.second })
 
         for ((bfId, meters) in metersByBlockface) {
           val bf = blockfaceIndex[bfId] ?: continue
@@ -633,7 +635,11 @@ class ParkingRepositoryImpl(
             val nCtx = unifiedContexts[neighbor] ?: continue
             nCtx.sweepingSchedules.addAll(soCtx.sweepingSchedules)
             if (nCtx.blockLimits != null && soCtx.blockLimits != null) {
-              nCtx.blockLimits = mergeBlockLimits(nCtx.blockLimits!!, soCtx.blockLimits!!)
+              nCtx.blockLimits =
+                mergeBlockLimits(
+                  requireNotNull(nCtx.blockLimits),
+                  requireNotNull(soCtx.blockLimits),
+                )
             } else if (nCtx.blockLimits == null) {
               nCtx.blockLimits = soCtx.blockLimits
             }
@@ -647,7 +653,7 @@ class ParkingRepositoryImpl(
         val spots = mutableListOf<ParkingSpotEntity>()
         val sweeping = mutableListOf<SweepingScheduleEntity>()
 
-        for ((key, ctx) in unifiedContexts) {
+        for ((_, ctx) in unifiedContexts) {
           if (ctx.streetName.isNullOrEmpty()) {
             ctx.streetName = matcher.getStreetNameByCnn(ctx.cnn)
           }
@@ -786,7 +792,7 @@ class ParkingRepositoryImpl(
         val (start, end) = TimeParser.normalizeWindow(rawStart, rawEnd)
         val rawLimit = p.timeLimitMinutes?.filter { it.isDigit() }?.toIntOrNull() ?: 0
         val windowMinutes = windowDurationMinutes(start, end)
-        val capLower = p.capColor?.lowercase() ?: ""
+        val capLower = p.capColor?.lowercase().orEmpty()
 
         ParsedMeterEntry(
           days = setOf(day),
