@@ -6,9 +6,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
@@ -25,7 +23,6 @@ import dev.bongballe.parkbuddy.core.navigation.ResultEffect
 import dev.bongballe.parkbuddy.core.navigation.ResultEventBus
 import dev.bongballe.parkbuddy.theme.ParkBuddyTheme
 import dev.parkbuddy.composeapp.MainScreen
-import dev.parkbuddy.composeapp.MainViewModel
 import dev.parkbuddy.composeapp.NavigatorImpl
 import dev.parkbuddy.feature.map.PermissionChecker
 import dev.parkbuddy.feature.settings.SettingsScreen
@@ -36,7 +33,6 @@ import dev.zacsweers.metro.binding
 import dev.zacsweers.metrox.android.ActivityKey
 import dev.zacsweers.metrox.viewmodel.LocalMetroViewModelFactory
 import dev.zacsweers.metrox.viewmodel.MetroViewModelFactory
-import dev.zacsweers.metrox.viewmodel.metroViewModel
 
 @ContributesIntoMap(AppScope::class, binding<Activity>())
 @ActivityKey(MainActivity::class)
@@ -57,9 +53,6 @@ class MainActivity(
         LocalMetroViewModelFactory provides viewModelFactory,
         LocalResultEventBus provides resultBus,
       ) {
-        val vm: MainViewModel = metroViewModel()
-        val state by vm.stateFlow.collectAsStateWithLifecycle()
-
         ParkBuddyTheme {
           NavDisplay(
             backStack = navigator.backStack,
@@ -75,16 +68,13 @@ class MainActivity(
             entryProvider = entryProvider {
               entryBuilders.forEach { builder -> this.builder() }
               entry<MainRoute> { key ->
-                if (state != null) {
-                  MainScreen(
-                    isSyncing = state is MainViewModel.State.Loading,
-                    selectedTab = key.tab,
-                    navigator = navigator,
-                    settingScreenContent = {
-                      SettingsScreen(navigator = navigator)
-                    },
-                  )
-                }
+                MainScreen(
+                  selectedTab = key.tab,
+                  navigator = navigator,
+                  settingScreenContent = {
+                    SettingsScreen(navigator = navigator)
+                  },
+                )
               }
             },
           )

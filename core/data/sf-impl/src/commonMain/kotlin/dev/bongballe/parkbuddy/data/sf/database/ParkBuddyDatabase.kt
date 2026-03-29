@@ -12,12 +12,16 @@ import dev.bongballe.parkbuddy.data.sf.database.entity.UserPreferencesEntity
 @Database(
   entities =
     [ParkingSpotEntity::class, SweepingScheduleEntity::class, UserPreferencesEntity::class],
-  version = 2,
+  version = ParkBuddyDatabase.DB_VERSION,
 )
 @TypeConverters(ParkBuddyTypeConverters::class)
 @ConstructedBy(ParkBuddyDatabaseConstructor::class)
 abstract class ParkBuddyDatabase : RoomDatabase() {
   abstract fun parkingDao(): ParkingDao
+
+  companion object {
+    const val DB_VERSION = 2
+  }
 }
 
 @Suppress("NO_ACTUAL_FOR_EXPECT")

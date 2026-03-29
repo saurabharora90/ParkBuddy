@@ -25,18 +25,10 @@ class PreferencesRepositoryImpl(
   private object Keys {
     val HAS_SEEN_ONBOARDING = booleanPreferencesKey("has_seen_onboarding")
     val HAS_SEEN_MAP_NUX = booleanPreferencesKey("has_seen_map_nux")
-    val INITIAL_SYNC_DONE = booleanPreferencesKey("initial_sync_done")
     val BLUETOOTH_DEVICE_ADDRESS = stringPreferencesKey("bluetooth_device_address")
     val PARKED_LOCATION = stringPreferencesKey("parked_location")
     val AUTO_TRACKING_ENABLED = booleanPreferencesKey("auto_tracking_enabled")
     val HAS_SEEN_ZONE_NUDGE = booleanPreferencesKey("has_seen_zone_nudge")
-  }
-
-  override val isInitialSyncDone: Flow<Boolean> =
-    dataStore.data.map { preferences -> preferences[Keys.INITIAL_SYNC_DONE] ?: false }
-
-  override suspend fun setInitialSyncDone(isDone: Boolean) {
-    dataStore.edit { preferences -> preferences[Keys.INITIAL_SYNC_DONE] = isDone }
   }
 
   override val hasSeenOnboarding: Flow<Boolean> =

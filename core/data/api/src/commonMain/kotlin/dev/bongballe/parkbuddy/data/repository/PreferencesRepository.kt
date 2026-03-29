@@ -4,10 +4,6 @@ import dev.bongballe.parkbuddy.model.ParkedLocation
 import kotlinx.coroutines.flow.Flow
 
 interface PreferencesRepository {
-  val isInitialSyncDone: Flow<Boolean>
-
-  suspend fun setInitialSyncDone(isDone: Boolean)
-
   val hasSeenOnboarding: Flow<Boolean>
 
   suspend fun setHasSeenOnboarding(hasSeen: Boolean)

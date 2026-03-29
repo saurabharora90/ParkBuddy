@@ -3,25 +3,25 @@ package dev.bongballe.parkbuddy.data.io
 import okio.BufferedSource
 
 /**
- * Reads and writes gzip-compressed data files for the parking data pipeline.
+ * Reads and writes JSON data files for the parking data pipeline.
  *
- * Each city implementation stores its raw API data as `.json.gz` files. On first launch, the
- * bundled files (shipped with the app) are used. Background workers download fresh data to the
- * writable data directory, which takes priority on subsequent reads.
+ * Used by background refresh workers that download fresh API data to the writable data directory.
+ * First-launch data comes from a pre-built Room database, not from these files.
  */
 interface DataFileReader {
 
   /**
-   * Opens [fileName] and returns a decompressed [BufferedSource] for streaming reads. Checks
-   * writable storage first, falls back to bundled assets.
+   * Opens [fileName] from writable storage and returns a [BufferedSource] for streaming reads.
    *
-   * Throws if the file is missing: bundled assets must always be present (a missing file is a
-   * build/packaging bug).
+   * Throws if the file does not exist in writable storage.
    *
    * The caller is responsible for closing the returned source.
    */
   suspend fun read(fileName: String): BufferedSource
 
-  /** Gzip-compresses [content] and writes it to writable storage for [fileName]. */
+  /** Writes [content] to writable storage for [fileName]. */
   suspend fun write(fileName: String, content: String)
+
+  /** Deletes all data files from writable storage. */
+  suspend fun deleteAll()
 }

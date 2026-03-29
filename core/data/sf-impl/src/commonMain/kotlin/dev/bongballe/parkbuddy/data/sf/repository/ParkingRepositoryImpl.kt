@@ -125,11 +125,11 @@ class ParkingRepositoryImpl(
     val hasParkingData: Boolean,
   )
 
-  // ── Public API ──
+  // ── Internal pipeline: read downloaded JSON files and rebuild DB ──
 
-  override suspend fun populateDb(): Boolean = coroutineScope {
+  internal suspend fun readFilesAndBuildDb(): Boolean = coroutineScope {
     withContext(ioDispatcher) {
-      log.d { "populateDb: reading local data files" }
+      log.d { "readFilesAndBuildDb: reading local data files" }
 
       val centerlinesD = async {
         readSocrataFile<StreetCenterlineResponse>(SfDataFiles.CENTERLINES)
@@ -157,7 +157,7 @@ class ParkingRepositoryImpl(
       val policies = policiesD.await()
       val schedules = schedulesD.await()
       log.d {
-        "populateDb: centerlines=${centerlines.size}, cleaning=${cleaning.size}, " +
+        "readFilesAndBuildDb: centerlines=${centerlines.size}, cleaning=${cleaning.size}, " +
           "blockfaces=${blockfaces.size}, meters=${meters.size}, " +
           "regsTimed=${regsTimed.size}, regsOther=${regsOther.size}, " +
           "rates=${rates.size}, policies=${policies.size}, schedules=${schedules.size}"
@@ -234,7 +234,12 @@ class ParkingRepositoryImpl(
     }
 
     log.d { "refreshData: downloads complete, building DB from local files" }
-    populateDb()
+    val success = readFilesAndBuildDb()
+    if (success) {
+      fileReader.deleteAll()
+      log.d { "refreshData: cleaned up temporary data files" }
+    }
+    success
   }
 
   // ── Local file reading ──

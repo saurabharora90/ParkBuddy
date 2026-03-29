@@ -130,15 +130,32 @@ xcodebuild build \
 * **Robolectric** for Android framework logic (`Context`, `AlarmManager`, `DataStore`).
 * **State Isolation**: Clear persistent state in setup. Use `private class TestContext` pattern.
 
+### Pre-built Database
+
+The app ships a pre-built Room database instead of parsing JSON at runtime. Source `.json` files
+live in `core/data/sf-impl/sf-data/`, the generated `park_buddy_db` lives in
+`src/commonMain/resources/sf-data/`. On first launch (or after a version bump), the bundled DB is
+copied to the app's database directory.
+
+```bash
+# Regenerate after updating .json source files or the pipeline:
+./gradlew :core:data:sf-impl:testAndroidHostTest --tests "*GeneratePrebuiltDb*"
+```
+
+To ship an updated DB (new source data OR pipeline bug fix):
+1. Update `.json` files in the city module's data directory if source data changed.
+2. Regenerate the DB (command above).
+3. Bump `DB_VERSION` in `ParkBuddyDatabase`.
+4. Commit `.json` files (if changed), `park_buddy_db`, code changes, and version bump.
+
+The version marker file on device triggers a re-copy when `DB_VERSION` changes.
+
 ### On-Device Verification
 
-Build, deploy, force a data sync from bundled files, then pull the Room DB for analysis:
+Build, deploy, then pull the Room DB for analysis:
 
 ```bash
 ./gradlew assembleDebug && adb install -r app/build/outputs/apk/debug/app-debug.apk
-adb shell pm clear dev.bongballe.parkbuddy
-adb shell am start -n dev.bongballe.parkbuddy/.MainActivity
-adb logcat -s "ParkingRepository" | grep "DB write complete"   # Wait for sync
 adb exec-out run-as dev.bongballe.parkbuddy cat databases/park_buddy_db > /tmp/parkbuddy.db
 sqlite3 /tmp/parkbuddy.db "SELECT count(*) FROM parking_spots;"
 ```

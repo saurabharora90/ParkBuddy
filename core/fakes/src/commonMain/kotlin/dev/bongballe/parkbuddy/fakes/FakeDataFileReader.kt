@@ -16,4 +16,8 @@ class FakeDataFileReader : DataFileReader {
   override suspend fun write(fileName: String, content: String) {
     files[fileName] = content
   }
+
+  override suspend fun deleteAll() {
+    files.clear()
+  }
 }

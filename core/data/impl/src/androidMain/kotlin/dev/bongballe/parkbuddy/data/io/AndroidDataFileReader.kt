@@ -2,11 +2,9 @@ package dev.bongballe.parkbuddy.data.io
 
 import android.content.Context
 import java.io.File
-import java.util.zip.GZIPOutputStream
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 import okio.BufferedSource
-import okio.GzipSource
 import okio.buffer
 import okio.source
 
@@ -22,20 +20,19 @@ class AndroidDataFileReader(
   override suspend fun read(fileName: String): BufferedSource =
     withContext(ioDispatcher) {
       val diskFile = File(dataDir, fileName)
-      if (diskFile.exists()) {
-        return@withContext GzipSource(diskFile.source()).buffer()
-      }
-
-      val stream =
-        javaClass.classLoader!!.getResourceAsStream("$subdirectory/$fileName")
-          ?: error("Bundled asset missing: $subdirectory/$fileName")
-      GzipSource(stream.source()).buffer()
+      check(diskFile.exists()) { "Data file missing: $subdirectory/$fileName" }
+      diskFile.source().buffer()
     }
 
   override suspend fun write(fileName: String, content: String) {
+    withContext(ioDispatcher) { File(dataDir, fileName).writeText(content) }
+  }
+
+  override suspend fun deleteAll() {
     withContext(ioDispatcher) {
-      GZIPOutputStream(File(dataDir, fileName).outputStream()).bufferedWriter().use {
-        it.write(content)
+      val dir = dataDir
+      if (dir.exists()) {
+        dir.listFiles()?.forEach { it.delete() }
       }
     }
   }
