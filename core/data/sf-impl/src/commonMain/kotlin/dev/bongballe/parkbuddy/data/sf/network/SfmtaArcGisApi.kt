@@ -98,7 +98,7 @@ suspend fun <T> fetchAllArcGis(
     val response =
       try {
         fetch(offset, limit)
-      } catch (e: kotlinx.io.IOException) {
+      } catch (_: kotlinx.io.IOException) {
         break
       }
     all.addAll(response.features)
