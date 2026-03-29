@@ -3,6 +3,7 @@ package dev.bongballe.parkbuddy.data.repository.utils
 import com.google.common.truth.Truth.assertThat
 import dev.bongballe.parkbuddy.model.Geometry
 import dev.bongballe.parkbuddy.model.StreetSide
+import dev.bongballe.parkbuddy.util.LocationUtils
 import org.junit.Test
 
 class LocationUtilsTest {

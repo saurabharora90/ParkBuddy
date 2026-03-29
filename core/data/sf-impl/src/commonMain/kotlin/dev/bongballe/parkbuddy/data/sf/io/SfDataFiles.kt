@@ -11,17 +11,4 @@ object SfDataFiles {
   const val METER_POLICIES = "meter_policies.json.gz"
   const val METER_SCHEDULES = "meter_schedules.json.gz"
   const val CENTERLINES = "centerlines.json.gz"
-
-  val ALL =
-    listOf(
-      CENTERLINES,
-      CLEANING,
-      BLOCKFACES,
-      METERS,
-      REGULATIONS_TIMED,
-      REGULATIONS_OTHER,
-      BLOCKFACE_RATES,
-      METER_POLICIES,
-      METER_SCHEDULES,
-    )
 }

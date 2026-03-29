@@ -4,6 +4,7 @@ import androidx.compose.ui.graphics.Color
 import dev.bongballe.parkbuddy.data.repository.utils.DateTimeUtils
 import dev.bongballe.parkbuddy.model.IntervalType
 import dev.bongballe.parkbuddy.model.ParkingInterval
+import dev.bongballe.parkbuddy.util.shortName
 import dev.parkbuddy.core.ui.segmentColor
 import kotlin.time.Duration
 import kotlinx.datetime.DayOfWeek
@@ -22,9 +23,6 @@ internal fun formatDayRange(days: Set<DayOfWeek>): String {
 
   return sorted.joinToString(", ") { it.shortName }
 }
-
-internal val DayOfWeek.shortName: String
-  get() = name.take(3).lowercase().replaceFirstChar { it.uppercase() }
 
 internal fun formatLimit(minutes: Int): String =
   when {

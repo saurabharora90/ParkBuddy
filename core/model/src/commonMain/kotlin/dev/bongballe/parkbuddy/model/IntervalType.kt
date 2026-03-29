@@ -33,6 +33,15 @@ sealed interface IntervalType : Comparable<IntervalType> {
   val isProhibited: Boolean
     get() = this is Forbidden || this is Restricted
 
+  /** The prohibition reason, or null for non-prohibited types. */
+  val prohibitionReason: ProhibitionReason?
+    get() =
+      when (this) {
+        is Forbidden -> reason
+        is Restricted -> reason
+        else -> null
+      }
+
   override fun compareTo(other: IntervalType): Int = priority.compareTo(other.priority)
 
   /** No restrictions. Free parking. */

@@ -1,11 +1,12 @@
 package dev.bongballe.parkbuddy.data.repository
 
 import dev.bongballe.parkbuddy.analytics.AnalyticsTracker
-import dev.bongballe.parkbuddy.data.repository.utils.LocationUtils
 import dev.bongballe.parkbuddy.model.Geometry
 import dev.bongballe.parkbuddy.model.Location
 import dev.bongballe.parkbuddy.model.ParkedLocation
 import dev.bongballe.parkbuddy.model.ParkingSpot
+import dev.bongballe.parkbuddy.util.LocationUtils
+import dev.bongballe.parkbuddy.util.centerLocation
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
@@ -63,14 +64,7 @@ class ParkingManager(
   }
 
   suspend fun parkHere(spot: ParkingSpot) {
-    var sumLat = 0.0
-    var sumLng = 0.0
-    val coords = spot.geometry.coordinates
-    for (c in coords) {
-      sumLat += c[1]
-      sumLng += c[0]
-    }
-    val location = Location(sumLat / coords.size, sumLng / coords.size)
+    val location = spot.geometry.centerLocation() ?: return
     park(spot = spot, detectedLocation = location, showNotification = false)
   }
 

@@ -73,8 +73,7 @@ data class ParkingInterval(
       when (type) {
         is IntervalType.Limited,
         is IntervalType.Metered -> true
-        is IntervalType.Restricted ->
-          (type as IntervalType.Restricted).reason == ProhibitionReason.RESIDENTIAL_PERMIT
+        is IntervalType.Restricted -> type.prohibitionReason == ProhibitionReason.RESIDENTIAL_PERMIT
         else -> false
       }
 }

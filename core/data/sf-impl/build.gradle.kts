@@ -21,6 +21,7 @@ kotlin {
       implementation(project(":core:data:api"))
       implementation(project(":core:model"))
       implementation(project(":core:network"))
+      implementation(project(":core:util"))
       implementation(libs.androidx.room.runtime)
       implementation(libs.androidx.room.sqlite.bundled)
       implementation(libs.kermit)

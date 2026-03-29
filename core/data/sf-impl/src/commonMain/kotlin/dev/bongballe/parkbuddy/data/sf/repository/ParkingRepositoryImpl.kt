@@ -4,7 +4,6 @@ import co.touchlab.kermit.Logger
 import dev.bongballe.parkbuddy.DispatcherType
 import dev.bongballe.parkbuddy.data.io.DataFileReader
 import dev.bongballe.parkbuddy.data.repository.ParkingRepository
-import dev.bongballe.parkbuddy.data.repository.utils.LocationUtils
 import dev.bongballe.parkbuddy.data.repository.utils.TimelineResolver
 import dev.bongballe.parkbuddy.data.sf.BlockfaceRateParser
 import dev.bongballe.parkbuddy.data.sf.CoordinateMatcher
@@ -44,6 +43,7 @@ import dev.bongballe.parkbuddy.model.StreetSide
 import dev.bongballe.parkbuddy.model.SweepingSchedule
 import dev.bongballe.parkbuddy.model.Weekday
 import dev.bongballe.parkbuddy.qualifier.WithDispatcherType
+import dev.bongballe.parkbuddy.util.LocationUtils
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesBinding
 import dev.zacsweers.metro.Inject

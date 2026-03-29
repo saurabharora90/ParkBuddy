@@ -74,16 +74,10 @@ object ParkingRestrictionEvaluator {
         }
 
         return when (val type = interval.type) {
-          is IntervalType.Forbidden ->
-            ParkingRestrictionState.ForbiddenUpcoming(
-              reason = type.reason,
-              startsAt = startInstant,
-              nextCleaning = nextCleaning,
-            )
-
+          is IntervalType.Forbidden,
           is IntervalType.Restricted ->
             ParkingRestrictionState.ForbiddenUpcoming(
-              reason = type.reason,
+              reason = checkNotNull(type.prohibitionReason),
               startsAt = startInstant,
               nextCleaning = nextCleaning,
             )
@@ -142,11 +136,12 @@ object ParkingRestrictionEvaluator {
     return when (val type = activeInterval.type) {
       is IntervalType.Open -> ParkingRestrictionState.Unrestricted(nextCleaning)
 
-      is IntervalType.Forbidden ->
-        ParkingRestrictionState.Forbidden(reason = type.reason, nextCleaning = nextCleaning)
-
+      is IntervalType.Forbidden,
       is IntervalType.Restricted ->
-        ParkingRestrictionState.Forbidden(reason = type.reason, nextCleaning = nextCleaning)
+        ParkingRestrictionState.Forbidden(
+          reason = checkNotNull(type.prohibitionReason),
+          nextCleaning = nextCleaning,
+        )
 
       is IntervalType.Metered,
       is IntervalType.Limited ->

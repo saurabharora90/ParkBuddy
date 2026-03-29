@@ -1,9 +1,10 @@
 package dev.bongballe.parkbuddy.data.sf
 
-import dev.bongballe.parkbuddy.data.repository.utils.LocationUtils
 import dev.bongballe.parkbuddy.model.Geometry
 import dev.bongballe.parkbuddy.model.StreetSide
-import kotlin.math.PI
+import dev.bongballe.parkbuddy.util.LocationUtils
+import dev.bongballe.parkbuddy.util.center
+import dev.bongballe.parkbuddy.util.toRadians
 import kotlin.math.cos
 import kotlin.math.floor
 import kotlin.math.sqrt
@@ -190,13 +191,6 @@ class CoordinateMatcher(segments: List<SegmentGeometry>) {
     }
   }
 
-  /** Packs two Int cell coordinates into a single Long to avoid String allocation in hot loops. */
-  private fun cellKey(lat: Double, lng: Double, cellSize: Double): Long {
-    val latCell = floor(lat / cellSize).toInt()
-    val lngCell = floor(lng / cellSize).toInt()
-    return latCell.toLong().shl(32) or (lngCell.toLong() and 0xFFFFFFFFL)
-  }
-
   private fun getCandidateIndices(lat: Double, lng: Double, cellSize: Double): List<Int> {
     val latCell = floor(lat / cellSize).toInt()
     val lngCell = floor(lng / cellSize).toInt()
@@ -214,8 +208,6 @@ class CoordinateMatcher(segments: List<SegmentGeometry>) {
     // Conservative approximation: ~90,000 meters per degree at SF latitude.
     // Used for cheap bounding-box rejection before expensive polyline distance.
     private const val METERS_PER_DEGREE = 90_000.0
-
-    private fun toRadians(degrees: Double): Double = degrees * PI / 180.0
 
     fun offsetGeometry(geometry: Geometry, side: StreetSide, offsetMeters: Double = 5.0): Geometry {
       val coords = geometry.coordinates
@@ -248,22 +240,6 @@ class CoordinateMatcher(segments: List<SegmentGeometry>) {
         newCoords.add(listOf(newLng, newLat))
       }
       return Geometry(type = "LineString", coordinates = newCoords)
-    }
-
-    fun Geometry.center(): Pair<Double, Double>? {
-      if (coordinates.isEmpty()) return null
-      var sumLat = 0.0
-      var sumLng = 0.0
-      var count = 0
-      for (coord in coordinates) {
-        if (coord.size >= 2) {
-          sumLng += coord[0]
-          sumLat += coord[1]
-          count++
-        }
-      }
-      if (count == 0) return null
-      return (sumLat / count) to (sumLng / count)
     }
   }
 }

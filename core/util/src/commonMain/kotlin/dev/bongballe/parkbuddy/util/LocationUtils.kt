@@ -1,12 +1,9 @@
-package dev.bongballe.parkbuddy.data.repository.utils
+package dev.bongballe.parkbuddy.util
 
 import dev.bongballe.parkbuddy.model.Geometry
 import dev.bongballe.parkbuddy.model.StreetSide
-import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sqrt
-
-private fun toRadians(degrees: Double): Double = degrees * PI / 180.0
 
 object LocationUtils {
   private const val EARTH_RADIUS = 6371000.0

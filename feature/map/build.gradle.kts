@@ -20,6 +20,7 @@ kotlin {
       implementation(project(":core:navigation"))
       implementation(project(":core:data:api"))
       implementation(project(":core:model"))
+      implementation(project(":core:util"))
       implementation(project(":core:fixtures"))
       implementation(project(":core:shared-ui"))
       implementation(project(":core:theme"))

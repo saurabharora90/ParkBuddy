@@ -1,4 +1,4 @@
-package dev.bongballe.parkbuddy.dev.bongballe.parkbuddy.fakes
+package dev.bongballe.parkbuddy.fakes
 
 import dev.bongballe.parkbuddy.core.bluetooth.BluetoothController
 import dev.bongballe.parkbuddy.model.BluetoothDeviceUiModel
