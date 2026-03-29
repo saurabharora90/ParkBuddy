@@ -110,9 +110,14 @@ class ParkingManager(
    */
   internal fun findMatchingSpot(location: Location, spots: List<ParkingSpot>): ParkingSpot? {
     // Centerline threshold is larger because the user is at the curb (~half a street width
-    // from center). Wide 4-lane streets can be 15m+ across, plus GPS error.
-    val centerlineThresholdMeters = 15.0
-    val curbsideThresholdMeters = 7.0
+    // from center). Wide 4-lane streets can be 15m+ across.
+    // We use a high threshold (40m) here to tolerate heavy urban GPS drift (urban canyon effect)
+    // when the user first steps out of the car. Since we select the absolute minimum distance,
+    // this simply acts as a safe net without introducing false positives.
+    val centerlineThresholdMeters = 40.0
+
+    // Fallback threshold for spots without centerlines (e.g., virtual regulation segments)
+    val curbsideThresholdMeters = 20.0
 
     // Split spots into those with centerline data (can do cross-product side matching)
     // and those without (fall back to direct curbside distance)

@@ -90,8 +90,21 @@ class CoordinateMatcher(segments: List<SegmentGeometry>) {
     val cellIndex = mutableMapOf<Long, MutableList<Int>>()
     indexedSegments.forEachIndexed { idx, seg ->
       cnnMap[seg.cnn] = idx
-      val cellKey = cellKey(seg.center.first, seg.center.second, cellSize)
-      cellIndex.getOrPut(cellKey) { mutableListOf() }.add(idx)
+
+      // Index the entire bounding box of the street segment.
+      // This ensures that long streets (which can span hundreds of meters)
+      // are discoverable across all grid cells they intersect, rather than
+      // disappearing if the search is triggered far from their midpoint.
+      val minLatCell = floor(seg.minLat / cellSize).toInt()
+      val maxLatCell = floor(seg.maxLat / cellSize).toInt()
+      val minLngCell = floor(seg.minLng / cellSize).toInt()
+      val maxLngCell = floor(seg.maxLng / cellSize).toInt()
+      for (latC in minLatCell..maxLatCell) {
+        for (lngC in minLngCell..maxLngCell) {
+          val cellKey = latC.toLong().shl(32) or (lngC.toLong() and 0xFFFFFFFFL)
+          cellIndex.getOrPut(cellKey) { mutableListOf() }.add(idx)
+        }
+      }
     }
     cnnToIndex = cnnMap
     spatialIndex = cellIndex
