@@ -36,11 +36,9 @@ import dev.bongballe.parkbuddy.theme.OnSurfaceVariant
 import dev.bongballe.parkbuddy.theme.SageContainer
 import dev.bongballe.parkbuddy.theme.SageOnPrimary
 import dev.bongballe.parkbuddy.theme.SagePrimary
-import kotlin.math.PI
+import dev.bongballe.parkbuddy.util.toRadians
 import kotlin.math.cos
 import kotlin.math.sin
-
-private fun toRadians(degrees: Double): Double = degrees * PI / 180.0
 
 private val PIN_WIDTH = 24.dp
 private val PIN_HEIGHT = 34.dp

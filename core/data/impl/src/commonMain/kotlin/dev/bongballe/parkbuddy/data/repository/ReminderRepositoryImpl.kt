@@ -10,6 +10,8 @@ import dev.bongballe.parkbuddy.model.ParkingRestrictionState
 import dev.bongballe.parkbuddy.model.ParkingSpot
 import dev.bongballe.parkbuddy.model.ProhibitionReason
 import dev.bongballe.parkbuddy.model.ReminderMinutes
+import dev.bongballe.parkbuddy.util.displayName
+import dev.bongballe.parkbuddy.util.shortName
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesBinding
 import dev.zacsweers.metro.Inject
@@ -48,7 +50,7 @@ class ReminderRepositoryImpl(
   override fun getReminders(): Flow<List<ReminderMinutes>> {
     return dataStore.data
       .map { pref -> pref[REMINDER_MINUTES]?.mapNotNull { it.toIntOrNull() } ?: emptySet() }
-      .map { it.map { ReminderMinutes(it) } }
+      .map { minutes -> minutes.map { ReminderMinutes(it) } }
   }
 
   override suspend fun addReminder(minutesBefore: ReminderMinutes) {
@@ -325,7 +327,7 @@ class ReminderRepositoryImpl(
 
   private fun formatReminderDisplay(time: Instant): String {
     val localTime = time.toLocalDateTime(TimeZone.currentSystemDefault())
-    val dayName = localTime.dayOfWeek.name.lowercase().replaceFirstChar { it.uppercase() }
+    val dayName = localTime.dayOfWeek.displayName
     val timeStr = DateTimeUtils.formatHourMinute(localTime.hour, localTime.minute)
     return "\u2022 $dayName at $timeStr"
   }
@@ -419,12 +421,12 @@ class ReminderRepositoryImpl(
   private fun buildTitle(streetName: String, state: ParkingRestrictionState): String {
     val suffix =
       when (state) {
-        is ParkingRestrictionState.CleaningActive -> " \u26A0\uFE0F NO PARKING"
+        is ParkingRestrictionState.CleaningActive,
         is ParkingRestrictionState.Forbidden -> " \u26A0\uFE0F NO PARKING"
-        is ParkingRestrictionState.ForbiddenUpcoming -> ""
         is ParkingRestrictionState.PermitSafe -> " (Permit zone)"
-        is ParkingRestrictionState.ActiveTimed -> ""
-        is ParkingRestrictionState.PendingTimed -> ""
+        is ParkingRestrictionState.ForbiddenUpcoming,
+        is ParkingRestrictionState.ActiveTimed,
+        is ParkingRestrictionState.PendingTimed,
         is ParkingRestrictionState.Unrestricted -> ""
       }
     return "$streetName$suffix"
@@ -454,7 +456,7 @@ class ReminderRepositoryImpl(
 
   private fun formattedCleaningText(nextCleaning: Instant, now: Instant, zone: TimeZone): String {
     val local = nextCleaning.toLocalDateTime(zone)
-    val day = local.dayOfWeek.name.lowercase().replaceFirstChar { it.uppercase() }.take(3)
+    val day = local.dayOfWeek.shortName
     val month = local.month.name.lowercase().replaceFirstChar { it.uppercase() }.take(3)
     val date = local.day
     val timeText = DateTimeUtils.formatHour(local.hour)

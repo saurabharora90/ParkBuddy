@@ -16,6 +16,7 @@ kotlin {
       implementation(project(":core:base"))
       implementation(project(":core:data:api"))
       implementation(project(":core:model"))
+      implementation(project(":core:util"))
       implementation(project(":core:shared-ui"))
       implementation(project(":core:theme"))
       implementation(libs.compose.animation)

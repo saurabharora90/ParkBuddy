@@ -111,6 +111,8 @@ class MapViewModel(
   fun updateViewport(viewport: MapViewport) {
     viewportState.value = viewport
   }
+}
+
 /**
  * Checks whether any part of this spot's polyline is visible in the viewport.
  *

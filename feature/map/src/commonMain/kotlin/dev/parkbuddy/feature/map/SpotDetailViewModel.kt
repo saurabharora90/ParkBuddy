@@ -9,6 +9,7 @@ import dev.bongballe.parkbuddy.model.ParkingInterval
 import dev.bongballe.parkbuddy.model.ParkingRestrictionState
 import dev.bongballe.parkbuddy.model.ParkingSpot
 import dev.bongballe.parkbuddy.model.SweepingSchedule
+import dev.bongballe.parkbuddy.util.shortName
 import dev.parkbuddy.core.ui.TimelineSegment
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.Assisted

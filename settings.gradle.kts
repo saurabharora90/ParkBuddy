@@ -52,6 +52,8 @@ include(":core:fixtures")
 
 include(":core:fakes")
 
+include(":core:util")
+
 include(":feature:map")
 
 include(":feature:reminders")

@@ -13,6 +13,7 @@ kotlin {
       api(libs.okio)
       implementation(project(":core:base"))
       implementation(project(":core:model"))
+      implementation(project(":core:util"))
       implementation(libs.kotlinx.coroutines.core)
       implementation(libs.kotlinx.serialization.core)
     }
