@@ -1,76 +1,108 @@
 package dev.bongballe.parkbuddy.data.sf
 
 import dev.bongballe.parkbuddy.data.repository.utils.LocationUtils
-import dev.bongballe.parkbuddy.data.sf.model.StreetCleaningResponse
-import dev.bongballe.parkbuddy.data.sf.model.toStreetSide
 import dev.bongballe.parkbuddy.model.Geometry
 import dev.bongballe.parkbuddy.model.StreetSide
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.floor
 import kotlin.math.sqrt
-import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.jsonArray
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 
-data class SweepingMatch(
+/**
+ * A street segment with geometry, identified by CNN.
+ *
+ * This is the input to [CoordinateMatcher]. Any data source that carries street geometry (sweeping,
+ * regulations, meters) can contribute segments.
+ */
+data class SegmentGeometry(
   val cnn: String,
-  val side: StreetSide,
   val geometry: Geometry,
-  val schedules: List<StreetCleaningResponse>,
+  val streetName: String,
+  val neighborhood: String? = null,
 )
+
+/** Result of matching a polyline or point against the spatial index. */
+data class SegmentMatch(val cnn: String, val side: StreetSide, val geometry: Geometry)
 
 data class ClosestSegment(val streetName: String, val neighborhood: String?)
 
-private data class ParsedSweeping(
+private data class IndexedSegment(
   val cnn: String,
   val geometry: Geometry,
   val center: Pair<Double, Double>,
   val streetName: String,
   val neighborhood: String?,
+  val minLat: Double,
+  val maxLat: Double,
+  val minLng: Double,
+  val maxLng: Double,
 )
 
-/** CoordinateMatcher handles high-precision spatial matching between street data layers. */
-class CoordinateMatcher(sweepingData: List<StreetCleaningResponse>) {
-  private val parsedSweepingData: List<ParsedSweeping>
-  private val schedulesByCnnAndSide: Map<String, List<StreetCleaningResponse>>
-  private val spatialIndex: Map<String, List<Int>>
+/**
+ * Spatial index for matching coordinates, polylines, and CNNs against street geometry.
+ *
+ * Geometry can come from any source (sweeping, regulations, meters). The first geometry registered
+ * for a given CNN wins; later duplicates are ignored (sweeping centerlines are the most accurate,
+ * so feed them first).
+ */
+class CoordinateMatcher(segments: List<SegmentGeometry>) {
+  private val indexedSegments: List<IndexedSegment>
+  private val cnnToIndex: Map<String, Int>
+  private val spatialIndex: Map<Long, List<Int>>
 
   init {
-    // 1. Group schedules by CNN and Side
-    schedulesByCnnAndSide =
-      sweepingData
-        .filter { it.cnn.isNotEmpty() && it.cnnRightLeft.isNotEmpty() }
-        .groupBy { "${it.cnn}:${it.cnnRightLeft}" }
-
-    // 2. Extract unique geometries per CNN
-    val uniqueGeometries = mutableMapOf<String, ParsedSweeping>()
-    for (sweeping in sweepingData) {
-      if (sweeping.cnn.isEmpty() || uniqueGeometries.containsKey(sweeping.cnn)) continue
-      val geometry = parseGeometry(sweeping.geometry) ?: continue
-      val center = geometry.center() ?: continue
-      uniqueGeometries[sweeping.cnn] =
-        ParsedSweeping(
-          cnn = sweeping.cnn,
-          geometry = geometry,
+    val unique = mutableMapOf<String, IndexedSegment>()
+    for (seg in segments) {
+      if (seg.cnn.isEmpty() || unique.containsKey(seg.cnn)) continue
+      val center = seg.geometry.center() ?: continue
+      val coords = seg.geometry.coordinates
+      var minLat = Double.MAX_VALUE
+      var maxLat = -Double.MAX_VALUE
+      var minLng = Double.MAX_VALUE
+      var maxLng = -Double.MAX_VALUE
+      for (c in coords) {
+        if (c.size < 2) continue
+        val lng = c[0]
+        val lat = c[1]
+        if (lat < minLat) minLat = lat
+        if (lat > maxLat) maxLat = lat
+        if (lng < minLng) minLng = lng
+        if (lng > maxLng) maxLng = lng
+      }
+      unique[seg.cnn] =
+        IndexedSegment(
+          cnn = seg.cnn,
+          geometry = seg.geometry,
           center = center,
-          streetName = sweeping.streetName,
-          neighborhood =
-            null, // Sweeping data doesn't have neighborhood, but we'll collect it from regulations
+          streetName = seg.streetName,
+          neighborhood = seg.neighborhood,
+          minLat = minLat,
+          maxLat = maxLat,
+          minLng = minLng,
+          maxLng = maxLng,
         )
     }
-    parsedSweepingData = uniqueGeometries.values.toList()
+    indexedSegments = unique.values.toList()
 
-    // 3. Build spatial index
     val cellSize = 0.001
-    val index = mutableMapOf<String, MutableList<Int>>()
-    parsedSweepingData.forEachIndexed { idx, parsed ->
-      val cellKey = getCellKey(parsed.center.first, parsed.center.second, cellSize)
-      index.getOrPut(cellKey) { mutableListOf() }.add(idx)
+    val cnnMap = mutableMapOf<String, Int>()
+    val cellIndex = mutableMapOf<Long, MutableList<Int>>()
+    indexedSegments.forEachIndexed { idx, seg ->
+      cnnMap[seg.cnn] = idx
+      val cellKey = cellKey(seg.center.first, seg.center.second, cellSize)
+      cellIndex.getOrPut(cellKey) { mutableListOf() }.add(idx)
     }
-    spatialIndex = index
+    cnnToIndex = cnnMap
+    spatialIndex = cellIndex
   }
+
+  fun hasCnn(cnn: String): Boolean = cnnToIndex.containsKey(cnn)
+
+  fun getGeometryByCnn(cnn: String): Geometry? =
+    cnnToIndex[cnn]?.let { indexedSegments[it].geometry }
+
+  fun getStreetNameByCnn(cnn: String): String? =
+    cnnToIndex[cnn]?.let { indexedSegments[it].streetName.ifEmpty { null } }
 
   fun findClosestSegment(
     lat: Double,
@@ -78,86 +110,91 @@ class CoordinateMatcher(sweepingData: List<StreetCleaningResponse>) {
     thresholdMeters: Double = 100.0,
   ): ClosestSegment? {
     val candidates = getCandidateIndices(lat, lng, 0.001)
-    var bestMatch: ParsedSweeping? = null
+    val margin = thresholdMeters / METERS_PER_DEGREE
+    var bestMatch: IndexedSegment? = null
     var bestDist = thresholdMeters
 
     for (idx in candidates) {
-      val parsed = parsedSweepingData[idx]
-      val dist = LocationUtils.calculateDistanceToPolyline(lat, lng, parsed.geometry)
+      val seg = indexedSegments[idx]
+      if (
+        lat < seg.minLat - margin ||
+          lat > seg.maxLat + margin ||
+          lng < seg.minLng - margin ||
+          lng > seg.maxLng + margin
+      )
+        continue
+      val dist = LocationUtils.calculateDistanceToPolyline(lat, lng, seg.geometry)
       if (dist < bestDist) {
         bestDist = dist
-        bestMatch = parsed
+        bestMatch = seg
       }
     }
 
     return bestMatch?.let { ClosestSegment(it.streetName, it.neighborhood) }
   }
 
-  fun matchPolyline(poly: Geometry, thresholdMeters: Double = 20.0): List<SweepingMatch> {
+  /**
+   * Matches a polyline against the spatial index, returning all (CNN, side) pairs within threshold.
+   *
+   * For short polylines (< 500m), every coordinate is sampled. For longer polylines (transit lanes,
+   * corridor-level geometry), intermediate points are interpolated every ~30m so that every CNN
+   * block along the corridor gets a chance to match.
+   */
+  fun matchPolyline(poly: Geometry, thresholdMeters: Double = 20.0): List<SegmentMatch> {
     val coords = poly.coordinates
     if (coords.isEmpty()) return emptyList()
 
-    val step = (coords.size / 10).coerceAtLeast(1)
-    val sampleIndices = (0 until coords.size step step).toMutableList()
-    if (!sampleIndices.contains(coords.size - 1)) sampleIndices.add(coords.size - 1)
+    val samplePoints = buildSamplePoints(coords)
 
+    val margin = thresholdMeters / METERS_PER_DEGREE
     val matches = mutableSetOf<Pair<String, StreetSide>>()
 
-    for (idx in sampleIndices) {
-      val point = coords[idx]
-      val lat = point[1]
-      val lng = point[0]
-
+    for ((lat, lng) in samplePoints) {
       val candidates = getCandidateIndices(lat, lng, 0.001)
       var bestMatch: Pair<String, StreetSide>? = null
       var bestDist = thresholdMeters
 
       for (cIdx in candidates) {
-        val parsed = parsedSweepingData[cIdx]
-        val distToCenter = LocationUtils.calculateDistanceToPolyline(lat, lng, parsed.geometry)
+        val seg = indexedSegments[cIdx]
+        if (
+          lat < seg.minLat - margin ||
+            lat > seg.maxLat + margin ||
+            lng < seg.minLng - margin ||
+            lng > seg.maxLng + margin
+        )
+          continue
+        val distToCenter = LocationUtils.calculateDistanceToPolyline(lat, lng, seg.geometry)
 
         if (distToCenter < bestDist) {
           bestDist = distToCenter
-          val side = LocationUtils.determineSide(lat, lng, parsed.geometry)
-          bestMatch = parsed.cnn to side
+          val side = LocationUtils.determineSide(lat, lng, seg.geometry)
+          bestMatch = seg.cnn to side
         }
       }
       bestMatch?.let { matches.add(it) }
     }
 
-    return matches.mapNotNull { (cnn, side) ->
-      val sideStr = if (side == StreetSide.LEFT) "L" else "R"
-      val schedules = schedulesByCnnAndSide["$cnn:$sideStr"]
-      val parsed = parsedSweepingData.firstOrNull { it.cnn == cnn }
-      if (parsed != null && schedules != null) {
-        SweepingMatch(cnn, side, parsed.geometry, schedules)
-      } else null
+    return matches.map { (cnn, side) ->
+      val seg = indexedSegments[checkNotNull(cnnToIndex[cnn])]
+      SegmentMatch(cnn, side, seg.geometry)
     }
   }
 
-  fun findAllMatchesForCnn(cnn: String): List<SweepingMatch> {
-    val results = mutableListOf<SweepingMatch>()
-    val parsed = parsedSweepingData.firstOrNull { it.cnn == cnn } ?: return emptyList()
-
-    listOf("L", "R").forEach { sideStr ->
-      schedulesByCnnAndSide["$cnn:$sideStr"]?.let { schedules ->
-        results.add(
-          SweepingMatch(
-            cnn = cnn,
-            side = sideStr.toStreetSide(),
-            geometry = parsed.geometry,
-            schedules = schedules,
-          )
-        )
-      }
+  private fun buildSamplePoints(coords: List<List<Double>>): List<Pair<Double, Double>> {
+    val step = (coords.size / 10).coerceAtLeast(1)
+    val indices = (0 until coords.size step step).toMutableList()
+    if (!indices.contains(coords.size - 1)) indices.add(coords.size - 1)
+    return indices.mapNotNull { i ->
+      val c = coords[i]
+      if (c.size >= 2) c[1] to c[0] else null
     }
-    return results
   }
 
-  private fun getCellKey(lat: Double, lng: Double, cellSize: Double): String {
+  /** Packs two Int cell coordinates into a single Long to avoid String allocation in hot loops. */
+  private fun cellKey(lat: Double, lng: Double, cellSize: Double): Long {
     val latCell = floor(lat / cellSize).toInt()
     val lngCell = floor(lng / cellSize).toInt()
-    return "$latCell,$lngCell"
+    return latCell.toLong().shl(32) or (lngCell.toLong() and 0xFFFFFFFFL)
   }
 
   private fun getCandidateIndices(lat: Double, lng: Double, cellSize: Double): List<Int> {
@@ -166,34 +203,18 @@ class CoordinateMatcher(sweepingData: List<StreetCleaningResponse>) {
     val result = mutableListOf<Int>()
     for (dLat in -1..1) {
       for (dLng in -1..1) {
-        val key = "${latCell + dLat},${lngCell + dLng}"
+        val key = (latCell + dLat).toLong().shl(32) or ((lngCell + dLng).toLong() and 0xFFFFFFFFL)
         spatialIndex[key]?.let { result.addAll(it) }
       }
     }
     return result
   }
 
-  private fun parseGeometry(geometryJson: JsonElement?): Geometry? {
-    if (geometryJson == null) return null
-    val obj = geometryJson.jsonObject
-    val type = obj["type"]?.jsonPrimitive?.content ?: return null
-    val coordsArray = obj["coordinates"]?.jsonArray ?: return null
-    val coordinates =
-      when (type) {
-        "MultiLineString" ->
-          coordsArray.flatMap { lineArray ->
-            lineArray.jsonArray.map { point ->
-              point.jsonArray.map { it.jsonPrimitive.content.toDouble() }
-            }
-          }
-        "LineString" ->
-          coordsArray.map { point -> point.jsonArray.map { it.jsonPrimitive.content.toDouble() } }
-        else -> return null
-      }
-    return Geometry(type = "LineString", coordinates = coordinates)
-  }
-
   companion object {
+    // Conservative approximation: ~90,000 meters per degree at SF latitude.
+    // Used for cheap bounding-box rejection before expensive polyline distance.
+    private const val METERS_PER_DEGREE = 90_000.0
+
     private fun toRadians(degrees: Double): Double = degrees * PI / 180.0
 
     fun offsetGeometry(geometry: Geometry, side: StreetSide, offsetMeters: Double = 5.0): Geometry {
@@ -231,10 +252,18 @@ class CoordinateMatcher(sweepingData: List<StreetCleaningResponse>) {
 
     fun Geometry.center(): Pair<Double, Double>? {
       if (coordinates.isEmpty()) return null
-      val lats = coordinates.mapNotNull { it.getOrNull(1) }
-      val lngs = coordinates.mapNotNull { it.getOrNull(0) }
-      if (lats.isEmpty() || lngs.isEmpty()) return null
-      return lats.average() to lngs.average()
+      var sumLat = 0.0
+      var sumLng = 0.0
+      var count = 0
+      for (coord in coordinates) {
+        if (coord.size >= 2) {
+          sumLng += coord[0]
+          sumLat += coord[1]
+          count++
+        }
+      }
+      if (count == 0) return null
+      return (sumLat / count) to (sumLng / count)
     }
   }
 }

@@ -65,13 +65,7 @@ class MapViewModel(
           if (viewport == null || viewport.zoom < 15f) {
             emptyList()
           } else {
-            spots
-              .filter { spot ->
-                spot.geometry.coordinates.any { point ->
-                  viewport.bounds.contains(latitude = point[1], longitude = point[0])
-                }
-              }
-              .filter { it.isParkable && !it.isCommercial }
+            spots.filter { spot -> spot.isParkable && spot.intersectsViewport(viewport) }
           }
 
         val parkedSpot =
@@ -117,4 +111,27 @@ class MapViewModel(
   fun updateViewport(viewport: MapViewport) {
     viewportState.value = viewport
   }
+/**
+ * Checks whether any part of this spot's polyline is visible in the viewport.
+ *
+ * The old check only tested vertices, so a long street whose vertices are both outside the viewport
+ * (but whose line passes through it) would disappear when zoomed in.
+ */
+private fun ParkingSpot.intersectsViewport(viewport: MapViewport): Boolean {
+  val bounds = viewport.bounds
+  val coords = geometry.coordinates
+  if (coords.isEmpty()) return false
+
+  val first = coords[0]
+  if (first.size >= 2 && bounds.contains(latitude = first[1], longitude = first[0])) return true
+
+  for (i in 1 until coords.size) {
+    val cur = coords[i]
+    if (cur.size < 2) continue
+    if (bounds.contains(latitude = cur[1], longitude = cur[0])) return true
+    val prev = coords[i - 1]
+    if (prev.size < 2) continue
+    if (bounds.segmentMayIntersect(prev[1], prev[0], cur[1], cur[0])) return true
+  }
+  return false
 }

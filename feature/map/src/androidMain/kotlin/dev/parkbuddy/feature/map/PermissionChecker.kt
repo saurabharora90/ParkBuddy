@@ -2,7 +2,6 @@ package dev.parkbuddy.feature.map
 
 import android.Manifest
 import android.app.Activity
-import android.app.AlarmManager
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
@@ -11,24 +10,6 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 
 object PermissionChecker {
-  fun areLocationPermissionsGranted(context: Context): Boolean {
-    val fineLocationGranted =
-      ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) ==
-        PackageManager.PERMISSION_GRANTED
-
-    val backgroundLocationGranted =
-      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-        ContextCompat.checkSelfPermission(
-          context,
-          Manifest.permission.ACCESS_BACKGROUND_LOCATION,
-        ) == PackageManager.PERMISSION_GRANTED
-      } else {
-        fineLocationGranted
-      }
-
-    return fineLocationGranted && backgroundLocationGranted
-  }
-
   fun areBluetoothPermissionsGranted(context: Context): Boolean {
     val bluetoothPermissions =
       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -48,23 +29,9 @@ object PermissionChecker {
       PackageManager.PERMISSION_GRANTED
   }
 
-  fun areExactAlarmsPermissionGranted(context: Context): Boolean {
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return true
-    val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-    return alarmManager.canScheduleExactAlarms()
-  }
-
   fun isBatteryOptimizationDisabled(context: Context): Boolean {
     val pm = context.getSystemService(Context.POWER_SERVICE) as PowerManager
     return pm.isIgnoringBatteryOptimizations(context.packageName)
-  }
-
-  fun areAllPermissionsGranted(context: Context): Boolean {
-    return areLocationPermissionsGranted(context) &&
-      areBluetoothPermissionsGranted(context) &&
-      areNotificationPermissionGranted(context) &&
-      areExactAlarmsPermissionGranted(context) &&
-      isBatteryOptimizationDisabled(context)
   }
 
   /**

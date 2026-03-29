@@ -2,6 +2,8 @@ package dev.bongballe.parkbuddy.data.sf
 
 import kotlinx.datetime.DayOfWeek
 
+internal val ALL_DAYS: Set<DayOfWeek> = DayOfWeek.entries.toSet()
+
 /**
  * Parses day-of-week strings from SF Open Data into [Set]<[DayOfWeek]>.
  *
@@ -21,8 +23,6 @@ object DayParser {
       DayOfWeek.THURSDAY,
       DayOfWeek.FRIDAY,
     )
-
-  private val ALL_DAYS = DayOfWeek.entries.toSet()
 
   // Ordered Mon-Sun so range expansion works with ordinals
   private val SHORT_TO_DAY =
@@ -91,12 +91,15 @@ object DayParser {
     return result ?: ALL_DAYS
   }
 
+  private val RANGE_REGEX = Regex("^([A-Z]+)-([A-Z]+)$")
+  private val SEPARATOR_REGEX = Regex("[,\\s]+")
+
   private fun parseInternal(normalized: String): Set<DayOfWeek>? {
     if (normalized == "DAILY" || normalized == "EVERYDAY") return ALL_DAYS
     if (normalized == "WEEKDAYS") return WEEKDAYS
 
     // Try range format first: "X-Y"
-    val rangeMatch = Regex("^([A-Z]+)-([A-Z]+)$").find(normalized)
+    val rangeMatch = RANGE_REGEX.find(normalized)
     if (rangeMatch != null) {
       val start = SHORT_TO_DAY[rangeMatch.groupValues[1]]
       val end = SHORT_TO_DAY[rangeMatch.groupValues[2]]
@@ -106,11 +109,11 @@ object DayParser {
     }
 
     // Try comma/space-separated tokens: "M, TH" or "Mo,Tu,We"
-    val tokens = normalized.split(Regex("[,\\s]+")).filter { it.isNotBlank() }
+    val tokens = normalized.split(SEPARATOR_REGEX).filter { it.isNotBlank() }
     val days = mutableSetOf<DayOfWeek>()
     for (token in tokens) {
       // Each token could be a single day or a range
-      val tokenRange = Regex("^([A-Z]+)-([A-Z]+)$").find(token)
+      val tokenRange = RANGE_REGEX.find(token)
       if (tokenRange != null) {
         val start = SHORT_TO_DAY[tokenRange.groupValues[1]]
         val end = SHORT_TO_DAY[tokenRange.groupValues[2]]

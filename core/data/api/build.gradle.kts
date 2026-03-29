@@ -10,6 +10,7 @@ kotlin {
 
   sourceSets {
     commonMain.dependencies {
+      api(libs.okio)
       implementation(project(":core:base"))
       implementation(project(":core:model"))
       implementation(libs.kotlinx.coroutines.core)

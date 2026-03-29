@@ -90,9 +90,12 @@ ParkingRestrictionState (sealed class) - what it means for the user RIGHT NOW
 ```bash
 # Android
 ./gradlew assembleDebug                                    # Build Android APK
-./gradlew test                                             # Run unit tests
 ./gradlew ktfmtFormat                                      # Format code
 ./gradlew detekt                                           # Static analysis
+
+# KMP test task names are module-specific (not just `test`)
+./gradlew :core:data:sf-impl:testAndroidHostTest           # Run sf-impl tests
+./gradlew :core:data:sf-impl:testAndroidHostTest --tests "*ParkingRepositoryImplTest*"
 
 # iOS
 ./gradlew :iosExport:linkDebugFrameworkIosSimulatorArm64   # Build KMP framework for iOS Simulator
@@ -123,10 +126,22 @@ xcodebuild build \
 
 ## Testing Conventions
 
-* **NO MOCKS**: Use **Fakes** (in `:core:testing`) or real implementations. Mockito is forbidden.
+* **NO MOCKS**: Use **Fakes** (in `:core:fakes`) or real implementations. Mockito is forbidden.
 * **Robolectric** for Android framework logic (`Context`, `AlarmManager`, `DataStore`).
 * **State Isolation**: Clear persistent state in setup. Use `private class TestContext` pattern.
-* **Real Data**: Raw city data available in `full_api_data/` for edge case tests.
+
+### On-Device Verification
+
+Build, deploy, force a data sync from bundled files, then pull the Room DB for analysis:
+
+```bash
+./gradlew assembleDebug && adb install -r app/build/outputs/apk/debug/app-debug.apk
+adb shell pm clear dev.bongballe.parkbuddy
+adb shell am start -n dev.bongballe.parkbuddy/.MainActivity
+adb logcat -s "ParkingRepository" | grep "DB write complete"   # Wait for sync
+adb exec-out run-as dev.bongballe.parkbuddy cat databases/park_buddy_db > /tmp/parkbuddy.db
+sqlite3 /tmp/parkbuddy.db "SELECT count(*) FROM parking_spots;"
+```
 
 ## Key Conventions
 

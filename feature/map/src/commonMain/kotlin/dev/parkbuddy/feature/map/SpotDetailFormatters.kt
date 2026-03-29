@@ -4,10 +4,7 @@ import androidx.compose.ui.graphics.Color
 import dev.bongballe.parkbuddy.data.repository.utils.DateTimeUtils
 import dev.bongballe.parkbuddy.model.IntervalType
 import dev.bongballe.parkbuddy.model.ParkingInterval
-import dev.bongballe.parkbuddy.theme.Goldenrod
-import dev.bongballe.parkbuddy.theme.SagePrimary
-import dev.bongballe.parkbuddy.theme.Terracotta
-import dev.bongballe.parkbuddy.theme.WildIris
+import dev.parkbuddy.core.ui.segmentColor
 import kotlin.time.Duration
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalTime
@@ -84,11 +81,4 @@ internal fun intervalDetail(interval: ParkingInterval): String =
     is IntervalType.Forbidden -> type.reason.displayText().lowercase()
   }
 
-internal fun intervalColor(type: IntervalType): Color =
-  when (type) {
-    is IntervalType.Open -> SagePrimary
-    is IntervalType.Limited -> WildIris
-    is IntervalType.Metered -> Goldenrod
-    is IntervalType.Restricted -> Terracotta
-    is IntervalType.Forbidden -> Terracotta
-  }
+internal fun intervalColor(type: IntervalType): Color = segmentColor(type)

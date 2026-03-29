@@ -109,4 +109,18 @@ object LocationUtils {
     val diffY = y - yy
     return sqrt(diffX * diffX + diffY * diffY) * EARTH_RADIUS
   }
+
+  fun polylineLength(geometry: Geometry): Double {
+    val pts = geometry.coordinates
+    var total = 0.0
+    for (i in 0 until pts.size - 1) {
+      val a = pts[i]
+      val b = pts[i + 1]
+      if (a.size < 2 || b.size < 2) continue
+      val dLat = toRadians(b[1]) - toRadians(a[1])
+      val dLng = (toRadians(b[0]) - toRadians(a[0])) * cos((toRadians(a[1]) + toRadians(b[1])) / 2)
+      total += sqrt(dLat * dLat + dLng * dLng) * EARTH_RADIUS
+    }
+    return total
+  }
 }

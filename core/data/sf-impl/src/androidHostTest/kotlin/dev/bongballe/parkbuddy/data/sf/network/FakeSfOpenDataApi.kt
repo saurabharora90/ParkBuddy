@@ -1,56 +1,27 @@
 package dev.bongballe.parkbuddy.data.sf.network
 
+import dev.bongballe.parkbuddy.data.sf.model.MeterPolicyResponse
 import dev.bongballe.parkbuddy.data.sf.model.MeterScheduleResponse
-import dev.bongballe.parkbuddy.data.sf.model.ParkingMeterResponse
-import dev.bongballe.parkbuddy.data.sf.model.ParkingRegulationResponse
-import dev.bongballe.parkbuddy.data.sf.model.StreetCleaningResponse
-import dev.bongballe.parkbuddy.data.sf.model.TowAwayZoneResponse
+import dev.bongballe.parkbuddy.data.sf.model.StreetCenterlineResponse
 import io.ktor.client.HttpClient
 
 class FakeSfOpenDataApi : SfOpenDataApi(HttpClient(), "") {
-  var streetCleaningData: List<StreetCleaningResponse> = emptyList()
-  var parkingRegulations: List<ParkingRegulationResponse> = emptyList()
-  var parkingMeterInventory: List<ParkingMeterResponse> = emptyList()
+  var meterPolicies: List<MeterPolicyResponse> = emptyList()
   var meterSchedules: List<MeterScheduleResponse> = emptyList()
+  var streetCenterlines: List<StreetCenterlineResponse> = emptyList()
 
-  override suspend fun getStreetCleaningData(
-    limit: Int,
-    offset: Int,
-  ): List<StreetCleaningResponse> {
-    val start = offset.coerceAtMost(streetCleaningData.size)
-    val end = (offset + limit).coerceAtMost(streetCleaningData.size)
-    return streetCleaningData.subList(start, end)
+  private fun <T> paginate(list: List<T>, limit: Int, offset: Int): List<T> {
+    val start = offset.coerceAtMost(list.size)
+    val end = (offset + limit).coerceAtMost(list.size)
+    return list.subList(start, end)
   }
 
-  override suspend fun getParkingRegulations(
-    limit: Int,
-    offset: Int,
-  ): List<ParkingRegulationResponse> {
-    val start = offset.coerceAtMost(parkingRegulations.size)
-    val end = (offset + limit).coerceAtMost(parkingRegulations.size)
-    return parkingRegulations.subList(start, end)
-  }
+  override suspend fun getMeterPolicies(limit: Int, offset: Int) =
+    paginate(meterPolicies, limit, offset)
 
-  override suspend fun getParkingMeterInventory(
-    limit: Int,
-    offset: Int,
-  ): List<ParkingMeterResponse> {
-    val start = offset.coerceAtMost(parkingMeterInventory.size)
-    val end = (offset + limit).coerceAtMost(parkingMeterInventory.size)
-    return parkingMeterInventory.subList(start, end)
-  }
+  override suspend fun getMeterSchedules(limit: Int, offset: Int) =
+    paginate(meterSchedules, limit, offset)
 
-  override suspend fun getMeterSchedules(limit: Int, offset: Int): List<MeterScheduleResponse> {
-    val start = offset.coerceAtMost(meterSchedules.size)
-    val end = (offset + limit).coerceAtMost(meterSchedules.size)
-    return meterSchedules.subList(start, end)
-  }
-
-  var towAwayZones: List<TowAwayZoneResponse> = emptyList()
-
-  override suspend fun getTowAwayZones(limit: Int, offset: Int): List<TowAwayZoneResponse> {
-    val start = offset.coerceAtMost(towAwayZones.size)
-    val end = (offset + limit).coerceAtMost(towAwayZones.size)
-    return towAwayZones.subList(start, end)
-  }
+  override suspend fun getStreetCenterlines(limit: Int, offset: Int) =
+    paginate(streetCenterlines, limit, offset)
 }

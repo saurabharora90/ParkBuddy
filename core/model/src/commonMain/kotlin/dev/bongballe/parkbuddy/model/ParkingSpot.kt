@@ -65,28 +65,17 @@ data class ParkingSpot(
   /** Whether regular passenger vehicles can park here (derived from timeline). */
   val isParkable: Boolean
     get() =
-      timeline.isEmpty() ||
+      (sweepingSchedules.isNotEmpty() && timeline.isEmpty()) ||
         timeline.any {
           it.type is IntervalType.Open ||
             it.type is IntervalType.Limited ||
-            it.type is IntervalType.Metered
+            it.type is IntervalType.Metered ||
+            it.type is IntervalType.Restricted
         }
 
   /** Whether this spot has any metered intervals (user needs to pay). */
   val hasMeters: Boolean
     get() = timeline.any { it.type is IntervalType.Metered }
-
-  /** Whether this spot is primarily for commercial vehicles (Yellow/Red meter zones). */
-  val isCommercial: Boolean
-    get() {
-      val restricted = timeline.filter { it.type is IntervalType.Restricted }
-      val nonRestricted =
-        timeline.filter {
-          it.type !is IntervalType.Restricted && it.type !is IntervalType.Forbidden
-        }
-      // Commercial if all non-forbidden intervals are restricted, or restricted covers more time
-      return restricted.isNotEmpty() && nonRestricted.isEmpty()
-    }
 }
 
 /**
@@ -124,19 +113,27 @@ data class SweepingSchedule(
     val targetDayOfWeek = weekday.toDayOfWeek() ?: return null
 
     var candidate = now.toLocalDateTime(zone).date
-    repeat(52 * 7) {
-      if (candidate.dayOfWeek == targetDayOfWeek) {
-        val weekOfMonth = getWeekOfMonth(candidate)
-        if (isWeekActive(weekOfMonth)) {
-          val cleaningStart = LocalDateTime(candidate, LocalTime(fromHour, 0)).toInstant(zone)
-          val cleaningEnd = LocalDateTime(candidate, LocalTime(toHour, 0)).toInstant(zone)
 
-          if (cleaningEnd > now) {
-            return cleaningStart
-          }
+    val currentOrdinal = candidate.dayOfWeek.ordinal
+    val targetOrdinal = targetDayOfWeek.ordinal
+    val daysUntilTarget = (targetOrdinal - currentOrdinal + 7) % 7
+    // Start on today if it's the target day (daysUntilTarget == 0), otherwise jump ahead.
+    if (daysUntilTarget > 0) {
+      candidate = candidate.plus(daysUntilTarget, DateTimeUnit.DAY)
+    }
+
+    // Scan up to 52 weeks (one year of target-day occurrences).
+    repeat(52) {
+      val weekOfMonth = getWeekOfMonth(candidate)
+      if (isWeekActive(weekOfMonth)) {
+        val cleaningStart = LocalDateTime(candidate, LocalTime(fromHour, 0)).toInstant(zone)
+        val cleaningEnd = LocalDateTime(candidate, LocalTime(toHour, 0)).toInstant(zone)
+
+        if (cleaningEnd > now) {
+          return cleaningStart
         }
       }
-      candidate = candidate.plus(1, DateTimeUnit.DAY)
+      candidate = candidate.plus(7, DateTimeUnit.DAY)
     }
     return null
   }
@@ -169,10 +166,8 @@ data class SweepingSchedule(
 
   private fun getWeekOfMonth(date: LocalDate): Int {
     val firstOfMonth = LocalDate(date.year, date.month, 1)
-    var firstTargetDay = firstOfMonth
-    while (firstTargetDay.dayOfWeek != date.dayOfWeek) {
-      firstTargetDay = firstTargetDay.plus(1, DateTimeUnit.DAY)
-    }
-    return ((date.day - firstTargetDay.day) / 7) + 1
+    val daysUntilTarget = (date.dayOfWeek.ordinal - firstOfMonth.dayOfWeek.ordinal + 7) % 7
+    val firstTargetDayOfMonth = 1 + daysUntilTarget
+    return ((date.day - firstTargetDayOfMonth) / 7) + 1
   }
 }
