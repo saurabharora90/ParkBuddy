@@ -1,60 +1,28 @@
 package dev.bongballe.parkbuddy.data.sf.network
 
+import dev.bongballe.parkbuddy.data.sf.model.MeterPolicyResponse
 import dev.bongballe.parkbuddy.data.sf.model.MeterScheduleResponse
-import dev.bongballe.parkbuddy.data.sf.model.ParkingMeterResponse
-import dev.bongballe.parkbuddy.data.sf.model.ParkingRegulationResponse
-import dev.bongballe.parkbuddy.data.sf.model.StreetCleaningResponse
-import dev.bongballe.parkbuddy.data.sf.model.TowAwayZoneResponse
+import dev.bongballe.parkbuddy.data.sf.model.StreetCenterlineResponse
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.get
 import io.ktor.client.request.parameter
 
 /**
- * Client for the SF Open Data API using Ktor.
+ * Client for SF Open Data (Socrata) API.
  *
- * Each method is a simple GET with pagination parameters, returning the deserialized response body
- * directly (throws on failure).
+ * Used for meter schedules. All other parking data comes from [SfmtaArcGisApi].
  */
 open class SfOpenDataApi(private val client: HttpClient, private val baseUrl: String) {
 
-  /** Fetches street cleaning (sweeping) schedules. */
-  open suspend fun getStreetCleaningData(
-    limit: Int,
-    offset: Int = 0,
-  ): List<StreetCleaningResponse> =
+  open suspend fun getMeterPolicies(limit: Int, offset: Int = 0): List<MeterPolicyResponse> =
     client
-      .get("${baseUrl}resource/yhqp-riqs.json") {
+      .get("${baseUrl}resource/qq7v-hds4.json") {
         parameter("\$limit", limit)
         parameter("\$offset", offset)
       }
       .body()
 
-  /** Fetches general parking regulations (RPP, Time Limits, etc.). */
-  open suspend fun getParkingRegulations(
-    limit: Int,
-    offset: Int = 0,
-  ): List<ParkingRegulationResponse> =
-    client
-      .get("${baseUrl}resource/hi6h-neyh.json") {
-        parameter("\$limit", limit)
-        parameter("\$offset", offset)
-      }
-      .body()
-
-  /** Fetches the inventory of all parking meters. */
-  open suspend fun getParkingMeterInventory(
-    limit: Int,
-    offset: Int = 0,
-  ): List<ParkingMeterResponse> =
-    client
-      .get("${baseUrl}resource/8vzz-qzz9.json") {
-        parameter("\$limit", limit)
-        parameter("\$offset", offset)
-      }
-      .body()
-
-  /** Fetches specific operating schedules and time limits for meters. */
   open suspend fun getMeterSchedules(limit: Int, offset: Int = 0): List<MeterScheduleResponse> =
     client
       .get("${baseUrl}resource/6cqg-dxku.json") {
@@ -63,17 +31,16 @@ open class SfOpenDataApi(private val client: HttpClient, private val baseUrl: St
       }
       .body()
 
-  /**
-   * Fetches regularly scheduled tow-away zones.
-   *
-   * This is a separate dataset from meter schedules. It covers AM/PM peak tow-away on major
-   * arterials that aren't captured in the meter schedule API.
-   */
-  open suspend fun getTowAwayZones(limit: Int, offset: Int = 0): List<TowAwayZoneResponse> =
+  open suspend fun getStreetCenterlines(
+    limit: Int,
+    offset: Int = 0,
+  ): List<StreetCenterlineResponse> =
     client
-      .get("${baseUrl}resource/ynvq-waab.json") {
+      .get("${baseUrl}resource/3psu-pn9h.json") {
         parameter("\$limit", limit)
         parameter("\$offset", offset)
+        parameter("\$where", "active='true'")
+        parameter("\$select", "cnn,streetname,nhood,classcode,line")
       }
       .body()
 }

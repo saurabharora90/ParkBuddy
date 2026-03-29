@@ -202,7 +202,8 @@ class ReminderRepositoryImpl(
   ): Int {
     var alarmIndex = startIndex
     val schedule =
-      spot.sweepingSchedules.sortedBy { it.nextOccurrence(now) }.firstOrNull() ?: return alarmIndex
+      spot.sweepingSchedules.minByOrNull { it.nextOccurrence(now) ?: Instant.DISTANT_FUTURE }
+        ?: return alarmIndex
 
     val cleaningStartTime = DateTimeUtils.formatHour(schedule.fromHour)
     reminders
@@ -324,18 +325,9 @@ class ReminderRepositoryImpl(
 
   private fun formatReminderDisplay(time: Instant): String {
     val localTime = time.toLocalDateTime(TimeZone.currentSystemDefault())
-    val hour = localTime.hour
-    val minute = localTime.minute
-    val amPm = if (hour < 12) "AM" else "PM"
-    val displayHour =
-      when {
-        hour == 0 -> 12
-        hour > 12 -> hour - 12
-        else -> hour
-      }
-    val displayMinute = minute.toString().padStart(2, '0')
     val dayName = localTime.dayOfWeek.name.lowercase().replaceFirstChar { it.uppercase() }
-    return "\u2022 $dayName at $displayHour:$displayMinute $amPm"
+    val timeStr = DateTimeUtils.formatHourMinute(localTime.hour, localTime.minute)
+    return "\u2022 $dayName at $timeStr"
   }
 
   override suspend fun clearAllReminders() {
@@ -380,15 +372,7 @@ class ReminderRepositoryImpl(
 
         is ParkingRestrictionState.ActiveTimed -> {
           val expiryText = "Move by ${formatTime(state.expiry, zone)}"
-          val paymentWarning =
-            when {
-              !state.paymentRequired -> ""
-              spot.hasMeters && spot.rppAreas.isNotEmpty() ->
-                "\n\u26A0\uFE0F PAY AT METER: Metered spot in Zone ${spot.rppAreas.joinToString(" or ")}."
-              else -> "\n\u26A0\uFE0F PAY AT METER: Standard metered parking."
-            }
-          val ct =
-            if (state.paymentRequired) "\u26A0\uFE0F PAY AT METER. $expiryText" else expiryText
+          val (ct, paymentWarning) = paymentText(state.paymentRequired, expiryText, spot)
           ct to "$expiryText$paymentWarning\n\n$reminderLines"
         }
 
@@ -397,15 +381,7 @@ class ReminderRepositoryImpl(
             if (state.startsAt.toLocalDateTime(zone).date == now.toLocalDateTime(zone).date) "today"
             else "tomorrow"
           val expiryText = "Starts $dayName. Move by ${formatTime(state.expiry, zone)}"
-          val paymentWarning =
-            when {
-              !state.paymentRequired -> ""
-              spot.hasMeters && spot.rppAreas.isNotEmpty() ->
-                "\n\u26A0\uFE0F PAY AT METER: Metered spot in Zone ${spot.rppAreas.joinToString(" or ")}."
-              else -> "\n\u26A0\uFE0F PAY AT METER: Standard metered parking."
-            }
-          val ct =
-            if (state.paymentRequired) "\u26A0\uFE0F PAY AT METER. $expiryText" else expiryText
+          val (ct, paymentWarning) = paymentText(state.paymentRequired, expiryText, spot)
           val nextCleaning = state.nextCleaning
           if (nextCleaning != null && nextCleaning < state.startsAt) {
             val cleaningText = formattedCleaningText(nextCleaning, now, zone)
@@ -456,16 +432,24 @@ class ReminderRepositoryImpl(
 
   private fun formatTime(instant: Instant, zone: TimeZone): String {
     val localTime = instant.toLocalDateTime(zone)
-    val hour = localTime.hour
-    val minute = localTime.minute.toString().padStart(2, '0')
-    val amPm = if (hour < 12) "AM" else "PM"
-    val displayHour =
+    return DateTimeUtils.formatHourMinute(localTime.hour, localTime.minute)
+  }
+
+  /** Returns (content text, payment warning suffix) for timed parking notifications. */
+  private fun paymentText(
+    paymentRequired: Boolean,
+    expiryText: String,
+    spot: ParkingSpot,
+  ): Pair<String, String> {
+    val warning =
       when {
-        hour == 0 -> 12
-        hour > 12 -> hour - 12
-        else -> hour
+        !paymentRequired -> ""
+        spot.hasMeters && spot.rppAreas.isNotEmpty() ->
+          "\n\u26A0\uFE0F PAY AT METER: Metered spot in Zone ${spot.rppAreas.joinToString(" or ")}."
+        else -> "\n\u26A0\uFE0F PAY AT METER: Standard metered parking."
       }
-    return "$displayHour:$minute $amPm"
+    val ct = if (paymentRequired) "\u26A0\uFE0F PAY AT METER. $expiryText" else expiryText
+    return ct to warning
   }
 
   private fun formattedCleaningText(nextCleaning: Instant, now: Instant, zone: TimeZone): String {
@@ -473,15 +457,7 @@ class ReminderRepositoryImpl(
     val day = local.dayOfWeek.name.lowercase().replaceFirstChar { it.uppercase() }.take(3)
     val month = local.month.name.lowercase().replaceFirstChar { it.uppercase() }.take(3)
     val date = local.day
-    val hour = local.hour
-    val amPm = if (hour < 12) "AM" else "PM"
-    val displayHour =
-      when {
-        hour == 0 -> 12
-        hour > 12 -> hour - 12
-        else -> hour
-      }
-    val timeText = "$displayHour $amPm"
+    val timeText = DateTimeUtils.formatHour(local.hour)
 
     return if ((nextCleaning - now) < 6.hours) {
       "TODAY ($day, $month $date at $timeText)"

@@ -409,10 +409,6 @@ private fun StateCard(
   }
 }
 
-// ---------------------------------------------------------------------------
-// Timeline Rows
-// ---------------------------------------------------------------------------
-
 @Composable
 private fun IntervalRow(
   interval: ParkingInterval,
@@ -514,10 +510,6 @@ private fun intervalIcon(type: IntervalType): ImageVector =
     is IntervalType.Restricted -> ParkBuddyIcons.Warning
     is IntervalType.Forbidden -> ParkBuddyIcons.Error
   }
-
-// ---------------------------------------------------------------------------
-// Previews
-// ---------------------------------------------------------------------------
 
 @VisibleForTesting
 internal val previewSpot =

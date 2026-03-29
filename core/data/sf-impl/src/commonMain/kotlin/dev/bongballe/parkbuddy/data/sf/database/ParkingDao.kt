@@ -45,18 +45,6 @@ interface ParkingDao {
   @Query("SELECT * FROM parking_spots WHERE ',' || rppAreas || ',' LIKE '%,' || :zone || ',%'")
   fun getSpotsByZone(zone: String): Flow<List<PopulatedParkingSpot>>
 
-  /** Get a single parking spot by ID with its sweeping schedules. */
-  @Transaction
-  @Query("SELECT * FROM parking_spots WHERE objectId = :objectId")
-  suspend fun getSpotById(objectId: String): PopulatedParkingSpot?
-
-  /**
-   * Get parking spot entities only (without schedules) for a zone. Lighter query when schedules
-   * aren't needed.
-   */
-  @Query("SELECT * FROM parking_spots WHERE ',' || rppAreas || ',' LIKE '%,' || :zone || ',%'")
-  fun getSpotEntitiesByZone(zone: String): Flow<List<ParkingSpotEntity>>
-
   /** Count spots in a zone. Used for "X streets managed" display. */
   @Query(
     "SELECT COUNT(*) FROM parking_spots WHERE ',' || rppAreas || ',' LIKE '%,' || :zone || ',%'"
@@ -79,13 +67,20 @@ interface ParkingDao {
   @Insert(onConflict = OnConflictStrategy.REPLACE)
   suspend fun insertSchedules(schedules: List<SweepingScheduleEntity>)
 
-  /**
-   * Delete all parking spots. Called before data refresh to ensure clean state. Cascades to delete
-   * related sweeping schedules via foreign key.
-   */
+  /** Atomically replaces all parking data: clears both tables, then inserts new data. */
+  @Transaction
+  suspend fun replaceAllData(
+    spots: List<ParkingSpotEntity>,
+    schedules: List<SweepingScheduleEntity>,
+  ) {
+    clearAllSchedules()
+    clearAllSpots()
+    insertSpots(spots)
+    insertSchedules(schedules)
+  }
+
   @Query("DELETE FROM parking_spots") suspend fun clearAllSpots()
 
-  /** Delete all sweeping schedules. Called before data refresh. */
   @Query("DELETE FROM sweeping_schedules") suspend fun clearAllSchedules()
 
   /** Get user preferences (single row, id=1). Returns null if no preferences have been set yet. */

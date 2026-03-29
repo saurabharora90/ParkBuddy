@@ -5,11 +5,19 @@ import androidx.test.core.app.ApplicationProvider
 import app.cash.turbine.test
 import com.google.common.truth.Truth.assertThat
 import dev.bongballe.parkbuddy.data.sf.database.ParkBuddyDatabase
+import dev.bongballe.parkbuddy.data.sf.model.MeterPolicyResponse
 import dev.bongballe.parkbuddy.data.sf.model.MeterScheduleResponse
-import dev.bongballe.parkbuddy.data.sf.model.ParkingMeterResponse
-import dev.bongballe.parkbuddy.data.sf.model.ParkingRegulationResponse
-import dev.bongballe.parkbuddy.data.sf.model.StreetCleaningResponse
+import dev.bongballe.parkbuddy.data.sf.model.StreetCenterlineResponse
+import dev.bongballe.parkbuddy.data.sf.model.arcgis.ArcGisBlockfaceAttrs
+import dev.bongballe.parkbuddy.data.sf.model.arcgis.ArcGisBlockfaceRateAttrs
+import dev.bongballe.parkbuddy.data.sf.model.arcgis.ArcGisCleaningAttrs
+import dev.bongballe.parkbuddy.data.sf.model.arcgis.ArcGisFeature
+import dev.bongballe.parkbuddy.data.sf.model.arcgis.ArcGisGeometry
+import dev.bongballe.parkbuddy.data.sf.model.arcgis.ArcGisMeterAttrs
+import dev.bongballe.parkbuddy.data.sf.model.arcgis.ArcGisRegulationAttrs
 import dev.bongballe.parkbuddy.data.sf.network.FakeSfOpenDataApi
+import dev.bongballe.parkbuddy.data.sf.network.FakeSfmtaArcGisApi
+import dev.bongballe.parkbuddy.fakes.FakeDataFileReader
 import dev.bongballe.parkbuddy.model.Geometry
 import dev.bongballe.parkbuddy.model.IntervalType
 import dev.bongballe.parkbuddy.model.Weekday
@@ -18,24 +26,10 @@ import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.encodeToJsonElement
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
-/**
- * Tests for [ParkingRepositoryImpl.refreshData].
- *
- * All coordinates come from actual SF Open Data APIs:
- * - Street sweeping: https://data.sfgov.org/resource/yhqp-riqs.json
- * - Parking regulations: https://data.sfgov.org/resource/hi6h-neyh.json
- * - Meter inventory: https://data.sfgov.org/resource/8vzz-qzz9.json
- * - Meter schedules: https://data.sfgov.org/resource/6cqg-dxku.json
- *
- * Assertions use `spot.timeline` (pre-resolved `List<ParkingInterval>`). The timeline is produced
- * by [TimelineResolver] during sync and stored in the entity as a flat, non-overlapping weekly
- * schedule.
- */
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
 class ParkingRepositoryImplTest {
@@ -43,7 +37,7 @@ class ParkingRepositoryImplTest {
   private fun runRepoTest(
     block:
       suspend TestScope.(
-        repository: ParkingRepositoryImpl, api: FakeSfOpenDataApi, db: ParkBuddyDatabase,
+        repository: ParkingRepositoryImpl, arcGis: FakeSfmtaArcGisApi, socrata: FakeSfOpenDataApi,
       ) -> Unit
   ) =
     runTest(UnconfinedTestDispatcher()) {
@@ -55,113 +49,161 @@ class ParkingRepositoryImplTest {
           .allowMainThreadQueries()
           .build()
 
-      val api = FakeSfOpenDataApi()
+      val arcGis = FakeSfmtaArcGisApi()
+      val socrata = FakeSfOpenDataApi()
 
       val repository =
         ParkingRepositoryImpl(
           dao = db.parkingDao(),
-          api = api,
-          defaultDispatcher = UnconfinedTestDispatcher(),
+          arcGis = arcGis,
+          socrata = socrata,
+          fileReader = FakeDataFileReader(),
+          json = Json { ignoreUnknownKeys = true },
+          ioDispatcher = UnconfinedTestDispatcher(),
         )
 
       try {
-        block(repository, api, db)
+        block(repository, arcGis, socrata)
       } finally {
         db.close()
       }
     }
 
-  // ========================== Real street data from SF Open Data APIs ==========================
+  // Real coordinates from SFMTA ArcGIS (shared between ArcGis and centerline fixtures)
 
-  //  Delancey St CNN 115001: Bryant St - Federal St
-  //  Centerline from yhqp-riqs.json?$where=cnn='115001'
-  private val delanceyCenterline =
-    Geometry(
-      type = "LineString",
-      coordinates =
-        listOf(
-          listOf(-122.391165593868, 37.784774780511),
-          listOf(-122.391142128898, 37.784636950053),
-          listOf(-122.390856721213, 37.784410569136),
+  private val spearStCoords =
+    listOf(listOf(-122.389428942091, 37.788837780037), listOf(-122.388271869523, 37.787913311939))
+
+  private val delanceyCoords =
+    listOf(
+      listOf(-122.391165593868, 37.784774780511),
+      listOf(-122.391142128898, 37.784636950053),
+      listOf(-122.390856721213, 37.784410569136),
+    )
+
+  private val howardCoords =
+    listOf(listOf(-122.405718739597, 37.780878374149), listOf(-122.407159488015, 37.779738905439))
+
+  private val spearStGeometry = ArcGisGeometry(paths = listOf(spearStCoords))
+  private val delanceyGeometry = ArcGisGeometry(paths = listOf(delanceyCoords))
+
+  private val delanceyRegGeometry =
+    ArcGisGeometry(
+      paths =
+        listOf(listOf(listOf(-122.39101255, 37.784412774), listOf(-122.391266737, 37.784614392)))
+    )
+
+  private val howardGeometry = ArcGisGeometry(paths = listOf(howardCoords))
+
+  private val howardBlockfaceGeometry =
+    ArcGisGeometry(
+      paths = listOf(listOf(listOf(-122.40578, 37.78085), listOf(-122.40710, 37.77978)))
+    )
+
+  private fun centerline(cnn: String, streetName: String, coords: List<List<Double>>) =
+    StreetCenterlineResponse(
+      cnn = cnn,
+      streetname = streetName,
+      line = Geometry(type = "LineString", coordinates = coords),
+    )
+
+  private val spearStCenterline = centerline("12048000", "SPEAR ST", spearStCoords)
+  private val delanceyCenterline = centerline("115001", "DELANCEY ST", delanceyCoords)
+  private val howardCenterline = centerline("7042000", "HOWARD ST", howardCoords)
+
+  private fun cleaningFeature(
+    cnn: String,
+    side: String,
+    street: String,
+    weekday: String,
+    fromHour: String = "00:00",
+    toHour: String = "06:00",
+    geometry: ArcGisGeometry,
+  ) =
+    ArcGisFeature(
+      attributes =
+        ArcGisCleaningAttrs(
+          cnn = cnn,
+          cnnRightLeft = side,
+          corridor = street,
+          weekday = weekday,
+          fromHour = fromHour,
+          toHour = toHour,
+          week1 = "Y",
+          week2 = "Y",
+          week3 = "Y",
+          week4 = "Y",
+          week5 = "Y",
+          holidays = "N",
         ),
+      geometry = geometry,
     )
 
-  //  Regulation objectid=1017 near Delancey: Zone Y, "Time limited", 2hr M-Su 800-2200
-  //  Shape from hi6h-neyh.json?$where=within_circle(shape,37.7847,-122.3912,50)
-  //  Original is MultiLineString; we pass it as raw JSON so parseGeometry handles it.
-  private val delanceyRegulationShapeJson =
-    Json.parseToJsonElement(
-      """{"type":"MultiLineString","coordinates":[[[-122.39101255,37.784412774],[-122.391266737,37.784614392]]]}"""
-    )
-
-  //  De Haro St CNN 4626000: Division St - Berry St
-  //  Verified: no regulations within 30m, no meters on this CNN.
-  //  Centerline from yhqp-riqs.json?$where=cnn='4626000'
-  private val deHaroCenterline =
-    Geometry(
-      type = "LineString",
-      coordinates =
-        listOf(
-          listOf(-122.402073125126, 37.769885043657),
-          listOf(-122.401992727044, 37.769029470513),
+  private fun meterFeature(
+    postId: String,
+    blockfaceId: Double,
+    cnn: String,
+    streetName: String,
+    activeMeterFlag: String = "M",
+  ) =
+    ArcGisFeature(
+      attributes =
+        ArcGisMeterAttrs(
+          postId = postId,
+          blockfaceId = blockfaceId,
+          streetSegCtrlnId = cnn.toDoubleOrNull(),
+          streetName = streetName,
+          activeMeterFlag = activeMeterFlag,
         ),
+      geometry = null,
     )
 
-  //  Howard St CNN 7042000: Mary St - 06th St
-  //  Has meters (CNN 7042000), no parking regulations within 30m.
-  //  Centerline from yhqp-riqs.json?$where=cnn='7042000'
-  private val howardCenterline =
-    Geometry(
-      type = "LineString",
-      coordinates =
-        listOf(
-          listOf(-122.405718739597, 37.780878374149),
-          listOf(-122.407159488015, 37.779738905439),
-        ),
-    )
-
-  // ========================== Tests ==========================
+  // ── Tests ──
 
   @Test
-  fun `Delancey - regulation matches one side, sweeping-only side excluded`() =
-    runRepoTest { repository, api, _ ->
-      val geometryJson = Json.encodeToJsonElement(delanceyCenterline)
-
-      // CNN 115001: R sweeps Fri, L sweeps Thu
-      api.streetCleaningData =
+  fun `sweeping-only street stored for cleaning reminders`() =
+    runRepoTest { repository, arcGis, socrata ->
+      socrata.streetCenterlines = listOf(spearStCenterline)
+      arcGis.streetCleaning =
         listOf(
-          StreetCleaningResponse(
-            cnn = "115001",
-            streetName = "Delancey St",
-            cnnRightLeft = "R",
-            weekday = Weekday.Fri,
-            geometry = geometryJson,
-            limits = "Bryant St  -  Federal St",
-          ),
-          StreetCleaningResponse(
-            cnn = "115001",
-            streetName = "Delancey St",
-            cnnRightLeft = "L",
-            weekday = Weekday.Thu,
-            geometry = geometryJson,
-            limits = "Bryant St  -  Federal St",
-          ),
+          cleaningFeature("12048000", "R", "Spear St", "Wed", "00:00", "02:00", spearStGeometry)
         )
 
-      // Zone Y regulation ~13m from centerline
-      api.parkingRegulations =
+      repository.refreshData()
+
+      repository.getAllSpots().test {
+        val spots = awaitItem()
+        assertThat(spots).isNotEmpty()
+        val spot = spots.first()
+        assertThat(spot.sweepingSchedules).hasSize(1)
+        assertThat(spot.sweepingSchedules[0].weekday).isEqualTo(Weekday.Wed)
+        assertThat(spot.sweepingSchedules[0].toHour).isEqualTo(2)
+      }
+    }
+
+  @Test
+  fun `meter joined via CNN with Socrata policy schedules`() =
+    runRepoTest { repository, arcGis, socrata ->
+      socrata.streetCenterlines = listOf(howardCenterline)
+      arcGis.streetCleaning =
         listOf(
-          ParkingRegulationResponse(
-            objectId = "1017",
-            regulation = "Time limited",
-            rppArea1 = "Y",
-            hrsBegin = "800",
-            hrsEnd = "2200",
-            days = "M-Su",
-            hrLimit = "2",
-            neighborhood = "Financial District/South Beach",
-            shape = delanceyRegulationShapeJson,
+          cleaningFeature("7042000", "R", "Howard St", "Fri", "03:00", "05:00", howardGeometry)
+        )
+
+      arcGis.meteredBlockfaces =
+        listOf(
+          ArcGisFeature(
+            ArcGisBlockfaceAttrs(blockfaceId = 470001.0, streetName = "HOWARD ST"),
+            howardBlockfaceGeometry,
           )
+        )
+
+      arcGis.meters = listOf(meterFeature("470-09440", 470001.0, "7042000", "HOWARD ST"))
+
+      socrata.meterPolicies =
+        listOf(
+          MeterPolicyResponse("470-09440", "Mo", "8:00", "18:00", "OP", "3.00", "30"),
+          MeterPolicyResponse("470-09440", "Tu", "8:00", "18:00", "OP", "3.00", "30"),
         )
 
       val success = repository.refreshData()
@@ -169,40 +211,36 @@ class ParkingRepositoryImplTest {
 
       repository.getAllSpots().test {
         val spots = awaitItem()
-        // Only the side matching the regulation is stored; the other is sweeping-only.
-        assertThat(spots).hasSize(1)
-        assertThat(spots[0].rppAreas).containsExactly("Y")
-        assertThat(spots[0].timeline.any { it.type is IntervalType.Limited }).isTrue()
-        assertThat(spots[0].sweepingSchedules).hasSize(1)
+        val right = spots.first { it.objectId.contains("RIGHT") }
+        assertThat(right.hasMeters).isTrue()
+        assertThat(right.sweepingSchedules).hasSize(1)
+
+        val metered = right.timeline.filter { it.type is IntervalType.Metered }
+        assertThat(metered).isNotEmpty()
+        assertThat((metered.first().type as IntervalType.Metered).timeLimitMinutes).isEqualTo(30)
+        assertThat(metered.first().startTime.hour).isEqualTo(8)
       }
     }
 
   @Test
-  fun `refreshData - maps multiple RPP areas correctly`() = runRepoTest { repository, api, _ ->
-    val geometryJson = Json.encodeToJsonElement(delanceyCenterline)
+  fun `regulation spatial-matched to backbone`() = runRepoTest { repository, arcGis, socrata ->
+    socrata.streetCenterlines = listOf(delanceyCenterline)
+    arcGis.streetCleaning =
+      listOf(cleaningFeature("115001", "R", "Delancey St", "Fri", geometry = delanceyGeometry))
 
-    api.streetCleaningData =
+    arcGis.timeLimitedRegulations =
       listOf(
-        StreetCleaningResponse(
-          cnn = "115001",
-          streetName = "Delancey St",
-          cnnRightLeft = "R",
-          weekday = Weekday.Fri,
-          fromhour = "0",
-          tohour = "6",
-          geometry = geometryJson,
-        )
-      )
-
-    api.parkingRegulations =
-      listOf(
-        ParkingRegulationResponse(
-          objectId = "1017",
-          regulation = "Time limited",
-          rppArea1 = "N",
-          rppArea2 = "A",
-          rppArea3 = "BB",
-          shape = delanceyRegulationShapeJson,
+        ArcGisFeature(
+          ArcGisRegulationAttrs(
+            objectId = 1017,
+            regulation = "Time limited",
+            days = "M-Su",
+            hrsBegin = 800.0,
+            hrsEnd = 2200.0,
+            hrLimit = 2.0,
+            rppArea1 = "Y",
+          ),
+          delanceyRegGeometry,
         )
       )
 
@@ -210,823 +248,343 @@ class ParkingRepositoryImplTest {
 
     repository.getAllSpots().test {
       val spots = awaitItem()
-      assertThat(spots).hasSize(1)
-      assertThat(spots[0].rppAreas).containsExactly("A", "BB", "N").inOrder()
+      val regulated = spots.filter { it.timeline.any { i -> i.type is IntervalType.Limited } }
+      assertThat(regulated).isNotEmpty()
+      val spot = regulated.first()
+      assertThat(spot.rppAreas).containsExactly("Y")
+      val limited = spot.timeline.first { it.type is IntervalType.Limited }
+      assertThat((limited.type as IntervalType.Limited).timeLimitMinutes).isEqualTo(120)
+      assertThat(limited.startTime.hour).isEqualTo(8)
+      assertThat(limited.endTime.hour).isEqualTo(22)
     }
   }
 
   @Test
-  fun `De Haro - sweeping-only street excluded entirely`() = runRepoTest { repository, api, _ ->
-    val geometryJson = Json.encodeToJsonElement(deHaroCenterline)
+  fun `no stopping regulation produces forbidden interval`() =
+    runRepoTest { repository, arcGis, socrata ->
+      socrata.streetCenterlines = listOf(delanceyCenterline)
+      arcGis.streetCleaning =
+        listOf(cleaningFeature("115001", "R", "Delancey St", "Fri", geometry = delanceyGeometry))
 
-    api.streetCleaningData =
-      listOf(
-        StreetCleaningResponse(
-          cnn = "4626000",
-          streetName = "De Haro St",
-          cnnRightLeft = "R",
-          weekday = Weekday.Mon,
-          fromhour = "0",
-          tohour = "6",
-          geometry = geometryJson,
-          limits = "Division St  -  Berry St",
-        ),
-        StreetCleaningResponse(
-          cnn = "4626000",
-          streetName = "De Haro St",
-          cnnRightLeft = "L",
-          weekday = Weekday.Mon,
-          fromhour = "0",
-          tohour = "6",
-          geometry = geometryJson,
-          limits = "Division St  -  Berry St",
-        ),
-      )
-    api.parkingRegulations = emptyList()
-    api.parkingMeterInventory = emptyList()
-    api.meterSchedules = emptyList()
+      arcGis.otherRegulations =
+        listOf(
+          ArcGisFeature(
+            ArcGisRegulationAttrs(
+              objectId = 4850,
+              regulation = "No Stopping",
+              days = "M-F",
+              hrsBegin = 700.0,
+              hrsEnd = 900.0,
+              hrLimit = 0.0,
+            ),
+            delanceyRegGeometry,
+          )
+        )
+
+      repository.refreshData()
+
+      repository.getAllSpots().test {
+        val spots = awaitItem()
+        val spot = spots.first { it.timeline.any { i -> i.type is IntervalType.Forbidden } }
+        val forbidden = spot.timeline.first { it.type is IntervalType.Forbidden }
+        assertThat(forbidden.startTime.hour).isEqualTo(7)
+        assertThat(forbidden.endTime.hour).isEqualTo(9)
+      }
+    }
+
+  @Test
+  fun `meter with no schedule data still creates spot with sweeping`() =
+    runRepoTest { repository, arcGis, socrata ->
+      socrata.streetCenterlines = listOf(spearStCenterline)
+      arcGis.streetCleaning =
+        listOf(
+          cleaningFeature("12048000", "R", "Spear St", "Wed", "00:00", "02:00", spearStGeometry)
+        )
+
+      arcGis.meters = listOf(meterFeature("658-02120", 658012.0, "12048000", "SPEAR ST"))
+
+      val success = repository.refreshData()
+      assertThat(success).isTrue()
+
+      repository.getAllSpots().test {
+        val spots = awaitItem()
+        assertThat(spots).isNotEmpty()
+        // Meter has no schedule data, so no metered intervals, but spot exists with sweeping
+        val spot = spots.first { it.sweepingSchedules.isNotEmpty() }
+        assertThat(spot.sweepingSchedules).hasSize(1)
+        // The meter sets the regulation to METERED, which creates the context, but
+        // without schedule data there are no timeline intervals
+        assertThat(spot.timeline.filter { it.type is IntervalType.Metered }).isEmpty()
+      }
+    }
+
+  @Test
+  fun `decommissioned meters filtered out`() = runRepoTest { repository, arcGis, _ ->
+    arcGis.meters =
+      listOf(meterFeature("dead", 999.0, "9999000", "GHOST ST", activeMeterFlag = "U"))
 
     val success = repository.refreshData()
-    // No regulations and no meters at all: returns false
     assertThat(success).isFalse()
-
-    repository.getAllSpots().test { assertThat(awaitItem()).isEmpty() }
   }
 
   @Test
-  fun `sweeping-only segments excluded even when other segments have regulations`() =
-    runRepoTest { repository, api, _ ->
-      val delanceyJson = Json.encodeToJsonElement(delanceyCenterline)
-      val deHaroJson = Json.encodeToJsonElement(deHaroCenterline)
+  fun `pay or permit regulation produces metered interval`() =
+    runRepoTest { repository, arcGis, socrata ->
+      socrata.streetCenterlines = listOf(delanceyCenterline)
+      arcGis.streetCleaning =
+        listOf(cleaningFeature("115001", "R", "Delancey St", "Fri", geometry = delanceyGeometry))
 
-      api.streetCleaningData =
+      arcGis.otherRegulations =
         listOf(
-          StreetCleaningResponse(
-            cnn = "115001",
-            streetName = "Delancey St",
-            cnnRightLeft = "R",
-            weekday = Weekday.Fri,
-            geometry = delanceyJson,
-          ),
-          StreetCleaningResponse(
-            cnn = "4626000",
-            streetName = "De Haro St",
-            cnnRightLeft = "R",
-            weekday = Weekday.Mon,
-            geometry = deHaroJson,
-          ),
-        )
-
-      api.parkingRegulations =
-        listOf(
-          ParkingRegulationResponse(
-            objectId = "1017",
-            regulation = "Time limited",
-            rppArea1 = "Y",
-            shape = delanceyRegulationShapeJson,
+          ArcGisFeature(
+            ArcGisRegulationAttrs(
+              objectId = 12806,
+              regulation = "Pay or Permit",
+              days = "M-Sa",
+              hrsBegin = 900.0,
+              hrsEnd = 2100.0,
+              hrLimit = 0.0,
+              rppArea1 = "HV",
+            ),
+            delanceyRegGeometry,
           )
         )
-
-      val success = repository.refreshData()
-      assertThat(success).isTrue()
-
-      repository.getAllSpots().test {
-        val spots = awaitItem()
-        assertThat(spots).hasSize(1)
-        assertThat(spots[0].streetName).isEqualTo("Delancey St")
-      }
-    }
-
-  // Verifies that a meter-only CNN (no parking regulations) produces METERED timeline intervals
-  // on both LEFT and RIGHT sides. The two API schedules (weekday 120min and Sunday 240min) should
-  // resolve into separate METERED intervals with correct time windows and limits.
-  @Test
-  fun `Howard - meter-only segment stored as METERED on both sides`() =
-    runRepoTest { repository, api, _ ->
-      val geometryJson = Json.encodeToJsonElement(howardCenterline)
-
-      // Howard CNN 7042000: R=Fri, L=Thu sweeping
-      api.streetCleaningData =
-        listOf(
-          StreetCleaningResponse(
-            cnn = "7042000",
-            streetName = "Howard St",
-            cnnRightLeft = "R",
-            weekday = Weekday.Fri,
-            fromhour = "3",
-            tohour = "5",
-            geometry = geometryJson,
-            limits = "Mary St  -  06th St",
-          ),
-          StreetCleaningResponse(
-            cnn = "7042000",
-            streetName = "Howard St",
-            cnnRightLeft = "L",
-            weekday = Weekday.Thu,
-            fromhour = "3",
-            tohour = "5",
-            geometry = geometryJson,
-            limits = "Mary St  -  06th St",
-          ),
-        )
-
-      // Real meter: post_id=470-09440 on CNN 7042000
-      api.parkingMeterInventory =
-        listOf(
-          ParkingMeterResponse(
-            objectId = "10522695",
-            postId = "470-09440",
-            streetSegCtrlnId = "7042000",
-            streetName = "HOWARD ST",
-            neighborhood = "South of Market",
-          )
-        )
-
-      // Real schedules for that meter
-      api.meterSchedules =
-        listOf(
-          MeterScheduleResponse(
-            postId = "470-09440",
-            daysApplied = "Mo,Tu,We,Th,Fr,Sa",
-            fromTime = "7:00 AM",
-            toTime = "6:00 PM",
-            timeLimit = "120 minutes",
-            scheduleType = "Operating Schedule",
-          ),
-          MeterScheduleResponse(
-            postId = "470-09440",
-            daysApplied = "Su",
-            fromTime = "12:00 PM",
-            toTime = "6:00 PM",
-            timeLimit = "240 minutes",
-            scheduleType = "Operating Schedule",
-          ),
-        )
-
-      api.parkingRegulations = emptyList()
-
-      val success = repository.refreshData()
-      assertThat(success).isTrue()
-
-      repository.getAllSpots().test {
-        val spots = awaitItem().sortedBy { it.objectId }
-        // Both sides stored because meters match via CNN
-        assertThat(spots).hasSize(2)
-        spots.forEach { spot ->
-          assertThat(spot.hasMeters).isTrue()
-          assertThat(spot.streetName).isEqualTo("Howard St")
-          assertThat(spot.timeline.any { it.type is IntervalType.Metered }).isTrue()
-        }
-
-        val left = spots.first { it.objectId == "cnn_7042000_LEFT" }
-        assertThat(left.sweepingSchedules).hasSize(1)
-        assertThat(left.sweepingSchedules[0].weekday).isEqualTo(Weekday.Thu)
-
-        val right = spots.first { it.objectId == "cnn_7042000_RIGHT" }
-        assertThat(right.sweepingSchedules).hasSize(1)
-        assertThat(right.sweepingSchedules[0].weekday).isEqualTo(Weekday.Fri)
-
-        val meteredIntervals = right.timeline.filter { it.type is IntervalType.Metered }
-
-        // Weekday schedule: 2hr (120min) limit, 7AM-6PM
-        val weekday =
-          meteredIntervals.first { (it.type as IntervalType.Metered).timeLimitMinutes == 120 }
-        assertThat(weekday.startTime.hour).isEqualTo(7)
-        assertThat(weekday.endTime.hour).isEqualTo(18)
-
-        // Sunday schedule: 4hr (240min) limit, 12PM-6PM
-        val sunday =
-          meteredIntervals.first { (it.type as IntervalType.Metered).timeLimitMinutes == 240 }
-        assertThat(sunday.startTime.hour).isEqualTo(12)
-        assertThat(sunday.endTime.hour).isEqualTo(18)
-      }
-    }
-
-  // Two physical meter posts on the same CNN with identical schedules. The deduplication in
-  // parseMeterSchedulesToIntervals should collapse them, and the resolver should produce a
-  // single METERED interval.
-  @Test
-  fun `meter schedules deduplicated across multiple posts on same CNN`() =
-    runRepoTest { repository, api, _ ->
-      val geometryJson = Json.encodeToJsonElement(howardCenterline)
-
-      api.streetCleaningData =
-        listOf(
-          StreetCleaningResponse(
-            cnn = "7042000",
-            streetName = "Howard St",
-            cnnRightLeft = "R",
-            weekday = Weekday.Fri,
-            geometry = geometryJson,
-          )
-        )
-
-      // Two meters, same CNN, identical schedules
-      api.parkingMeterInventory =
-        listOf(
-          ParkingMeterResponse(
-            objectId = "m1",
-            postId = "470-09440",
-            streetSegCtrlnId = "7042000",
-            streetName = "HOWARD ST",
-          ),
-          ParkingMeterResponse(
-            objectId = "m2",
-            postId = "470-09450",
-            streetSegCtrlnId = "7042000",
-            streetName = "HOWARD ST",
-          ),
-        )
-
-      api.meterSchedules =
-        listOf(
-          MeterScheduleResponse(
-            postId = "470-09440",
-            daysApplied = "Mo,Tu,We,Th,Fr,Sa",
-            fromTime = "7:00 AM",
-            toTime = "6:00 PM",
-            timeLimit = "120 minutes",
-            scheduleType = "Operating Schedule",
-          ),
-          MeterScheduleResponse(
-            postId = "470-09450",
-            daysApplied = "Mo,Tu,We,Th,Fr,Sa",
-            fromTime = "7:00 AM",
-            toTime = "6:00 PM",
-            timeLimit = "120 minutes",
-            scheduleType = "Operating Schedule",
-          ),
-        )
-
-      api.parkingRegulations = emptyList()
 
       repository.refreshData()
 
       repository.getAllSpots().test {
         val spots = awaitItem()
-        assertThat(spots).hasSize(1)
-        val meteredCount = spots[0].timeline.count { it.type is IntervalType.Metered }
-        assertThat(meteredCount).isEqualTo(1)
+        val spot = spots.first { it.timeline.any { i -> i.type is IntervalType.Metered } }
+        val metered = spot.timeline.first { it.type is IntervalType.Metered }
+        assertThat((metered.type as IntervalType.Metered).timeLimitMinutes).isEqualTo(0)
+        assertThat(metered.exemptPermitZones).containsExactly("HV")
       }
     }
 
   @Test
-  fun `returns false when both regulations and meters are empty`() =
-    runRepoTest { repository, api, _ ->
-      api.streetCleaningData =
+  fun `blockface rate HTML fallback when no Socrata policies`() =
+    runRepoTest { repository, arcGis, socrata ->
+      socrata.streetCenterlines = listOf(howardCenterline)
+      arcGis.streetCleaning =
         listOf(
-          StreetCleaningResponse(
-            cnn = "4626000",
-            streetName = "De Haro St",
-            cnnRightLeft = "R",
-            weekday = Weekday.Mon,
-            geometry = Json.encodeToJsonElement(deHaroCenterline),
-          )
+          cleaningFeature("7042000", "R", "Howard St", "Fri", "03:00", "05:00", howardGeometry)
         )
-      api.parkingRegulations = emptyList()
-      api.parkingMeterInventory = emptyList()
 
-      val success = repository.refreshData()
-      assertThat(success).isFalse()
-    }
-
-  // Verifies that a TIME_LIMITED regulation's enforcement window and days are correctly converted
-  // into a LIMITED timeline interval with the right hours and day coverage.
-  @Test
-  fun `enforcement times and days parsed correctly from regulation`() =
-    runRepoTest { repository, api, _ ->
-      val geometryJson = Json.encodeToJsonElement(delanceyCenterline)
-
-      api.streetCleaningData =
+      arcGis.meters = listOf(meterFeature("470-09440", 470001.0, "7042000", "HOWARD ST"))
+      arcGis.meteredBlockfaces =
         listOf(
-          StreetCleaningResponse(
-            cnn = "115001",
-            streetName = "Delancey St",
-            cnnRightLeft = "R",
-            weekday = Weekday.Fri,
-            geometry = geometryJson,
+          ArcGisFeature(
+            ArcGisBlockfaceAttrs(
+              blockfaceId = 470001.0,
+              streetName = "HOWARD ST",
+              strSegOrientation = "R",
+            ),
+            howardBlockfaceGeometry,
           )
         )
 
-      api.parkingRegulations =
+      arcGis.blockfaceRates =
         listOf(
-          ParkingRegulationResponse(
-            objectId = "1017",
-            regulation = "Time limited",
-            rppArea1 = "Y",
-            hrsBegin = "800",
-            hrsEnd = "2200",
-            days = "M-Su",
-            hrLimit = "2",
-            shape = delanceyRegulationShapeJson,
+          ArcGisFeature(
+            ArcGisBlockfaceRateAttrs(
+              blockfaceId = 470001,
+              streetName = "Howard St",
+              rate = "\$2.25 per hour",
+              rateSched =
+                "<html><body><table>" +
+                  "<tr><th>Time of day</th><th>Rate</th><th>General metered parking time limit</th>" +
+                  "<tr><td>12am - 7am<td>Free<td>None</td>" +
+                  "<tr><td>7am - 6pm<td>\$2.25 per hour<td>None</td>" +
+                  "<tr><td>6pm - 12am<td>Free<td>None</td>" +
+                  "</table></body></html>",
+            ),
+            null,
           )
         )
 
       repository.refreshData()
 
       repository.getAllSpots().test {
-        val spot = awaitItem().single()
-        val interval = spot.timeline.single()
-        assertThat(interval.type).isInstanceOf(IntervalType.Limited::class.java)
-        assertThat((interval.type as IntervalType.Limited).timeLimitMinutes).isEqualTo(120)
-        assertThat(interval.startTime.hour).isEqualTo(8)
-        assertThat(interval.endTime.hour).isEqualTo(22)
-        assertThat(interval.days).hasSize(7) // M-Su = all 7 days
-      }
-    }
-
-  // A tow-zone meter schedule (scheduleType="Tow") should produce a FORBIDDEN interval in the
-  // timeline, while the regular operating schedule becomes METERED. The resolver splits them
-  // into non-overlapping windows.
-  @Test
-  fun `tow zone meter schedule stored correctly`() = runRepoTest { repository, api, _ ->
-    val geometryJson = Json.encodeToJsonElement(howardCenterline)
-
-    api.streetCleaningData =
-      listOf(
-        StreetCleaningResponse(
-          cnn = "7042000",
-          streetName = "Howard St",
-          cnnRightLeft = "L",
-          weekday = Weekday.Mon,
-          geometry = geometryJson,
-        )
-      )
-
-    api.parkingMeterInventory =
-      listOf(
-        ParkingMeterResponse(
-          objectId = "m1",
-          postId = "470-09440",
-          streetSegCtrlnId = "7042000",
-          streetName = "HOWARD ST",
-        )
-      )
-
-    api.meterSchedules =
-      listOf(
-        MeterScheduleResponse(
-          postId = "470-09440",
-          daysApplied = "Mo,Tu",
-          fromTime = "9:00 AM",
-          toTime = "6:00 PM",
-          timeLimit = "120 minutes",
-          scheduleType = "Operating Schedule",
-        ),
-        MeterScheduleResponse(
-          postId = "470-09440",
-          daysApplied = "Mo,Tu",
-          fromTime = "7:00 AM",
-          toTime = "9:00 AM",
-          timeLimit = "0 minutes",
-          scheduleType = "Tow",
-        ),
-      )
-
-    api.parkingRegulations = emptyList()
-
-    repository.refreshData()
-
-    repository.getAllSpots().test {
-      val spot = awaitItem().single()
-      assertThat(spot.hasMeters).isTrue()
-
-      val forbidden = spot.timeline.filter { it.type is IntervalType.Forbidden }
-      assertThat(forbidden).isNotEmpty()
-      assertThat(forbidden.first().startTime.hour).isEqualTo(7)
-
-      val metered = spot.timeline.filter { it.type is IntervalType.Metered }
-      assertThat(metered).isNotEmpty()
-      assertThat((metered.first().type as IntervalType.Metered).timeLimitMinutes).isEqualTo(120)
-      assertThat(metered.first().startTime.hour).isEqualTo(9)
-    }
-  }
-
-  // Two posts on the same CNN with identical time windows but the second has a superset of days.
-  // The resolver merges days across posts for identical (window, limit) combinations, producing
-  // a single METERED interval covering all 7 days.
-  @Test
-  fun `meter schedules with same window and limit merge days across posts`() =
-    runRepoTest { repository, api, _ ->
-      val geometryJson = Json.encodeToJsonElement(howardCenterline)
-
-      api.streetCleaningData =
-        listOf(
-          StreetCleaningResponse(
-            cnn = "7042000",
-            streetName = "Howard St",
-            cnnRightLeft = "R",
-            weekday = Weekday.Fri,
-            geometry = geometryJson,
-          )
-        )
-
-      // Post A: Mon-Sat 7-7, 30 min
-      // Post B: Mon-Sun 7-7, 30 min (superset of A's days, same window)
-      api.parkingMeterInventory =
-        listOf(
-          ParkingMeterResponse(
-            objectId = "m1",
-            postId = "470-09440",
-            streetSegCtrlnId = "7042000",
-            streetName = "HOWARD ST",
-          ),
-          ParkingMeterResponse(
-            objectId = "m2",
-            postId = "470-09450",
-            streetSegCtrlnId = "7042000",
-            streetName = "HOWARD ST",
-          ),
-        )
-
-      api.meterSchedules =
-        listOf(
-          MeterScheduleResponse(
-            postId = "470-09440",
-            daysApplied = "Mo,Tu,We,Th,Fr,Sa",
-            fromTime = "7:00 AM",
-            toTime = "7:00 PM",
-            timeLimit = "30 minutes",
-            scheduleType = "Operating Schedule",
-          ),
-          MeterScheduleResponse(
-            postId = "470-09450",
-            daysApplied = "Mo,Tu,We,Th,Fr,Sa,Su",
-            fromTime = "7:00 AM",
-            toTime = "7:00 PM",
-            timeLimit = "30 minutes",
-            scheduleType = "Operating Schedule",
-          ),
-        )
-
-      api.parkingRegulations = emptyList()
-
-      repository.refreshData()
-
-      repository.getAllSpots().test {
-        val spot = awaitItem().single()
-        val metered = spot.timeline.filter { it.type is IntervalType.Metered }
-        // Resolver merges identical (window, type) intervals across days into one
-        assertThat(metered).hasSize(1)
-        assertThat(metered[0].days).hasSize(7)
-        assertThat((metered[0].type as IntervalType.Metered).timeLimitMinutes).isEqualTo(30)
-      }
-    }
-
-  // Two posts with the same time window but different limits (30 vs 240 min). The resolver picks
-  // the shorter limit (30min) because within the same METERED priority tier, shorter is safer
-  // for the user. This produces a single METERED(30) interval.
-  @Test
-  fun `meter schedules with different limits on same window kept separate`() =
-    runRepoTest { repository, api, _ ->
-      val geometryJson = Json.encodeToJsonElement(howardCenterline)
-
-      api.streetCleaningData =
-        listOf(
-          StreetCleaningResponse(
-            cnn = "7042000",
-            streetName = "Howard St",
-            cnnRightLeft = "R",
-            weekday = Weekday.Fri,
-            geometry = geometryJson,
-          )
-        )
-
-      api.parkingMeterInventory =
-        listOf(
-          ParkingMeterResponse(
-            objectId = "m1",
-            postId = "470-09440",
-            streetSegCtrlnId = "7042000",
-            streetName = "HOWARD ST",
-          ),
-          ParkingMeterResponse(
-            objectId = "m2",
-            postId = "470-09450",
-            streetSegCtrlnId = "7042000",
-            streetName = "HOWARD ST",
-          ),
-        )
-
-      // Post A: Mon-Fri 7-7, 30 min
-      // Post B: Mon-Fri 7-7, 240 min (same window but different limit)
-      api.meterSchedules =
-        listOf(
-          MeterScheduleResponse(
-            postId = "470-09440",
-            daysApplied = "Mo,Tu,We,Th,Fr",
-            fromTime = "7:00 AM",
-            toTime = "7:00 PM",
-            timeLimit = "30 minutes",
-            scheduleType = "Operating Schedule",
-          ),
-          MeterScheduleResponse(
-            postId = "470-09450",
-            daysApplied = "Mo,Tu,We,Th,Fr",
-            fromTime = "7:00 AM",
-            toTime = "7:00 PM",
-            timeLimit = "240 minutes",
-            scheduleType = "Operating Schedule",
-          ),
-        )
-
-      api.parkingRegulations = emptyList()
-
-      repository.refreshData()
-
-      repository.getAllSpots().test {
-        val spot = awaitItem().single()
-        // Resolver picks the shorter limit (30min) when two METERED intervals overlap
-        val metered = spot.timeline.filter { it.type is IntervalType.Metered }
-        assertThat(metered).hasSize(1)
-        assertThat((metered[0].type as IntervalType.Metered).timeLimitMinutes).isEqualTo(30)
-      }
-    }
-
-  // Same post, two non-overlapping time windows (morning and afternoon) with the same limit.
-  // These are distinct intervals that should both appear in the resolved timeline.
-  @Test
-  fun `meter schedules with different windows but same limit kept separate`() =
-    runRepoTest { repository, api, _ ->
-      val geometryJson = Json.encodeToJsonElement(howardCenterline)
-
-      api.streetCleaningData =
-        listOf(
-          StreetCleaningResponse(
-            cnn = "7042000",
-            streetName = "Howard St",
-            cnnRightLeft = "R",
-            weekday = Weekday.Fri,
-            geometry = geometryJson,
-          )
-        )
-
-      api.parkingMeterInventory =
-        listOf(
-          ParkingMeterResponse(
-            objectId = "m1",
-            postId = "470-09440",
-            streetSegCtrlnId = "7042000",
-            streetName = "HOWARD ST",
-          )
-        )
-
-      // Same post, two windows: morning and afternoon
-      api.meterSchedules =
-        listOf(
-          MeterScheduleResponse(
-            postId = "470-09440",
-            daysApplied = "Mo,Tu,We,Th,Fr",
-            fromTime = "7:00 AM",
-            toTime = "12:00 PM",
-            timeLimit = "30 minutes",
-            scheduleType = "Operating Schedule",
-          ),
-          MeterScheduleResponse(
-            postId = "470-09440",
-            daysApplied = "Mo,Tu,We,Th,Fr",
-            fromTime = "1:00 PM",
-            toTime = "7:00 PM",
-            timeLimit = "30 minutes",
-            scheduleType = "Operating Schedule",
-          ),
-        )
-
-      api.parkingRegulations = emptyList()
-
-      repository.refreshData()
-
-      repository.getAllSpots().test {
-        val spot = awaitItem().single()
-        // Different time windows produce separate METERED intervals
-        val metered = spot.timeline.filter { it.type is IntervalType.Metered }
-        assertThat(metered).hasSize(2)
-      }
-    }
-
-  // When both a regulation (LIMITED 240min) and a meter (METERED 30min) cover the same CNN and
-  // time window, the resolver picks METERED because it has higher priority (2 > 1). The timeline
-  // should contain the METERED interval, not the LIMITED one.
-  @Test
-  fun `metered interval wins over limited when both cover same window`() =
-    runRepoTest { repository, api, _ ->
-      val geometryJson = Json.encodeToJsonElement(howardCenterline)
-
-      api.streetCleaningData =
-        listOf(
-          StreetCleaningResponse(
-            cnn = "7042000",
-            streetName = "Howard St",
-            cnnRightLeft = "R",
-            weekday = Weekday.Fri,
-            geometry = geometryJson,
-          )
-        )
-
-      // Regulation that would produce a LIMITED(240) interval
-      api.parkingRegulations =
-        listOf(
-          ParkingRegulationResponse(
-            objectId = "9999",
-            regulation = "Time limited",
-            rppArea1 = null,
-            hrsBegin = "700",
-            hrsEnd = "1900",
-            days = "M-Su",
-            hrLimit = "4",
-            shape =
-              Json.parseToJsonElement(
-                """{"type":"LineString","coordinates":[${
-                howardCenterline.coordinates.joinToString(",") { "[${it[0]},${it[1]}]" }
-              }]}"""
-              ),
-          )
-        )
-
-      // Meter on the same CNN producing METERED(30)
-      api.parkingMeterInventory =
-        listOf(
-          ParkingMeterResponse(
-            objectId = "m1",
-            postId = "470-09440",
-            streetSegCtrlnId = "7042000",
-            streetName = "HOWARD ST",
-          )
-        )
-
-      api.meterSchedules =
-        listOf(
-          MeterScheduleResponse(
-            postId = "470-09440",
-            daysApplied = "Mo,Tu,We,Th,Fr,Sa",
-            fromTime = "7:00 AM",
-            toTime = "7:00 PM",
-            timeLimit = "30 minutes",
-            scheduleType = "Operating Schedule",
-          )
-        )
-
-      repository.refreshData()
-
-      repository.getAllSpots().test {
-        val spot = awaitItem().single()
-        // METERED(priority=2) beats LIMITED(priority=1) during the overlapping window
-        val metered = spot.timeline.filter { it.type is IntervalType.Metered }
+        val spots = awaitItem()
+        val right = spots.first { it.objectId.contains("RIGHT") }
+        assertThat(right.hasMeters).isTrue()
+        val metered = right.timeline.filter { it.type is IntervalType.Metered }
         assertThat(metered).isNotEmpty()
-        assertThat((metered.first().type as IntervalType.Metered).timeLimitMinutes).isEqualTo(30)
+        assertThat(metered.first().startTime.hour).isEqualTo(7)
+        assertThat(metered.first().endTime.hour).isEqualTo(18)
       }
     }
 
-  // A regulation-only spot (no meters) should produce a LIMITED timeline interval with the
-  // correct time limit.
   @Test
-  fun `regulation-only spot produces LIMITED timeline interval`() =
-    runRepoTest { repository, api, _ ->
-      val geometryJson = Json.encodeToJsonElement(delanceyCenterline)
-
-      api.streetCleaningData =
+  fun `legacy meter schedules used when no Socrata policies`() =
+    runRepoTest { repository, arcGis, socrata ->
+      socrata.streetCenterlines = listOf(howardCenterline)
+      arcGis.streetCleaning =
         listOf(
-          StreetCleaningResponse(
-            cnn = "115001",
-            streetName = "Delancey St",
-            cnnRightLeft = "R",
-            weekday = Weekday.Fri,
-            geometry = geometryJson,
+          cleaningFeature("7042000", "R", "Howard St", "Fri", "03:00", "05:00", howardGeometry)
+        )
+
+      arcGis.meters = listOf(meterFeature("470-09440", 470001.0, "7042000", "HOWARD ST"))
+      arcGis.meteredBlockfaces =
+        listOf(
+          ArcGisFeature(
+            ArcGisBlockfaceAttrs(
+              blockfaceId = 470001.0,
+              streetName = "HOWARD ST",
+              strSegOrientation = "R",
+            ),
+            howardBlockfaceGeometry,
           )
         )
 
-      api.parkingRegulations =
-        listOf(
-          ParkingRegulationResponse(
-            objectId = "1017",
-            regulation = "Time limited",
-            rppArea1 = "Y",
-            hrsBegin = "800",
-            hrsEnd = "2200",
-            days = "M-Su",
-            hrLimit = "2",
-            shape = delanceyRegulationShapeJson,
-          )
-        )
-
-      api.parkingMeterInventory = emptyList()
-      api.meterSchedules = emptyList()
-
-      repository.refreshData()
-
-      repository.getAllSpots().test {
-        val spot = awaitItem().single()
-        val limited = spot.timeline.filter { it.type is IntervalType.Limited }
-        assertThat(limited).isNotEmpty()
-        assertThat((limited.first().type as IntervalType.Limited).timeLimitMinutes).isEqualTo(120)
-      }
-    }
-
-  // When a meter's time_limit exceeds the enforcement window (e.g., 1440 min in a 13-hour
-  // window), it's effectively "no cap, just pay." The sync should clamp it to 0 so the UI
-  // shows "METERED:" instead of "Max 24 hrs:".
-  @Test
-  fun `meter time limit clamped to zero when it exceeds enforcement window`() =
-    runRepoTest { repository, api, _ ->
-      val geometryJson = Json.encodeToJsonElement(howardCenterline)
-
-      api.streetCleaningData =
-        listOf(
-          StreetCleaningResponse(
-            cnn = "7042000",
-            streetName = "Howard St",
-            cnnRightLeft = "R",
-            weekday = Weekday.Fri,
-            geometry = geometryJson,
-          )
-        )
-
-      // 1440-minute limit in a 9AM-10PM (780 min) window = meaningless, should clamp to 0
-      api.parkingMeterInventory =
-        listOf(
-          ParkingMeterResponse(
-            objectId = "m1",
-            postId = "470-09440",
-            streetSegCtrlnId = "7042000",
-            streetName = "HOWARD ST",
-          )
-        )
-
-      api.meterSchedules =
+      // No Socrata policies for this meter, but legacy schedule exists
+      socrata.meterSchedules =
         listOf(
           MeterScheduleResponse(
             postId = "470-09440",
             daysApplied = "Mo,Tu,We,Th,Fr,Sa",
-            fromTime = "9:00 AM",
-            toTime = "10:00 PM",
-            timeLimit = "1440 minutes",
+            fromTime = "7:00 AM",
+            toTime = "6:00 PM",
+            timeLimit = "120 minutes",
             scheduleType = "Operating Schedule",
+            appliedColorRule = "Grey - General metered parking",
           )
         )
 
-      api.parkingRegulations = emptyList()
-
-      repository.refreshData()
+      val success = repository.refreshData()
+      assertThat(success).isTrue()
 
       repository.getAllSpots().test {
-        val spot = awaitItem().single()
-        val metered = spot.timeline.filter { it.type is IntervalType.Metered }
-        assertThat(metered).hasSize(1)
-        // 1440 >= 780 (window duration), so limit clamped to 0
-        assertThat((metered[0].type as IntervalType.Metered).timeLimitMinutes).isEqualTo(0)
+        val spots = awaitItem()
+        val right = spots.first { it.objectId.contains("RIGHT") }
+        assertThat(right.hasMeters).isTrue()
+
+        val metered = right.timeline.filter { it.type is IntervalType.Metered }
+        assertThat(metered).isNotEmpty()
+        assertThat((metered.first().type as IntervalType.Metered).timeLimitMinutes).isEqualTo(120)
+        assertThat(metered.first().startTime.hour).isEqualTo(7)
+        assertThat(metered.first().endTime.hour).isEqualTo(18)
       }
     }
 
-  // A real time limit shorter than the window should be preserved as-is.
   @Test
-  fun `meter time limit preserved when shorter than enforcement window`() =
-    runRepoTest { repository, api, _ ->
-      val geometryJson = Json.encodeToJsonElement(howardCenterline)
-
-      api.streetCleaningData =
+  fun `Socrata policies preferred over legacy schedules`() =
+    runRepoTest { repository, arcGis, socrata ->
+      socrata.streetCenterlines = listOf(howardCenterline)
+      arcGis.streetCleaning =
         listOf(
-          StreetCleaningResponse(
-            cnn = "7042000",
-            streetName = "Howard St",
-            cnnRightLeft = "R",
-            weekday = Weekday.Fri,
-            geometry = geometryJson,
+          cleaningFeature("7042000", "R", "Howard St", "Fri", "03:00", "05:00", howardGeometry)
+        )
+
+      arcGis.meters = listOf(meterFeature("470-09440", 470001.0, "7042000", "HOWARD ST"))
+      arcGis.meteredBlockfaces =
+        listOf(
+          ArcGisFeature(
+            ArcGisBlockfaceAttrs(
+              blockfaceId = 470001.0,
+              streetName = "HOWARD ST",
+              strSegOrientation = "R",
+            ),
+            howardBlockfaceGeometry,
           )
         )
 
-      // 120-minute limit in a 9AM-6PM (540 min) window = meaningful, should be preserved
-      api.parkingMeterInventory =
+      // Both exist: policy says 30 min, legacy says 120 min. Policy should win.
+      socrata.meterPolicies =
         listOf(
-          ParkingMeterResponse(
-            objectId = "m1",
-            postId = "470-09440",
-            streetSegCtrlnId = "7042000",
-            streetName = "HOWARD ST",
-          )
+          MeterPolicyResponse("470-09440", "Mo", "8:00", "18:00", "OP", "3.00", "30"),
+          MeterPolicyResponse("470-09440", "Tu", "8:00", "18:00", "OP", "3.00", "30"),
         )
 
-      api.meterSchedules =
+      socrata.meterSchedules =
         listOf(
           MeterScheduleResponse(
             postId = "470-09440",
             daysApplied = "Mo,Tu,We,Th,Fr,Sa",
-            fromTime = "9:00 AM",
+            fromTime = "7:00 AM",
             toTime = "6:00 PM",
             timeLimit = "120 minutes",
             scheduleType = "Operating Schedule",
           )
         )
 
-      api.parkingRegulations = emptyList()
+      repository.refreshData()
+
+      repository.getAllSpots().test {
+        val spots = awaitItem()
+        val right = spots.first { it.objectId.contains("RIGHT") }
+        val metered = right.timeline.filter { it.type is IntervalType.Metered }
+        assertThat(metered).isNotEmpty()
+        // Policy's 30 min should win over legacy's 120 min
+        assertThat((metered.first().type as IntervalType.Metered).timeLimitMinutes).isEqualTo(30)
+        // Policy's 8AM should win over legacy's 7AM
+        assertThat(metered.first().startTime.hour).isEqualTo(8)
+      }
+    }
+
+  @Test
+  fun `returns false when no data at all`() = runRepoTest { repository, _, _ ->
+    val success = repository.refreshData()
+    assertThat(success).isFalse()
+  }
+
+  @Test
+  fun `regulation matches via centerline backbone without sweeping or meters`() =
+    runRepoTest { repository, arcGis, socrata ->
+      // A street with only centerline geometry and a regulation, no sweeping or meters
+      val valenciaCoords = listOf(listOf(-122.421081, 37.764303), listOf(-122.420517, 37.762576))
+      socrata.streetCenterlines = listOf(centerline("13300000", "VALENCIA ST", valenciaCoords))
+
+      arcGis.otherRegulations =
+        listOf(
+          ArcGisFeature(
+            ArcGisRegulationAttrs(
+              objectId = 9999,
+              regulation = "No parking any time",
+              hrsBegin = 0.0,
+              hrsEnd = 0.0,
+            ),
+            ArcGisGeometry(
+              paths = listOf(listOf(listOf(-122.420900, 37.763800), listOf(-122.420750, 37.763200)))
+            ),
+          )
+        )
 
       repository.refreshData()
 
       repository.getAllSpots().test {
-        val spot = awaitItem().single()
-        val metered = spot.timeline.filter { it.type is IntervalType.Metered }
-        assertThat(metered).hasSize(1)
-        // 120 < 540 (window duration), so limit preserved
-        assertThat((metered[0].type as IntervalType.Metered).timeLimitMinutes).isEqualTo(120)
+        val spots = awaitItem()
+        assertThat(spots).isNotEmpty()
+        val spot = spots.first()
+        // Matched to real CNN, not an orphan reg_ virtual CNN
+        assertThat(spot.objectId).doesNotContain("reg_")
+        assertThat(spot.objectId).contains("13300000")
+        val forbidden = spot.timeline.filter { it.type is IntervalType.Forbidden }
+        assertThat(forbidden).isNotEmpty()
+      }
+    }
+
+  @Test
+  fun `sweeping attaches correctly to centerline-backed CNN`() =
+    runRepoTest { repository, arcGis, socrata ->
+      socrata.streetCenterlines = listOf(spearStCenterline)
+      arcGis.streetCleaning =
+        listOf(
+          cleaningFeature("12048000", "L", "Spear St", "Mon", "06:00", "08:00", spearStGeometry),
+          cleaningFeature("12048000", "R", "Spear St", "Tue", "06:00", "08:00", spearStGeometry),
+        )
+
+      repository.refreshData()
+
+      repository.getAllSpots().test {
+        val spots = awaitItem()
+        assertThat(spots).hasSize(2) // LEFT and RIGHT
+        val left = spots.first { it.objectId.contains("LEFT") }
+        val right = spots.first { it.objectId.contains("RIGHT") }
+        assertThat(left.sweepingSchedules).hasSize(1)
+        assertThat(left.sweepingSchedules[0].weekday).isEqualTo(Weekday.Mon)
+        assertThat(right.sweepingSchedules).hasSize(1)
+        assertThat(right.sweepingSchedules[0].weekday).isEqualTo(Weekday.Tues)
       }
     }
 }

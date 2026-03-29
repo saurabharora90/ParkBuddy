@@ -4,7 +4,6 @@ import dev.bongballe.parkbuddy.model.IntervalType
 import dev.bongballe.parkbuddy.model.ParkingInterval
 import dev.bongballe.parkbuddy.model.ParkingRestrictionState
 import dev.bongballe.parkbuddy.model.ParkingSpot
-import dev.bongballe.parkbuddy.model.ProhibitionReason
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
@@ -69,7 +68,7 @@ object ParkingRestrictionEvaluator {
         if (
           userPermitZone != null &&
             userPermitZone in interval.exemptPermitZones &&
-            isPermitExemptible(interval)
+            interval.isPermitExemptible
         ) {
           return ParkingRestrictionState.PermitSafe(nextCleaning)
         }
@@ -134,7 +133,7 @@ object ParkingRestrictionEvaluator {
     if (
       userPermitZone != null &&
         userPermitZone in activeInterval.exemptPermitZones &&
-        isPermitExemptible(activeInterval)
+        activeInterval.isPermitExemptible
     ) {
       return ParkingRestrictionState.PermitSafe(nextCleaning)
     }
@@ -306,18 +305,4 @@ object ParkingRestrictionEvaluator {
 
     return candidates.minOrNull() ?: limitExpiry
   }
-
-  /**
-   * Whether the given interval's type is eligible for permit exemption. Forbidden and non-RPP
-   * restricted intervals (commercial, loading) are never permit-exempt, even if exemptPermitZones
-   * is populated (defense against upstream data issues).
-   */
-  private fun isPermitExemptible(interval: ParkingInterval): Boolean =
-    when (interval.type) {
-      is IntervalType.Limited,
-      is IntervalType.Metered -> true
-      is IntervalType.Restricted ->
-        (interval.type as IntervalType.Restricted).reason == ProhibitionReason.RESIDENTIAL_PERMIT
-      else -> false
-    }
 }

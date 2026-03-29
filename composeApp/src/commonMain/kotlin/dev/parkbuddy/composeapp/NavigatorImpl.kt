@@ -34,6 +34,6 @@ class NavigatorImpl(private val preferencesRepository: PreferencesRepository) : 
   }
 
   override fun goBack() {
-    backStack.removeLastOrNull()
+    if (backStack.size > 1) backStack.removeLast()
   }
 }

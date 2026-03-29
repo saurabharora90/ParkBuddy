@@ -5,11 +5,9 @@ import androidx.lifecycle.viewModelScope
 import dev.bongballe.parkbuddy.data.repository.ParkingManager
 import dev.bongballe.parkbuddy.data.repository.utils.DateTimeUtils
 import dev.bongballe.parkbuddy.data.repository.utils.ParkingRestrictionEvaluator
-import dev.bongballe.parkbuddy.model.IntervalType
 import dev.bongballe.parkbuddy.model.ParkingInterval
 import dev.bongballe.parkbuddy.model.ParkingRestrictionState
 import dev.bongballe.parkbuddy.model.ParkingSpot
-import dev.bongballe.parkbuddy.model.ProhibitionReason
 import dev.bongballe.parkbuddy.model.SweepingSchedule
 import dev.parkbuddy.core.ui.TimelineSegment
 import dev.zacsweers.metro.AppScope
@@ -89,10 +87,6 @@ class SpotDetailViewModel(
   }
 }
 
-// ---------------------------------------------------------------------------
-// Pure evaluation function (internal for testing)
-// ---------------------------------------------------------------------------
-
 internal fun evaluate(
   spot: ParkingSpot,
   permitZone: String?,
@@ -121,7 +115,7 @@ internal fun evaluate(
 
   val sortedIntervals =
     spot.timeline.sortedWith(compareBy({ it.days.minOrNull() }, { it.startTime })).map {
-      val isActive = it.isActiveAt(now, zone) && !(isPermitExempt && isPermitExemptible(it))
+      val isActive = it.isActiveAt(now, zone) && !(isPermitExempt && it.isPermitExemptible)
       IntervalDisplay(it, isActive)
     }
 
@@ -147,21 +141,6 @@ internal fun evaluate(
     sweepingDisplay = sweepingDisplay,
   )
 }
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-private fun isPermitExemptible(interval: ParkingInterval): Boolean =
-  when (interval.type) {
-    is IntervalType.Limited,
-    is IntervalType.Metered -> true
-
-    is IntervalType.Restricted ->
-      (interval.type as IntervalType.Restricted).reason == ProhibitionReason.RESIDENTIAL_PERMIT
-
-    else -> false
-  }
 
 private fun currentMinuteOfDay(now: Instant, zone: TimeZone): Int {
   val local = now.toLocalDateTime(zone)

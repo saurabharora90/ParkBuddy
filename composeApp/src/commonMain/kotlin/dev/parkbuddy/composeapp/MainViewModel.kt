@@ -47,7 +47,7 @@ class MainViewModel(
       val needsSync = !preferencesRepository.isInitialSyncDone.first() || !repository.hasSpots()
       if (needsSync) {
         isSyncing.value = true
-        val didRefreshSucceed = repository.refreshData()
+        val didRefreshSucceed = repository.populateDb()
         if (didRefreshSucceed) {
           preferencesRepository.setInitialSyncDone(true)
         }

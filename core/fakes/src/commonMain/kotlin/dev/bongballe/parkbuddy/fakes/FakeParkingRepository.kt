@@ -31,6 +31,8 @@ class FakeParkingRepository : ParkingRepository {
     _userPermitZone.value = zone
   }
 
+  override suspend fun populateDb(): Boolean = true
+
   override suspend fun refreshData(): Boolean = true
 
   override suspend fun hasSpots(): Boolean = _spots.value.isNotEmpty()

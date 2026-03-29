@@ -63,9 +63,14 @@ class ParkingManager(
   }
 
   suspend fun parkHere(spot: ParkingSpot) {
-    val centerLatitude = spot.geometry.coordinates.map { it[1] }.average()
-    val centerLongitude = spot.geometry.coordinates.map { it[0] }.average()
-    val location = Location(centerLatitude, centerLongitude)
+    var sumLat = 0.0
+    var sumLng = 0.0
+    val coords = spot.geometry.coordinates
+    for (c in coords) {
+      sumLat += c[1]
+      sumLng += c[0]
+    }
+    val location = Location(sumLat / coords.size, sumLng / coords.size)
     park(spot = spot, detectedLocation = location, showNotification = false)
   }
 

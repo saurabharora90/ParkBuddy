@@ -2,9 +2,6 @@ package dev.bongballe.parkbuddy.data.repository.utils
 
 import dev.bongballe.parkbuddy.data.repository.utils.DateTimeUtils.formatHour
 import dev.bongballe.parkbuddy.model.SweepingSchedule
-import kotlin.time.Instant
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toLocalDateTime
 
 object DateTimeUtils {
   fun formatHour(hour: Int): String =
@@ -14,6 +11,19 @@ object DateTimeUtils {
       hour == 12 -> "12 PM"
       else -> "${hour - 12} PM"
     }
+
+  /** Formats a 24h hour and minute as "9:05 AM", "12:30 PM", etc. */
+  fun formatHourMinute(hour: Int, minute: Int): String {
+    val amPm = if (hour < 12) "AM" else "PM"
+    val displayHour =
+      when {
+        hour == 0 -> 12
+        hour > 12 -> hour - 12
+        else -> hour
+      }
+    val displayMinute = minute.toString().padStart(2, '0')
+    return "$displayHour:$displayMinute $amPm"
+  }
 }
 
 fun SweepingSchedule.formatSchedule(): String {
@@ -21,12 +31,10 @@ fun SweepingSchedule.formatSchedule(): String {
   val fromTime = formatHour(fromHour)
   val toTime = formatHour(toHour)
 
-  val activeWeeks = mutableListOf<Int>()
-  if (week1) activeWeeks.add(1)
-  if (week2) activeWeeks.add(2)
-  if (week3) activeWeeks.add(3)
-  if (week4) activeWeeks.add(4)
-  if (week5) activeWeeks.add(5)
+  val activeWeeks =
+    listOf(week1 to 1, week2 to 2, week3 to 3, week4 to 4, week5 to 5)
+      .filter { it.first }
+      .map { it.second }
 
   val weekSuffix =
     if (activeWeeks.size == 5) {
@@ -36,17 +44,4 @@ fun SweepingSchedule.formatSchedule(): String {
     }
 
   return "$dayName$weekSuffix, $fromTime - $toTime"
-}
-
-fun SweepingSchedule.formatWithDate(
-  instant: Instant,
-  zone: TimeZone = TimeZone.currentSystemDefault(),
-): String {
-  val localDateTime = instant.toLocalDateTime(zone)
-  val dayOfWeek = localDateTime.dayOfWeek.name.lowercase().replaceFirstChar { it.uppercase() }
-  val monthName = localDateTime.month.name.lowercase().replaceFirstChar { it.uppercase() }.take(3)
-  val dayOfMonth = localDateTime.day
-  val fromTime = formatHour(fromHour)
-  val toTime = formatHour(toHour)
-  return "$dayOfWeek, $monthName $dayOfMonth ($fromTime - $toTime)"
 }

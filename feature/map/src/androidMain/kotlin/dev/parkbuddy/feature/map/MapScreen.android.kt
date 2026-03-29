@@ -74,6 +74,7 @@ import dev.parkbuddy.core.ui.BannerNudge
 import dev.parkbuddy.core.ui.ParkBuddyIcons
 import dev.parkbuddy.feature.map.model.GeoBounds
 import dev.parkbuddy.feature.map.model.MapViewport
+import kotlin.time.Clock
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -86,7 +87,12 @@ private val SF_BOUNDS = LatLngBounds(LatLng(37.703397, -122.519967), LatLng(37.8
 @SuppressLint("MissingPermission")
 @OptIn(ExperimentalMaterial3Api::class, MapsComposeExperimentalApi::class, FlowPreview::class)
 @Composable
-actual fun MapScreen(navigator: Navigator, modifier: Modifier, viewModel: MapViewModel) {
+actual fun MapScreen(
+  navigator: Navigator,
+  modifier: Modifier,
+  viewModel: MapViewModel,
+  clock: Clock,
+) {
   val state by viewModel.stateFlow.collectAsState()
 
   // Pre-compute LatLng points for visible spots
@@ -190,13 +196,14 @@ actual fun MapScreen(navigator: Navigator, modifier: Modifier, viewModel: MapVie
           isMyLocationEnabled = true,
           latLngBoundsForCameraTarget = SF_BOUNDS,
           minZoomPreference = 15f,
-          maxZoomPreference = 18f,
+          maxZoomPreference = 19f,
         ),
     ) {
+      val now = clock.now()
       visibleSpotsWithPoints.forEach { (spot, points) ->
         if (points.isNotEmpty()) {
           val isInPermitZone = spot.rppAreas.contains(state.permitZone)
-          val dominantColor = getDominantColor(spot, isInPermitZone)
+          val dominantColor = getDominantColor(spot, isInPermitZone, now)
           Polyline(
             points = points,
             color = dominantColor,

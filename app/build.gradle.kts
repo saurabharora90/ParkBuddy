@@ -31,6 +31,8 @@ android {
 
   buildFeatures { buildConfig = true }
 
+  androidResources { noCompress.add(".gz") }
+
   buildTypes {
     release {
       isMinifyEnabled = false
@@ -72,6 +74,4 @@ dependencies {
   implementation(libs.workmanager)
 
   testImplementation(libs.junit)
-
-  androidTestImplementation(libs.androidx.junit)
 }

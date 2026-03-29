@@ -9,8 +9,4 @@ value class ReminderMinutes(val value: Int) : Comparable<ReminderMinutes> {
   }
 
   override fun compareTo(other: ReminderMinutes): Int = value.compareTo(other.value)
-
-  companion object {
-    fun fromMinutes(minutes: Int): ReminderMinutes = ReminderMinutes(minutes)
-  }
 }

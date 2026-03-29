@@ -3,6 +3,7 @@ package dev.bongballe.parkbuddy.data.repository.utils
 import dev.bongballe.parkbuddy.model.IntervalSource
 import dev.bongballe.parkbuddy.model.IntervalType
 import dev.bongballe.parkbuddy.model.ParkingInterval
+import dev.bongballe.parkbuddy.model.ProhibitionReason
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalTime
 
@@ -52,13 +53,19 @@ object TimelineResolver {
   fun resolve(candidates: List<ParkingInterval>): List<ParkingInterval> {
     if (candidates.isEmpty()) return emptyList()
 
-    // Explode multi-day intervals into per-day candidates, splitting overnight windows
-    val perDay = candidates.flatMap { interval -> explodeToDayCandidates(interval) }
+    // Explode multi-day intervals into per-day candidates, splitting overnight windows.
+    // Group by day in a single pass instead of filtering the list 7 times.
+    val byDay = Array(7) { mutableListOf<Candidate>() }
+    for (interval in candidates) {
+      for (candidate in explodeToDayCandidates(interval)) {
+        byDay[candidate.day.ordinal].add(candidate)
+      }
+    }
 
     // Resolve each day independently
     val resolvedPerDay =
       DayOfWeek.entries.flatMap { day ->
-        val dayCandidates = perDay.filter { it.day == day }
+        val dayCandidates = byDay[day.ordinal]
         if (dayCandidates.isEmpty()) return@flatMap emptyList()
         resolveDay(dayCandidates)
       }
@@ -162,14 +169,34 @@ object TimelineResolver {
    * Picks the winning candidate from the active set.
    *
    * Higher priority wins. Within the same priority, shorter time limit wins (safer).
+   *
+   * Special case: when Restricted(COMMERCIAL) from meters competes with Metered, the metered
+   * interval wins. Commercial loading zone meters are point restrictions (individual spots), not
+   * block-wide. The metered interval represents the dominant block behavior.
    */
   private fun pickWinner(active: List<Candidate>): Candidate? {
     if (active.isEmpty()) return null
+
+    val hasRegularMeter = active.any { it.type is IntervalType.Metered }
     return active
       .sortedWith(
-        compareByDescending<Candidate> { it.type.priority }.thenBy { timeLimitOf(it.type) }
+        compareByDescending<Candidate> { effectivePriority(it, hasRegularMeter) }
+          .thenBy { timeLimitOf(it.type) }
       )
       .first()
+  }
+
+  private fun effectivePriority(candidate: Candidate, hasRegularMeter: Boolean): Int {
+    val type = candidate.type
+    if (
+      hasRegularMeter &&
+        type is IntervalType.Restricted &&
+        type.reason == ProhibitionReason.COMMERCIAL &&
+        candidate.source == IntervalSource.METER
+    ) {
+      return IntervalType.Metered(0).priority
+    }
+    return type.priority
   }
 
   private fun timeLimitOf(type: IntervalType): Int =

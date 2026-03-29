@@ -7,9 +7,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import dev.bongballe.parkbuddy.core.navigation.Navigator
+import kotlin.time.Clock
 
 @Composable
-actual fun MapScreen(modifier: Modifier, navigator: Navigator, viewModel: MapViewModel) {
+actual fun MapScreen(
+  navigator: Navigator,
+  modifier: Modifier,
+  viewModel: MapViewModel,
+  clock: Clock,
+) {
   Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
     Text("iOS Map placeholder")
   }

@@ -62,4 +62,19 @@ data class ParkingInterval(
   /** Whether this interval requires payment at a meter. */
   val requiresPayment: Boolean
     get() = type is IntervalType.Metered
+
+  /**
+   * Whether a permit holder can be exempt from this interval. Forbidden and non-RPP restricted
+   * intervals (commercial, loading) are never permit-exempt, even if [exemptPermitZones] is
+   * populated (defense against upstream data issues).
+   */
+  val isPermitExemptible: Boolean
+    get() =
+      when (type) {
+        is IntervalType.Limited,
+        is IntervalType.Metered -> true
+        is IntervalType.Restricted ->
+          (type as IntervalType.Restricted).reason == ProhibitionReason.RESIDENTIAL_PERMIT
+        else -> false
+      }
 }
