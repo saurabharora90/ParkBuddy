@@ -11,4 +11,5 @@ object SfDataFiles {
   const val METER_POLICIES = "meter_policies.json"
   const val METER_SCHEDULES = "meter_schedules.json"
   const val CENTERLINES = "centerlines.json"
+  const val EXCLUSIONS = "exclusions.json"
 }

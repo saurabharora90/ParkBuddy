@@ -17,6 +17,7 @@ resources). At runtime, `refreshData()` downloads fresh JSON from the network an
 | Meter policies | Socrata `qq7v-hds4` | ~123K | POST_ID |
 | Meter schedules | Socrata `6cqg-dxku` | ~72K | POST_ID |
 | Blockface rates | ArcGIS ODS Layer 4 | 2,795 | BLOCKFACE_ID |
+| **Exclusions** | Local `exclusions.json` | 410 | CNN (direct lookup) |
 
 ArcGIS base: `https://services.sfmta.com/arcgis/rest/services/Parking/`
 Socrata base: `https://data.sfgov.org/`
@@ -33,8 +34,11 @@ Socrata base: `https://data.sfgov.org/`
 7. **Merge meter data**: For each metered blockface, find CNN (explicit or spatial), merge schedules.
 8. **Spatial-match regulations**: Match regulation polylines to backbone CNNs via `matchPolyline`.
    Forbidden regs get per-CNN ratio filter: skip if regulation < 40% of block length.
-9. **Merge sweeping-only**: Absorb adjacent sweeping-only CNNs into regulated neighbors.
-10. **Resolve timelines**: `TimelineResolver` flattens all intervals per CNN+side into entities.
+9. **Apply exclusions**: For each CNN in `exclusions.json`, inject `Forbidden(NO_PARKING)` 24/7.
+   Direct CNN lookup, no spatial matching. Covers transit-only lanes (Market, Mission, Geary, etc.)
+   and other known unparkable streets (Embarcadero) that SFMTA APIs don't have regulation data for.
+10. **Merge sweeping-only**: Absorb adjacent sweeping-only CNNs into regulated neighbors.
+11. **Resolve timelines**: `TimelineResolver` flattens all intervals per CNN+side into entities.
 
 Nameless contexts fall back to `matcher.getStreetNameByCnn()` (from centerline data).
 
@@ -45,6 +49,7 @@ Nameless contexts fall back to `matcher.getStreetNameByCnn()` (from centerline d
 * **Blockface → CNN** (fallback): When explicit CNN bridge doesn't exist.
 
 Sweeping and meters have explicit CNN fields and don't need spatial matching.
+Exclusions use direct CNN lookup (no spatial matching).
 
 ### Gotchas
 * **Cross-street pollution**: At intersections, a regulation on one street can match an adjacent
@@ -55,30 +60,41 @@ Sweeping and meters have explicit CNN fields and don't need spatial matching.
   per sample point, so only one side may match per point.
 * **Threshold**: `MATCHING_THRESHOLD_METERS = 20.0`
 
+## Exclusions (`sf-data/exclusions.json`)
+
+CNN-based no-parking overrides for streets that SFMTA APIs don't cover with regulation data.
+Generated from SFMTA transit lane data (DataSF/master/FeatureServer/10) plus manually identified
+gap blocks (Market St east of 3rd, Embarcadero). Currently 410 CNNs across ~30 streets.
+
+To add a new exclusion: add `{"cnn": "<CNN>", "street": "<STREET NAME>"}` to the JSON array,
+regenerate the DB, bump `DB_VERSION`.
+
 ## Known Limitations
 
-* **The sweeping-only dilemma**: Many CNNs have street sweeping data but zero regulations or
-  meters. Most of these are genuine residential streets where parking is free (the city just sweeps
-  them). We show these as "Free Parking" which is correct for residential areas. However, the same
-  pattern also appears on major arterials like Market St and Van Ness Ave, which are NOT parkable
-  but have no regulation data to prove it. We cannot hide sweeping-only spots globally because that
-  would remove thousands of valid residential streets. There is no SFMTA API that distinguishes
-  "parkable sweeping-only" from "non-parkable sweeping-only." Transit lane data was attempted but
-  is incomplete and causes spatial matching collateral damage. This remains unsolved.
 * **Sub-CNN segments**: Data keyed by (CNN, side) = entire block face. A partial no-parking zone
   (bus stop on 30% of block) can't be represented separately.
 
-## Useful Queries
+## Local DB Verification (fast loop, no device needed)
+
+Regenerate the pre-built DB from source `.json` files, then query it directly:
 
 ```bash
-# Orphan count (regulations that didn't match any CNN)
-sqlite3 /tmp/parkbuddy.db "SELECT count(*) FROM parking_spots WHERE objectId LIKE 'cnn_reg_%';"
+DB=core/data/sf-impl/src/commonMain/resources/sf-data/park_buddy_db
+
+# Regenerate after updating .json source files or the pipeline:
+./gradlew :core:data:sf-impl:testAndroidHostTest --tests "*GeneratePrebuiltDb*"
+
+# Total spot count
+sqlite3 $DB "SELECT count(*) FROM parking_spots;"
 
 # Check a specific street
-sqlite3 /tmp/parkbuddy.db "SELECT objectId, streetName, blockLimits, timeline FROM parking_spots WHERE LOWER(streetName) = 'harrison st' ORDER BY objectId;"
+sqlite3 $DB "SELECT objectId, streetName, blockLimits, timeline FROM parking_spots WHERE LOWER(streetName) = 'market st' ORDER BY objectId;"
 
 # Spots with empty timelines (sweeping-only, show as "Free Parking")
-sqlite3 /tmp/parkbuddy.db "SELECT streetName, count(*) FROM parking_spots WHERE timeline = '[]' GROUP BY streetName ORDER BY count(*) DESC LIMIT 20;"
+sqlite3 $DB "SELECT streetName, count(*) FROM parking_spots WHERE timeline = '[]' GROUP BY streetName ORDER BY count(*) DESC LIMIT 20;"
+
+# Orphan count (regulations that didn't match any CNN)
+sqlite3 $DB "SELECT count(*) FROM parking_spots WHERE objectId LIKE 'cnn_reg_%';"
 ```
 
 ## Updating the Pre-built Database

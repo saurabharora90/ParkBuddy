@@ -8,9 +8,9 @@ understanding the codebase, architecture, and conventions.
 **Park Buddy** helps drivers avoid street cleaning tickets and parking fines. The architecture is
 **city-agnostic** with San Francisco as the initial implementation.
 
-* **Timeline Normalization**: During data sync, overlapping regulations and meter schedules are
-  pre-resolved into a flat `List<ParkingInterval>` using priority-based resolution:
-  `FORBIDDEN(4) > RESTRICTED(3) > METERED(2) > LIMITED(1) > OPEN(0)`.
+* **Timeline Normalization**: During data sync, overlapping regulations, meter schedules, and
+  CNN-based exclusions are pre-resolved into a flat `List<ParkingInterval>` using priority-based
+  resolution: `FORBIDDEN(4) > RESTRICTED(3) > METERED(2) > LIMITED(1) > OPEN(0)`.
   The evaluator is a thin lookup over this timeline. Gaps are implicitly OPEN.
 * **Sweeping Kept Separate**: Street cleaning schedules carry week-of-month semantics (week1-week5)
   that a weekly timeline cannot represent, so they stay as `List<SweepingSchedule>` on `ParkingSpot`.
@@ -132,33 +132,20 @@ xcodebuild build \
 
 ### Pre-built Database
 
-The app ships a pre-built Room database instead of parsing JSON at runtime. Source `.json` files
-live in `core/data/sf-impl/sf-data/`, the generated `park_buddy_db` lives in
-`src/commonMain/resources/sf-data/`. On first launch (or after a version bump), the bundled DB is
-copied to the app's database directory.
-
-```bash
-# Regenerate after updating .json source files or the pipeline:
-./gradlew :core:data:sf-impl:testAndroidHostTest --tests "*GeneratePrebuiltDb*"
-```
+Each city module ships a pre-built Room database instead of parsing JSON at runtime. Source `.json`
+files live in the city module's `sf-data/` directory (e.g., `core/data/sf-impl/sf-data/`), the
+generated `park_buddy_db` lives in `src/commonMain/resources/sf-data/`. On first launch (or after
+a version bump), the bundled DB is copied to the app's database directory. The version marker file
+on device triggers a re-copy when `DB_VERSION` changes.
 
 To ship an updated DB (new source data OR pipeline bug fix):
 1. Update `.json` files in the city module's data directory if source data changed.
-2. Regenerate the DB (command above).
+2. Regenerate the DB via the city module's `GeneratePrebuiltDb` test.
 3. Bump `DB_VERSION` in `ParkBuddyDatabase`.
 4. Commit `.json` files (if changed), `park_buddy_db`, code changes, and version bump.
 
-The version marker file on device triggers a re-copy when `DB_VERSION` changes.
+Each city module's `CLAUDE.md` has the specific commands and example queries for its DB.
 
-### On-Device Verification
-
-Build, deploy, then pull the Room DB for analysis:
-
-```bash
-./gradlew assembleDebug && adb install -r app/build/outputs/apk/debug/app-debug.apk
-adb exec-out run-as dev.bongballe.parkbuddy cat databases/park_buddy_db > /tmp/parkbuddy.db
-sqlite3 /tmp/parkbuddy.db "SELECT count(*) FROM parking_spots;"
-```
 
 ## Key Conventions
 

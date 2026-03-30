@@ -149,10 +149,6 @@ class CoordinateMatcher(segments: List<SegmentGeometry>) {
 
   /**
    * Matches a polyline against the spatial index, returning all (CNN, side) pairs within threshold.
-   *
-   * For short polylines (< 500m), every coordinate is sampled. For longer polylines (transit lanes,
-   * corridor-level geometry), intermediate points are interpolated every ~30m so that every CNN
-   * block along the corridor gets a chance to match.
    */
   fun matchPolyline(poly: Geometry, thresholdMeters: Double = 20.0): List<SegmentMatch> {
     val coords = poly.coordinates
