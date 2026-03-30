@@ -1,0 +1,1642 @@
+[
+  {
+    "cnn": "10453000",
+    "street": "PINE ST"
+  },
+  {
+    "cnn": "10454000",
+    "street": "PINE ST"
+  },
+  {
+    "cnn": "10455000",
+    "street": "PINE ST"
+  },
+  {
+    "cnn": "10456000",
+    "street": "PINE ST"
+  },
+  {
+    "cnn": "10458002",
+    "street": "PINE ST"
+  },
+  {
+    "cnn": "10459000",
+    "street": "PINE ST"
+  },
+  {
+    "cnn": "10460000",
+    "street": "PINE ST"
+  },
+  {
+    "cnn": "10626000",
+    "street": "POST ST"
+  },
+  {
+    "cnn": "10627000",
+    "street": "POST ST"
+  },
+  {
+    "cnn": "10628000",
+    "street": "POST ST"
+  },
+  {
+    "cnn": "10629000",
+    "street": "POST ST"
+  },
+  {
+    "cnn": "10630000",
+    "street": "POST ST"
+  },
+  {
+    "cnn": "10631000",
+    "street": "POST ST"
+  },
+  {
+    "cnn": "10633000",
+    "street": "POST ST"
+  },
+  {
+    "cnn": "10634000",
+    "street": "POST ST"
+  },
+  {
+    "cnn": "10635000",
+    "street": "POST ST"
+  },
+  {
+    "cnn": "10636000",
+    "street": "POST ST"
+  },
+  {
+    "cnn": "10637000",
+    "street": "POST ST"
+  },
+  {
+    "cnn": "10638000",
+    "street": "POST ST"
+  },
+  {
+    "cnn": "10639000",
+    "street": "POST ST"
+  },
+  {
+    "cnn": "10640000",
+    "street": "POST ST"
+  },
+  {
+    "cnn": "10641000",
+    "street": "POST ST"
+  },
+  {
+    "cnn": "10642000",
+    "street": "POST ST"
+  },
+  {
+    "cnn": "10643000",
+    "street": "POST ST"
+  },
+  {
+    "cnn": "10675000",
+    "street": "POWELL ST"
+  },
+  {
+    "cnn": "10676000",
+    "street": "POWELL ST"
+  },
+  {
+    "cnn": "10677000",
+    "street": "POWELL ST"
+  },
+  {
+    "cnn": "10678000",
+    "street": "POWELL ST"
+  },
+  {
+    "cnn": "10679000",
+    "street": "POWELL ST"
+  },
+  {
+    "cnn": "10680000",
+    "street": "POWELL ST"
+  },
+  {
+    "cnn": "10682000",
+    "street": "POWELL ST"
+  },
+  {
+    "cnn": "10683000",
+    "street": "POWELL ST"
+  },
+  {
+    "cnn": "10684000",
+    "street": "POWELL ST"
+  },
+  {
+    "cnn": "10685000",
+    "street": "POWELL ST"
+  },
+  {
+    "cnn": "10686000",
+    "street": "POWELL ST"
+  },
+  {
+    "cnn": "10687000",
+    "street": "POWELL ST"
+  },
+  {
+    "cnn": "10688000",
+    "street": "POWELL ST"
+  },
+  {
+    "cnn": "11550000",
+    "street": "SANSOME ST"
+  },
+  {
+    "cnn": "11551000",
+    "street": "SANSOME ST"
+  },
+  {
+    "cnn": "11552000",
+    "street": "SANSOME ST"
+  },
+  {
+    "cnn": "11553000",
+    "street": "SANSOME ST"
+  },
+  {
+    "cnn": "11554000",
+    "street": "SANSOME ST"
+  },
+  {
+    "cnn": "12110000",
+    "street": "STARR KING WAY"
+  },
+  {
+    "cnn": "12194000",
+    "street": "STOCKTON ST"
+  },
+  {
+    "cnn": "12195000",
+    "street": "STOCKTON ST"
+  },
+  {
+    "cnn": "12196000",
+    "street": "STOCKTON ST"
+  },
+  {
+    "cnn": "12197000",
+    "street": "STOCKTON ST"
+  },
+  {
+    "cnn": "12198000",
+    "street": "STOCKTON ST"
+  },
+  {
+    "cnn": "12199000",
+    "street": "STOCKTON ST"
+  },
+  {
+    "cnn": "12225000",
+    "street": "STOCKTON TUNL"
+  },
+  {
+    "cnn": "12316000",
+    "street": "SUTTER ST"
+  },
+  {
+    "cnn": "12317000",
+    "street": "SUTTER ST"
+  },
+  {
+    "cnn": "12318001",
+    "street": "SUTTER ST"
+  },
+  {
+    "cnn": "12318002",
+    "street": "SUTTER ST"
+  },
+  {
+    "cnn": "12319000",
+    "street": "SUTTER ST"
+  },
+  {
+    "cnn": "12320000",
+    "street": "SUTTER ST"
+  },
+  {
+    "cnn": "12321000",
+    "street": "SUTTER ST"
+  },
+  {
+    "cnn": "12322000",
+    "street": "SUTTER ST"
+  },
+  {
+    "cnn": "12323000",
+    "street": "SUTTER ST"
+  },
+  {
+    "cnn": "12324000",
+    "street": "SUTTER ST"
+  },
+  {
+    "cnn": "12325000",
+    "street": "SUTTER ST"
+  },
+  {
+    "cnn": "12326000",
+    "street": "SUTTER ST"
+  },
+  {
+    "cnn": "12327000",
+    "street": "SUTTER ST"
+  },
+  {
+    "cnn": "12328000",
+    "street": "SUTTER ST"
+  },
+  {
+    "cnn": "12329000",
+    "street": "SUTTER ST"
+  },
+  {
+    "cnn": "12330000",
+    "street": "SUTTER ST"
+  },
+  {
+    "cnn": "12331000",
+    "street": "SUTTER ST"
+  },
+  {
+    "cnn": "12332000",
+    "street": "SUTTER ST"
+  },
+  {
+    "cnn": "12391000",
+    "street": "TARAVAL ST"
+  },
+  {
+    "cnn": "12392000",
+    "street": "TARAVAL ST"
+  },
+  {
+    "cnn": "12393000",
+    "street": "TARAVAL ST"
+  },
+  {
+    "cnn": "12394000",
+    "street": "TARAVAL ST"
+  },
+  {
+    "cnn": "12395000",
+    "street": "TARAVAL ST"
+  },
+  {
+    "cnn": "12396000",
+    "street": "TARAVAL ST"
+  },
+  {
+    "cnn": "12397000",
+    "street": "TARAVAL ST"
+  },
+  {
+    "cnn": "12398000",
+    "street": "TARAVAL ST"
+  },
+  {
+    "cnn": "12399000",
+    "street": "TARAVAL ST"
+  },
+  {
+    "cnn": "12400000",
+    "street": "TARAVAL ST"
+  },
+  {
+    "cnn": "12401000",
+    "street": "TARAVAL ST"
+  },
+  {
+    "cnn": "12402000",
+    "street": "TARAVAL ST"
+  },
+  {
+    "cnn": "12403000",
+    "street": "TARAVAL ST"
+  },
+  {
+    "cnn": "12404000",
+    "street": "TARAVAL ST"
+  },
+  {
+    "cnn": "12405000",
+    "street": "TARAVAL ST"
+  },
+  {
+    "cnn": "12406000",
+    "street": "TARAVAL ST"
+  },
+  {
+    "cnn": "12407000",
+    "street": "TARAVAL ST"
+  },
+  {
+    "cnn": "12408000",
+    "street": "TARAVAL ST"
+  },
+  {
+    "cnn": "12409000",
+    "street": "TARAVAL ST"
+  },
+  {
+    "cnn": "12410000",
+    "street": "TARAVAL ST"
+  },
+  {
+    "cnn": "12411000",
+    "street": "TARAVAL ST"
+  },
+  {
+    "cnn": "12412000",
+    "street": "TARAVAL ST"
+  },
+  {
+    "cnn": "12413000",
+    "street": "TARAVAL ST"
+  },
+  {
+    "cnn": "12414000",
+    "street": "TARAVAL ST"
+  },
+  {
+    "cnn": "12415000",
+    "street": "TARAVAL ST"
+  },
+  {
+    "cnn": "12416000",
+    "street": "TARAVAL ST"
+  },
+  {
+    "cnn": "12417000",
+    "street": "TARAVAL ST"
+  },
+  {
+    "cnn": "12418000",
+    "street": "TARAVAL ST"
+  },
+  {
+    "cnn": "12419000",
+    "street": "TARAVAL ST"
+  },
+  {
+    "cnn": "12420000",
+    "street": "TARAVAL ST"
+  },
+  {
+    "cnn": "12421000",
+    "street": "TARAVAL ST"
+  },
+  {
+    "cnn": "12422000",
+    "street": "TARAVAL ST"
+  },
+  {
+    "cnn": "12423000",
+    "street": "TARAVAL ST"
+  },
+  {
+    "cnn": "12547101",
+    "street": "THE EMBARCADERO"
+  },
+  {
+    "cnn": "12547201",
+    "street": "THE EMBARCADERO"
+  },
+  {
+    "cnn": "12551202",
+    "street": "THE EMBARCADERO"
+  },
+  {
+    "cnn": "12552101",
+    "street": "THE EMBARCADERO"
+  },
+  {
+    "cnn": "12553102",
+    "street": "THE EMBARCADERO"
+  },
+  {
+    "cnn": "12553103",
+    "street": "THE EMBARCADERO"
+  },
+  {
+    "cnn": "12555102",
+    "street": "THE EMBARCADERO"
+  },
+  {
+    "cnn": "12555202",
+    "street": "THE EMBARCADERO"
+  },
+  {
+    "cnn": "12557101",
+    "street": "THE EMBARCADERO"
+  },
+  {
+    "cnn": "12557201",
+    "street": "THE EMBARCADERO"
+  },
+  {
+    "cnn": "12560101",
+    "street": "THE EMBARCADERO"
+  },
+  {
+    "cnn": "12560201",
+    "street": "THE EMBARCADERO"
+  },
+  {
+    "cnn": "13577101",
+    "street": "WEST PORTAL AVE"
+  },
+  {
+    "cnn": "13577201",
+    "street": "WEST PORTAL AVE"
+  },
+  {
+    "cnn": "13580101",
+    "street": "WEST PORTAL AVE"
+  },
+  {
+    "cnn": "13580201",
+    "street": "WEST PORTAL AVE"
+  },
+  {
+    "cnn": "2838000",
+    "street": "BEACH ST"
+  },
+  {
+    "cnn": "2839000",
+    "street": "BEACH ST"
+  },
+  {
+    "cnn": "2840000",
+    "street": "BEACH ST"
+  },
+  {
+    "cnn": "2841000",
+    "street": "BEACH ST"
+  },
+  {
+    "cnn": "2842000",
+    "street": "BEACH ST"
+  },
+  {
+    "cnn": "3420000",
+    "street": "BUSH ST"
+  },
+  {
+    "cnn": "3422001",
+    "street": "BUSH ST"
+  },
+  {
+    "cnn": "3424000",
+    "street": "BUSH ST"
+  },
+  {
+    "cnn": "3535000",
+    "street": "CALIFORNIA ST"
+  },
+  {
+    "cnn": "3536000",
+    "street": "CALIFORNIA ST"
+  },
+  {
+    "cnn": "3537000",
+    "street": "CALIFORNIA ST"
+  },
+  {
+    "cnn": "3538000",
+    "street": "CALIFORNIA ST"
+  },
+  {
+    "cnn": "3540000",
+    "street": "CALIFORNIA ST"
+  },
+  {
+    "cnn": "4006000",
+    "street": "CHURCH ST"
+  },
+  {
+    "cnn": "4007000",
+    "street": "CHURCH ST"
+  },
+  {
+    "cnn": "4008000",
+    "street": "CHURCH ST"
+  },
+  {
+    "cnn": "4009000",
+    "street": "CHURCH ST"
+  },
+  {
+    "cnn": "4010000",
+    "street": "CHURCH ST"
+  },
+  {
+    "cnn": "4011000",
+    "street": "CHURCH ST"
+  },
+  {
+    "cnn": "4012000",
+    "street": "CHURCH ST"
+  },
+  {
+    "cnn": "4081000",
+    "street": "CLAY ST"
+  },
+  {
+    "cnn": "4082000",
+    "street": "CLAY ST"
+  },
+  {
+    "cnn": "4083000",
+    "street": "CLAY ST"
+  },
+  {
+    "cnn": "4985000",
+    "street": "DUBOCE AVE"
+  },
+  {
+    "cnn": "4986000",
+    "street": "DUBOCE AVE"
+  },
+  {
+    "cnn": "5860000",
+    "street": "FREMONT ST"
+  },
+  {
+    "cnn": "5861001",
+    "street": "FREMONT ST"
+  },
+  {
+    "cnn": "5863001",
+    "street": "FREMONT ST"
+  },
+  {
+    "cnn": "5864000",
+    "street": "FREMONT ST"
+  },
+  {
+    "cnn": "6037000",
+    "street": "GEARY BLVD"
+  },
+  {
+    "cnn": "6038000",
+    "street": "GEARY BLVD"
+  },
+  {
+    "cnn": "6039101",
+    "street": "GEARY BLVD"
+  },
+  {
+    "cnn": "6039102",
+    "street": "GEARY BLVD"
+  },
+  {
+    "cnn": "6039201",
+    "street": "GEARY BLVD"
+  },
+  {
+    "cnn": "6040201",
+    "street": "GEARY BLVD"
+  },
+  {
+    "cnn": "6041101",
+    "street": "GEARY BLVD"
+  },
+  {
+    "cnn": "6041102",
+    "street": "GEARY BLVD"
+  },
+  {
+    "cnn": "6041201",
+    "street": "GEARY BLVD"
+  },
+  {
+    "cnn": "6041202",
+    "street": "GEARY BLVD"
+  },
+  {
+    "cnn": "6041203",
+    "street": "GEARY BLVD"
+  },
+  {
+    "cnn": "6041204",
+    "street": "GEARY BLVD"
+  },
+  {
+    "cnn": "6042101",
+    "street": "GEARY BLVD"
+  },
+  {
+    "cnn": "6042201",
+    "street": "GEARY BLVD"
+  },
+  {
+    "cnn": "6043101",
+    "street": "GEARY BLVD"
+  },
+  {
+    "cnn": "6043201",
+    "street": "GEARY BLVD"
+  },
+  {
+    "cnn": "6044101",
+    "street": "GEARY BLVD"
+  },
+  {
+    "cnn": "6045201",
+    "street": "GEARY BLVD"
+  },
+  {
+    "cnn": "6047203",
+    "street": "GEARY BLVD"
+  },
+  {
+    "cnn": "6048201",
+    "street": "GEARY BLVD"
+  },
+  {
+    "cnn": "6049201",
+    "street": "GEARY BLVD"
+  },
+  {
+    "cnn": "6050201",
+    "street": "GEARY BLVD"
+  },
+  {
+    "cnn": "6051201",
+    "street": "GEARY BLVD"
+  },
+  {
+    "cnn": "6052201",
+    "street": "GEARY BLVD"
+  },
+  {
+    "cnn": "6054201",
+    "street": "GEARY BLVD"
+  },
+  {
+    "cnn": "6055201",
+    "street": "GEARY BLVD"
+  },
+  {
+    "cnn": "6106000",
+    "street": "GEARY ST"
+  },
+  {
+    "cnn": "6107000",
+    "street": "GEARY ST"
+  },
+  {
+    "cnn": "6108000",
+    "street": "GEARY ST"
+  },
+  {
+    "cnn": "6109000",
+    "street": "GEARY ST"
+  },
+  {
+    "cnn": "6110000",
+    "street": "GEARY ST"
+  },
+  {
+    "cnn": "6111000",
+    "street": "GEARY ST"
+  },
+  {
+    "cnn": "6112000",
+    "street": "GEARY ST"
+  },
+  {
+    "cnn": "6113000",
+    "street": "GEARY ST"
+  },
+  {
+    "cnn": "6114000",
+    "street": "GEARY ST"
+  },
+  {
+    "cnn": "6115000",
+    "street": "GEARY ST"
+  },
+  {
+    "cnn": "6116000",
+    "street": "GEARY ST"
+  },
+  {
+    "cnn": "6117000",
+    "street": "GEARY ST"
+  },
+  {
+    "cnn": "6118000",
+    "street": "GEARY ST"
+  },
+  {
+    "cnn": "6602000",
+    "street": "HAIGHT ST"
+  },
+  {
+    "cnn": "6603000",
+    "street": "HAIGHT ST"
+  },
+  {
+    "cnn": "6604000",
+    "street": "HAIGHT ST"
+  },
+  {
+    "cnn": "6605000",
+    "street": "HAIGHT ST"
+  },
+  {
+    "cnn": "697000",
+    "street": "16TH ST"
+  },
+  {
+    "cnn": "698000",
+    "street": "16TH ST"
+  },
+  {
+    "cnn": "699001",
+    "street": "16TH ST"
+  },
+  {
+    "cnn": "701001",
+    "street": "16TH ST"
+  },
+  {
+    "cnn": "701002",
+    "street": "16TH ST"
+  },
+  {
+    "cnn": "702000",
+    "street": "16TH ST"
+  },
+  {
+    "cnn": "703000",
+    "street": "16TH ST"
+  },
+  {
+    "cnn": "704000",
+    "street": "16TH ST"
+  },
+  {
+    "cnn": "705000",
+    "street": "16TH ST"
+  },
+  {
+    "cnn": "706000",
+    "street": "16TH ST"
+  },
+  {
+    "cnn": "707000",
+    "street": "16TH ST"
+  },
+  {
+    "cnn": "708000",
+    "street": "16TH ST"
+  },
+  {
+    "cnn": "709000",
+    "street": "16TH ST"
+  },
+  {
+    "cnn": "710000",
+    "street": "16TH ST"
+  },
+  {
+    "cnn": "711000",
+    "street": "16TH ST"
+  },
+  {
+    "cnn": "712000",
+    "street": "16TH ST"
+  },
+  {
+    "cnn": "713000",
+    "street": "16TH ST"
+  },
+  {
+    "cnn": "714000",
+    "street": "16TH ST"
+  },
+  {
+    "cnn": "715000",
+    "street": "16TH ST"
+  },
+  {
+    "cnn": "7455000",
+    "street": "JEFFERSON ST"
+  },
+  {
+    "cnn": "7456000",
+    "street": "JEFFERSON ST"
+  },
+  {
+    "cnn": "7457000",
+    "street": "JEFFERSON ST"
+  },
+  {
+    "cnn": "7601000",
+    "street": "JONES ST"
+  },
+  {
+    "cnn": "7602000",
+    "street": "JONES ST"
+  },
+  {
+    "cnn": "7644201",
+    "street": "JUDAH ST"
+  },
+  {
+    "cnn": "7645201",
+    "street": "JUDAH ST"
+  },
+  {
+    "cnn": "7646201",
+    "street": "JUDAH ST"
+  },
+  {
+    "cnn": "7647201",
+    "street": "JUDAH ST"
+  },
+  {
+    "cnn": "7648201",
+    "street": "JUDAH ST"
+  },
+  {
+    "cnn": "7649101",
+    "street": "JUDAH ST"
+  },
+  {
+    "cnn": "7650101",
+    "street": "JUDAH ST"
+  },
+  {
+    "cnn": "7651101",
+    "street": "JUDAH ST"
+  },
+  {
+    "cnn": "7652101",
+    "street": "JUDAH ST"
+  },
+  {
+    "cnn": "7652201",
+    "street": "JUDAH ST"
+  },
+  {
+    "cnn": "7653201",
+    "street": "JUDAH ST"
+  },
+  {
+    "cnn": "7654000",
+    "street": "JUDAH ST"
+  },
+  {
+    "cnn": "7655000",
+    "street": "JUDAH ST"
+  },
+  {
+    "cnn": "7656000",
+    "street": "JUDAH ST"
+  },
+  {
+    "cnn": "7657000",
+    "street": "JUDAH ST"
+  },
+  {
+    "cnn": "7658000",
+    "street": "JUDAH ST"
+  },
+  {
+    "cnn": "7659000",
+    "street": "JUDAH ST"
+  },
+  {
+    "cnn": "7660000",
+    "street": "JUDAH ST"
+  },
+  {
+    "cnn": "7661000",
+    "street": "JUDAH ST"
+  },
+  {
+    "cnn": "7662000",
+    "street": "JUDAH ST"
+  },
+  {
+    "cnn": "7663000",
+    "street": "JUDAH ST"
+  },
+  {
+    "cnn": "7664000",
+    "street": "JUDAH ST"
+  },
+  {
+    "cnn": "7665000",
+    "street": "JUDAH ST"
+  },
+  {
+    "cnn": "7666000",
+    "street": "JUDAH ST"
+  },
+  {
+    "cnn": "7667000",
+    "street": "JUDAH ST"
+  },
+  {
+    "cnn": "7668000",
+    "street": "JUDAH ST"
+  },
+  {
+    "cnn": "7669000",
+    "street": "JUDAH ST"
+  },
+  {
+    "cnn": "7670000",
+    "street": "JUDAH ST"
+  },
+  {
+    "cnn": "7671000",
+    "street": "JUDAH ST"
+  },
+  {
+    "cnn": "7672000",
+    "street": "JUDAH ST"
+  },
+  {
+    "cnn": "7673000",
+    "street": "JUDAH ST"
+  },
+  {
+    "cnn": "7674000",
+    "street": "JUDAH ST"
+  },
+  {
+    "cnn": "7675000",
+    "street": "JUDAH ST"
+  },
+  {
+    "cnn": "7676000",
+    "street": "JUDAH ST"
+  },
+  {
+    "cnn": "7677000",
+    "street": "JUDAH ST"
+  },
+  {
+    "cnn": "7678000",
+    "street": "JUDAH ST"
+  },
+  {
+    "cnn": "7679000",
+    "street": "JUDAH ST"
+  },
+  {
+    "cnn": "7680000",
+    "street": "JUDAH ST"
+  },
+  {
+    "cnn": "7681000",
+    "street": "JUDAH ST"
+  },
+  {
+    "cnn": "7682000",
+    "street": "JUDAH ST"
+  },
+  {
+    "cnn": "7683000",
+    "street": "JUDAH ST"
+  },
+  {
+    "cnn": "7684000",
+    "street": "JUDAH ST"
+  },
+  {
+    "cnn": "7685000",
+    "street": "JUDAH ST"
+  },
+  {
+    "cnn": "8737101",
+    "street": "MARKET ST"
+  },
+  {
+    "cnn": "8737102",
+    "street": "MARKET ST"
+  },
+  {
+    "cnn": "8738101",
+    "street": "MARKET ST"
+  },
+  {
+    "cnn": "8738201",
+    "street": "MARKET ST"
+  },
+  {
+    "cnn": "8739101",
+    "street": "MARKET ST"
+  },
+  {
+    "cnn": "8739201",
+    "street": "MARKET ST"
+  },
+  {
+    "cnn": "8740101",
+    "street": "MARKET ST"
+  },
+  {
+    "cnn": "8740201",
+    "street": "MARKET ST"
+  },
+  {
+    "cnn": "8741101",
+    "street": "MARKET ST"
+  },
+  {
+    "cnn": "8741201",
+    "street": "MARKET ST"
+  },
+  {
+    "cnn": "8742101",
+    "street": "MARKET ST"
+  },
+  {
+    "cnn": "8742201",
+    "street": "MARKET ST"
+  },
+  {
+    "cnn": "8742202",
+    "street": "MARKET ST"
+  },
+  {
+    "cnn": "8742203",
+    "street": "MARKET ST"
+  },
+  {
+    "cnn": "8743101",
+    "street": "MARKET ST"
+  },
+  {
+    "cnn": "8743201",
+    "street": "MARKET ST"
+  },
+  {
+    "cnn": "8744101",
+    "street": "MARKET ST"
+  },
+  {
+    "cnn": "8744201",
+    "street": "MARKET ST"
+  },
+  {
+    "cnn": "8745201",
+    "street": "MARKET ST"
+  },
+  {
+    "cnn": "8746103",
+    "street": "MARKET ST"
+  },
+  {
+    "cnn": "8746201",
+    "street": "MARKET ST"
+  },
+  {
+    "cnn": "8747202",
+    "street": "MARKET ST"
+  },
+  {
+    "cnn": "8747203",
+    "street": "MARKET ST"
+  },
+  {
+    "cnn": "8748201",
+    "street": "MARKET ST"
+  },
+  {
+    "cnn": "8749101",
+    "street": "MARKET ST"
+  },
+  {
+    "cnn": "8749201",
+    "street": "MARKET ST"
+  },
+  {
+    "cnn": "8750201",
+    "street": "MARKET ST"
+  },
+  {
+    "cnn": "8750202",
+    "street": "MARKET ST"
+  },
+  {
+    "cnn": "8750203",
+    "street": "MARKET ST"
+  },
+  {
+    "cnn": "8751201",
+    "street": "MARKET ST"
+  },
+  {
+    "cnn": "8752201",
+    "street": "MARKET ST"
+  },
+  {
+    "cnn": "8752202",
+    "street": "MARKET ST"
+  },
+  {
+    "cnn": "8753201",
+    "street": "MARKET ST"
+  },
+  {
+    "cnn": "8754201",
+    "street": "MARKET ST"
+  },
+  {
+    "cnn": "8755101",
+    "street": "MARKET ST"
+  },
+  {
+    "cnn": "8755201",
+    "street": "MARKET ST"
+  },
+  {
+    "cnn": "8756101",
+    "street": "MARKET ST"
+  },
+  {
+    "cnn": "8756201",
+    "street": "MARKET ST"
+  },
+  {
+    "cnn": "8757102",
+    "street": "MARKET ST"
+  },
+  {
+    "cnn": "8757201",
+    "street": "MARKET ST"
+  },
+  {
+    "cnn": "8757202",
+    "street": "MARKET ST"
+  },
+  {
+    "cnn": "8758101",
+    "street": "MARKET ST"
+  },
+  {
+    "cnn": "8758201",
+    "street": "MARKET ST"
+  },
+  {
+    "cnn": "8758202",
+    "street": "MARKET ST"
+  },
+  {
+    "cnn": "8759101",
+    "street": "MARKET ST"
+  },
+  {
+    "cnn": "8759201",
+    "street": "MARKET ST"
+  },
+  {
+    "cnn": "8760101",
+    "street": "MARKET ST"
+  },
+  {
+    "cnn": "8760102",
+    "street": "MARKET ST"
+  },
+  {
+    "cnn": "8760202",
+    "street": "MARKET ST"
+  },
+  {
+    "cnn": "8760203",
+    "street": "MARKET ST"
+  },
+  {
+    "cnn": "8762101",
+    "street": "MARKET ST"
+  },
+  {
+    "cnn": "8762201",
+    "street": "MARKET ST"
+  },
+  {
+    "cnn": "8763101",
+    "street": "MARKET ST"
+  },
+  {
+    "cnn": "8763201",
+    "street": "MARKET ST"
+  },
+  {
+    "cnn": "8765101",
+    "street": "MARKET ST"
+  },
+  {
+    "cnn": "8765201",
+    "street": "MARKET ST"
+  },
+  {
+    "cnn": "8773202",
+    "street": "MARKET ST"
+  },
+  {
+    "cnn": "8774101",
+    "street": "MARKET ST"
+  },
+  {
+    "cnn": "8774102",
+    "street": "MARKET ST"
+  },
+  {
+    "cnn": "8774103",
+    "street": "MARKET ST"
+  },
+  {
+    "cnn": "8774104",
+    "street": "MARKET ST"
+  },
+  {
+    "cnn": "8774201",
+    "street": "MARKET ST"
+  },
+  {
+    "cnn": "8774203",
+    "street": "MARKET ST"
+  },
+  {
+    "cnn": "8775101",
+    "street": "MARKET ST"
+  },
+  {
+    "cnn": "8775201",
+    "street": "MARKET ST"
+  },
+  {
+    "cnn": "8776101",
+    "street": "MARKET ST"
+  },
+  {
+    "cnn": "8776102",
+    "street": "MARKET ST"
+  },
+  {
+    "cnn": "8776103",
+    "street": "MARKET ST"
+  },
+  {
+    "cnn": "8776104",
+    "street": "MARKET ST"
+  },
+  {
+    "cnn": "8776105",
+    "street": "MARKET ST"
+  },
+  {
+    "cnn": "8776201",
+    "street": "MARKET ST"
+  },
+  {
+    "cnn": "8776202",
+    "street": "MARKET ST"
+  },
+  {
+    "cnn": "8776203",
+    "street": "MARKET ST"
+  },
+  {
+    "cnn": "8776204",
+    "street": "MARKET ST"
+  },
+  {
+    "cnn": "8776205",
+    "street": "MARKET ST"
+  },
+  {
+    "cnn": "8776206",
+    "street": "MARKET ST"
+  },
+  {
+    "cnn": "8777101",
+    "street": "MARKET ST"
+  },
+  {
+    "cnn": "8777201",
+    "street": "MARKET ST"
+  },
+  {
+    "cnn": "8889000",
+    "street": "MCALLISTER ST"
+  },
+  {
+    "cnn": "8890000",
+    "street": "MCALLISTER ST"
+  },
+  {
+    "cnn": "8891000",
+    "street": "MCALLISTER ST"
+  },
+  {
+    "cnn": "9088000",
+    "street": "MISSION ST"
+  },
+  {
+    "cnn": "9089000",
+    "street": "MISSION ST"
+  },
+  {
+    "cnn": "9090000",
+    "street": "MISSION ST"
+  },
+  {
+    "cnn": "9091000",
+    "street": "MISSION ST"
+  },
+  {
+    "cnn": "9092000",
+    "street": "MISSION ST"
+  },
+  {
+    "cnn": "9093000",
+    "street": "MISSION ST"
+  },
+  {
+    "cnn": "9094000",
+    "street": "MISSION ST"
+  },
+  {
+    "cnn": "9095101",
+    "street": "MISSION ST"
+  },
+  {
+    "cnn": "9096001",
+    "street": "MISSION ST"
+  },
+  {
+    "cnn": "9096002",
+    "street": "MISSION ST"
+  },
+  {
+    "cnn": "9096003",
+    "street": "MISSION ST"
+  },
+  {
+    "cnn": "9097000",
+    "street": "MISSION ST"
+  },
+  {
+    "cnn": "9099000",
+    "street": "MISSION ST"
+  },
+  {
+    "cnn": "9100000",
+    "street": "MISSION ST"
+  },
+  {
+    "cnn": "9101000",
+    "street": "MISSION ST"
+  },
+  {
+    "cnn": "9102000",
+    "street": "MISSION ST"
+  },
+  {
+    "cnn": "9103000",
+    "street": "MISSION ST"
+  },
+  {
+    "cnn": "9104000",
+    "street": "MISSION ST"
+  },
+  {
+    "cnn": "9105000",
+    "street": "MISSION ST"
+  },
+  {
+    "cnn": "9106000",
+    "street": "MISSION ST"
+  },
+  {
+    "cnn": "9107000",
+    "street": "MISSION ST"
+  },
+  {
+    "cnn": "9108000",
+    "street": "MISSION ST"
+  },
+  {
+    "cnn": "9109101",
+    "street": "MISSION ST"
+  },
+  {
+    "cnn": "9109201",
+    "street": "MISSION ST"
+  },
+  {
+    "cnn": "9110000",
+    "street": "MISSION ST"
+  },
+  {
+    "cnn": "9111001",
+    "street": "MISSION ST"
+  },
+  {
+    "cnn": "9112201",
+    "street": "MISSION ST"
+  },
+  {
+    "cnn": "9113000",
+    "street": "MISSION ST"
+  },
+  {
+    "cnn": "9114000",
+    "street": "MISSION ST"
+  },
+  {
+    "cnn": "9115000",
+    "street": "MISSION ST"
+  },
+  {
+    "cnn": "9116000",
+    "street": "MISSION ST"
+  },
+  {
+    "cnn": "9117000",
+    "street": "MISSION ST"
+  },
+  {
+    "cnn": "9118000",
+    "street": "MISSION ST"
+  },
+  {
+    "cnn": "9119000",
+    "street": "MISSION ST"
+  },
+  {
+    "cnn": "9120000",
+    "street": "MISSION ST"
+  },
+  {
+    "cnn": "9121000",
+    "street": "MISSION ST"
+  },
+  {
+    "cnn": "9122001",
+    "street": "MISSION ST"
+  },
+  {
+    "cnn": "9122002",
+    "street": "MISSION ST"
+  },
+  {
+    "cnn": "9123000",
+    "street": "MISSION ST"
+  },
+  {
+    "cnn": "9124000",
+    "street": "MISSION ST"
+  },
+  {
+    "cnn": "9125000",
+    "street": "MISSION ST"
+  },
+  {
+    "cnn": "9126000",
+    "street": "MISSION ST"
+  },
+  {
+    "cnn": "9127000",
+    "street": "MISSION ST"
+  },
+  {
+    "cnn": "9128000",
+    "street": "MISSION ST"
+  },
+  {
+    "cnn": "9129000",
+    "street": "MISSION ST"
+  },
+  {
+    "cnn": "9130000",
+    "street": "MISSION ST"
+  },
+  {
+    "cnn": "9131000",
+    "street": "MISSION ST"
+  },
+  {
+    "cnn": "9132000",
+    "street": "MISSION ST"
+  },
+  {
+    "cnn": "9133000",
+    "street": "MISSION ST"
+  },
+  {
+    "cnn": "9134000",
+    "street": "MISSION ST"
+  },
+  {
+    "cnn": "9135000",
+    "street": "MISSION ST"
+  },
+  {
+    "cnn": "9136000",
+    "street": "MISSION ST"
+  },
+  {
+    "cnn": "9138000",
+    "street": "MISSION ST"
+  },
+  {
+    "cnn": "9139000",
+    "street": "MISSION ST"
+  },
+  {
+    "cnn": "9140000",
+    "street": "MISSION ST"
+  },
+  {
+    "cnn": "9141000",
+    "street": "MISSION ST"
+  },
+  {
+    "cnn": "9720000",
+    "street": "OFARRELL ST"
+  },
+  {
+    "cnn": "9721000",
+    "street": "OFARRELL ST"
+  },
+  {
+    "cnn": "9722000",
+    "street": "OFARRELL ST"
+  },
+  {
+    "cnn": "9723000",
+    "street": "OFARRELL ST"
+  },
+  {
+    "cnn": "9724000",
+    "street": "OFARRELL ST"
+  },
+  {
+    "cnn": "9725000",
+    "street": "OFARRELL ST"
+  },
+  {
+    "cnn": "9726000",
+    "street": "OFARRELL ST"
+  },
+  {
+    "cnn": "9727000",
+    "street": "OFARRELL ST"
+  },
+  {
+    "cnn": "9728000",
+    "street": "OFARRELL ST"
+  },
+  {
+    "cnn": "9729000",
+    "street": "OFARRELL ST"
+  },
+  {
+    "cnn": "9730000",
+    "street": "OFARRELL ST"
+  },
+  {
+    "cnn": "9731000",
+    "street": "OFARRELL ST"
+  },
+  {
+    "cnn": "9732000",
+    "street": "OFARRELL ST"
+  },
+  {
+    "cnn": "9733000",
+    "street": "OFARRELL ST"
+  },
+  {
+    "cnn": "9734000",
+    "street": "OFARRELL ST"
+  },
+  {
+    "cnn": "9735000",
+    "street": "OFARRELL ST"
+  },
+  {
+    "cnn": "9736000",
+    "street": "OFARRELL ST"
+  }
+]

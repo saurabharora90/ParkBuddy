@@ -58,6 +58,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalTime
 import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.okio.decodeFromBufferedSource
 
@@ -146,6 +147,7 @@ class ParkingRepositoryImpl(
       val ratesD = async { readArcGisFile<ArcGisBlockfaceRateAttrs>(SfDataFiles.BLOCKFACE_RATES) }
       val policiesD = async { readSocrataFile<MeterPolicyResponse>(SfDataFiles.METER_POLICIES) }
       val schedulesD = async { readSocrataFile<MeterScheduleResponse>(SfDataFiles.METER_SCHEDULES) }
+      val exclusionsD = async { readExclusions() }
 
       val centerlines = centerlinesD.await()
       val cleaning = cleaningD.await()
@@ -156,11 +158,13 @@ class ParkingRepositoryImpl(
       val rates = ratesD.await()
       val policies = policiesD.await()
       val schedules = schedulesD.await()
+      val exclusions = exclusionsD.await()
       log.d {
         "readFilesAndBuildDb: centerlines=${centerlines.size}, cleaning=${cleaning.size}, " +
           "blockfaces=${blockfaces.size}, meters=${meters.size}, " +
           "regsTimed=${regsTimed.size}, regsOther=${regsOther.size}, " +
-          "rates=${rates.size}, policies=${policies.size}, schedules=${schedules.size}"
+          "rates=${rates.size}, policies=${policies.size}, schedules=${schedules.size}, " +
+          "exclusions=${exclusions.size}"
       }
 
       buildDbFromData(
@@ -173,6 +177,7 @@ class ParkingRepositoryImpl(
         rates,
         policies,
         schedules,
+        exclusions,
       )
     }
   }
@@ -262,6 +267,20 @@ class ParkingRepositoryImpl(
     }
   }
 
+  private suspend fun readExclusions(): Set<String> {
+    val source =
+      try {
+        fileReader.read(SfDataFiles.EXCLUSIONS)
+      } catch (_: Exception) {
+        return emptySet()
+      }
+    return try {
+      json.decodeFromBufferedSource<List<ExclusionEntry>>(source).mapTo(mutableSetOf()) { it.cnn }
+    } finally {
+      source.close()
+    }
+  }
+
   // ── Network download + save to disk ──
 
   private suspend inline fun <reified T> downloadAndSaveArcGis(
@@ -312,6 +331,7 @@ class ParkingRepositoryImpl(
     blockfaceRateFeatures: List<ArcGisFeature<ArcGisBlockfaceRateAttrs>>,
     allMeterPolicies: List<MeterPolicyResponse>,
     allMeterSchedules: List<MeterScheduleResponse>,
+    exclusionCnns: Set<String> = emptySet(),
   ): Boolean {
     val result =
       withContext(ioDispatcher) {
@@ -591,6 +611,28 @@ class ParkingRepositoryImpl(
               )
             )
           }
+        }
+
+        // ── Apply CNN-based exclusions (no-parking overrides from exclusions.json) ──
+        // Only apply to contexts that have no real regulation/meter data. If one side of a
+        // CNN has meters and the other is sweeping-only, only the sweeping-only side gets excluded.
+        for ((_, ctx) in unifiedContexts) {
+          if (ctx.cnn !in exclusionCnns) continue
+          val hasRealData =
+            ctx.regulation != null ||
+              ctx.meterPolicies.isNotEmpty() ||
+              ctx.meterSchedules.isNotEmpty() ||
+              ctx.candidateIntervals.isNotEmpty()
+          if (hasRealData) continue
+          ctx.candidateIntervals.add(
+            ParkingInterval(
+              type = IntervalType.Forbidden(ProhibitionReason.NO_PARKING),
+              days = DayOfWeek.entries.toSet(),
+              startTime = LocalTime(0, 0),
+              endTime = LocalTime(23, 59),
+              source = IntervalSource.REGULATION,
+            )
+          )
         }
 
         // ── Merge sweeping-only contexts into adjacent neighbors ──
@@ -1098,3 +1140,5 @@ private fun mergeBlockLimits(a: String, b: String): String {
   if (nums.isEmpty()) return a
   return "${nums.min()}-${nums.max()}"
 }
+
+@Serializable private data class ExclusionEntry(val cnn: String, val street: String = "")

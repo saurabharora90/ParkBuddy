@@ -37,7 +37,10 @@ class ParkingRepositoryImplTest {
   private fun runRepoTest(
     block:
       suspend TestScope.(
-        repository: ParkingRepositoryImpl, arcGis: FakeSfmtaArcGisApi, socrata: FakeSfOpenDataApi,
+        repository: ParkingRepositoryImpl,
+        arcGis: FakeSfmtaArcGisApi,
+        socrata: FakeSfOpenDataApi,
+        fileReader: FakeDataFileReader,
       ) -> Unit
   ) =
     runTest(UnconfinedTestDispatcher()) {
@@ -51,19 +54,20 @@ class ParkingRepositoryImplTest {
 
       val arcGis = FakeSfmtaArcGisApi()
       val socrata = FakeSfOpenDataApi()
+      val fileReader = FakeDataFileReader()
 
       val repository =
         ParkingRepositoryImpl(
           dao = db.parkingDao(),
           arcGis = arcGis,
           socrata = socrata,
-          fileReader = FakeDataFileReader(),
+          fileReader = fileReader,
           json = Json { ignoreUnknownKeys = true },
           ioDispatcher = UnconfinedTestDispatcher(),
         )
 
       try {
-        block(repository, arcGis, socrata)
+        block(repository, arcGis, socrata, fileReader)
       } finally {
         db.close()
       }
@@ -162,7 +166,7 @@ class ParkingRepositoryImplTest {
 
   @Test
   fun `sweeping-only street stored for cleaning reminders`() =
-    runRepoTest { repository, arcGis, socrata ->
+    runRepoTest { repository, arcGis, socrata, _ ->
       socrata.streetCenterlines = listOf(spearStCenterline)
       arcGis.streetCleaning =
         listOf(
@@ -183,7 +187,7 @@ class ParkingRepositoryImplTest {
 
   @Test
   fun `meter joined via CNN with Socrata policy schedules`() =
-    runRepoTest { repository, arcGis, socrata ->
+    runRepoTest { repository, arcGis, socrata, _ ->
       socrata.streetCenterlines = listOf(howardCenterline)
       arcGis.streetCleaning =
         listOf(
@@ -223,7 +227,7 @@ class ParkingRepositoryImplTest {
     }
 
   @Test
-  fun `regulation spatial-matched to backbone`() = runRepoTest { repository, arcGis, socrata ->
+  fun `regulation spatial-matched to backbone`() = runRepoTest { repository, arcGis, socrata, _ ->
     socrata.streetCenterlines = listOf(delanceyCenterline)
     arcGis.streetCleaning =
       listOf(cleaningFeature("115001", "R", "Delancey St", "Fri", geometry = delanceyGeometry))
@@ -261,7 +265,7 @@ class ParkingRepositoryImplTest {
 
   @Test
   fun `no stopping regulation produces forbidden interval`() =
-    runRepoTest { repository, arcGis, socrata ->
+    runRepoTest { repository, arcGis, socrata, _ ->
       socrata.streetCenterlines = listOf(delanceyCenterline)
       arcGis.streetCleaning =
         listOf(cleaningFeature("115001", "R", "Delancey St", "Fri", geometry = delanceyGeometry))
@@ -294,7 +298,7 @@ class ParkingRepositoryImplTest {
 
   @Test
   fun `meter with no schedule data still creates spot with sweeping`() =
-    runRepoTest { repository, arcGis, socrata ->
+    runRepoTest { repository, arcGis, socrata, _ ->
       socrata.streetCenterlines = listOf(spearStCenterline)
       arcGis.streetCleaning =
         listOf(
@@ -319,7 +323,7 @@ class ParkingRepositoryImplTest {
     }
 
   @Test
-  fun `decommissioned meters filtered out`() = runRepoTest { repository, arcGis, _ ->
+  fun `decommissioned meters filtered out`() = runRepoTest { repository, arcGis, _, _ ->
     arcGis.meters =
       listOf(meterFeature("dead", 999.0, "9999000", "GHOST ST", activeMeterFlag = "U"))
 
@@ -329,7 +333,7 @@ class ParkingRepositoryImplTest {
 
   @Test
   fun `pay or permit regulation produces metered interval`() =
-    runRepoTest { repository, arcGis, socrata ->
+    runRepoTest { repository, arcGis, socrata, _ ->
       socrata.streetCenterlines = listOf(delanceyCenterline)
       arcGis.streetCleaning =
         listOf(cleaningFeature("115001", "R", "Delancey St", "Fri", geometry = delanceyGeometry))
@@ -363,7 +367,7 @@ class ParkingRepositoryImplTest {
 
   @Test
   fun `blockface rate HTML fallback when no Socrata policies`() =
-    runRepoTest { repository, arcGis, socrata ->
+    runRepoTest { repository, arcGis, socrata, _ ->
       socrata.streetCenterlines = listOf(howardCenterline)
       arcGis.streetCleaning =
         listOf(
@@ -417,7 +421,7 @@ class ParkingRepositoryImplTest {
 
   @Test
   fun `legacy meter schedules used when no Socrata policies`() =
-    runRepoTest { repository, arcGis, socrata ->
+    runRepoTest { repository, arcGis, socrata, _ ->
       socrata.streetCenterlines = listOf(howardCenterline)
       arcGis.streetCleaning =
         listOf(
@@ -469,7 +473,7 @@ class ParkingRepositoryImplTest {
 
   @Test
   fun `Socrata policies preferred over legacy schedules`() =
-    runRepoTest { repository, arcGis, socrata ->
+    runRepoTest { repository, arcGis, socrata, _ ->
       socrata.streetCenterlines = listOf(howardCenterline)
       arcGis.streetCleaning =
         listOf(
@@ -523,14 +527,14 @@ class ParkingRepositoryImplTest {
     }
 
   @Test
-  fun `returns false when no data at all`() = runRepoTest { repository, _, _ ->
+  fun `returns false when no data at all`() = runRepoTest { repository, _, _, _ ->
     val success = repository.refreshData()
     assertThat(success).isFalse()
   }
 
   @Test
   fun `regulation matches via centerline backbone without sweeping or meters`() =
-    runRepoTest { repository, arcGis, socrata ->
+    runRepoTest { repository, arcGis, socrata, _ ->
       // A street with only centerline geometry and a regulation, no sweeping or meters
       val valenciaCoords = listOf(listOf(-122.421081, 37.764303), listOf(-122.420517, 37.762576))
       socrata.streetCenterlines = listOf(centerline("13300000", "VALENCIA ST", valenciaCoords))
@@ -566,7 +570,7 @@ class ParkingRepositoryImplTest {
 
   @Test
   fun `sweeping attaches correctly to centerline-backed CNN`() =
-    runRepoTest { repository, arcGis, socrata ->
+    runRepoTest { repository, arcGis, socrata, _ ->
       socrata.streetCenterlines = listOf(spearStCenterline)
       arcGis.streetCleaning =
         listOf(
@@ -585,6 +589,80 @@ class ParkingRepositoryImplTest {
         assertThat(left.sweepingSchedules[0].weekday).isEqualTo(Weekday.Mon)
         assertThat(right.sweepingSchedules).hasSize(1)
         assertThat(right.sweepingSchedules[0].weekday).isEqualTo(Weekday.Tues)
+      }
+    }
+
+  // ── Exclusion tests ──
+
+  @Test
+  fun `excluded CNN produces forbidden interval`() =
+    runRepoTest { repository, arcGis, socrata, fileReader ->
+      socrata.streetCenterlines = listOf(spearStCenterline)
+      arcGis.streetCleaning =
+        listOf(
+          cleaningFeature("12048000", "R", "Spear St", "Wed", "00:00", "02:00", spearStGeometry)
+        )
+
+      fileReader.write("exclusions.json", """[{"cnn": "12048000", "street": "SPEAR ST"}]""")
+
+      repository.refreshData()
+
+      repository.getAllSpots().test {
+        val spots = awaitItem()
+        assertThat(spots).isNotEmpty()
+        val spot = spots.first()
+        val forbidden = spot.timeline.filter { it.type is IntervalType.Forbidden }
+        assertThat(forbidden).isNotEmpty()
+        val f = forbidden.first()
+        assertThat(f.startTime.hour).isEqualTo(0)
+        assertThat(f.endTime.hour).isEqualTo(23)
+      }
+    }
+
+  @Test
+  fun `non-excluded CNN is unaffected`() = runRepoTest { repository, arcGis, socrata, fileReader ->
+    socrata.streetCenterlines = listOf(spearStCenterline, delanceyCenterline)
+    arcGis.streetCleaning =
+      listOf(
+        cleaningFeature("12048000", "R", "Spear St", "Wed", "00:00", "02:00", spearStGeometry),
+        cleaningFeature("115001", "R", "Delancey St", "Fri", geometry = delanceyGeometry),
+      )
+
+    // Only exclude Spear St, not Delancey
+    fileReader.write("exclusions.json", """[{"cnn": "12048000", "street": "SPEAR ST"}]""")
+
+    repository.refreshData()
+
+    repository.getAllSpots().test {
+      val spots = awaitItem()
+      val delancey = spots.filter { it.streetName?.contains("Delancey", ignoreCase = true) == true }
+      assertThat(delancey).isNotEmpty()
+      for (spot in delancey) {
+        val forbidden = spot.timeline.filter { it.type is IntervalType.Forbidden }
+        assertThat(forbidden).isEmpty()
+      }
+    }
+  }
+
+  @Test
+  fun `missing exclusions file is handled gracefully`() =
+    runRepoTest { repository, arcGis, socrata, _ ->
+      socrata.streetCenterlines = listOf(spearStCenterline)
+      arcGis.streetCleaning =
+        listOf(
+          cleaningFeature("12048000", "R", "Spear St", "Wed", "00:00", "02:00", spearStGeometry)
+        )
+
+      // No exclusions.json written, should still work
+      repository.refreshData()
+
+      repository.getAllSpots().test {
+        val spots = awaitItem()
+        assertThat(spots).isNotEmpty()
+        val spot = spots.first()
+        // No forbidden intervals since no exclusions
+        val forbidden = spot.timeline.filter { it.type is IntervalType.Forbidden }
+        assertThat(forbidden).isEmpty()
       }
     }
 }
