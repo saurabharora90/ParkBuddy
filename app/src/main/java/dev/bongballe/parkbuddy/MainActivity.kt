@@ -85,7 +85,7 @@ class MainActivity(
             val hasBluetooth =
               PermissionChecker.areBluetoothPermissionsGranted(this@MainActivity)
             if (hasBluetooth)
-              navigator.goTo(BluetoothDeviceSelectionRoute(isFromOnboarding = true))
+              navigator.resetRoot(BluetoothDeviceSelectionRoute(isFromOnboarding = true))
           }
         }
       }
