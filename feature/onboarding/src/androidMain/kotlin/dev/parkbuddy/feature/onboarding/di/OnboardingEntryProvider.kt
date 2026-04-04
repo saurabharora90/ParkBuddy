@@ -18,6 +18,8 @@ interface OnboardingEntryProvider {
   @IntoSet
   fun provideOnboardingRouteEntry(navigator: Navigator): NavEntryItem = {
     entry<OnboardingRoute> { key -> SetupChecklistScreen(navigator = navigator) }
-    entry<BluetoothDeviceSelectionRoute> { BluetoothDeviceSelectionScreen(navigator = navigator) }
+    entry<BluetoothDeviceSelectionRoute> {
+      BluetoothDeviceSelectionScreen(route = it, navigator = navigator)
+    }
   }
 }

@@ -60,7 +60,9 @@ fun SettingsScreen(
   SettingsContent(
     uiState = uiState,
     onAutoTrackingToggle = viewModel::setAutoTrackingEnabled,
-    onNavigateToBluetooth = { navigator.goTo(BluetoothDeviceSelectionRoute) },
+    onNavigateToBluetooth = {
+      navigator.goTo(BluetoothDeviceSelectionRoute(isFromOnboarding = false))
+    },
     onBuyMeACoffee = viewModel::buyMeACoffee,
     modifier = modifier,
   )

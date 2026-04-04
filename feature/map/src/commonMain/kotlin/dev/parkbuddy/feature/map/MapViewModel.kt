@@ -3,8 +3,6 @@ package dev.parkbuddy.feature.map
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dev.bongballe.parkbuddy.DispatcherType
-import dev.bongballe.parkbuddy.analytics.AnalyticsTracker
-import dev.bongballe.parkbuddy.data.repository.ParkingManager
 import dev.bongballe.parkbuddy.data.repository.ParkingRepository
 import dev.bongballe.parkbuddy.data.repository.PreferencesRepository
 import dev.bongballe.parkbuddy.model.ParkedLocation
@@ -31,10 +29,8 @@ import kotlinx.coroutines.launch
 @ViewModelKey(MapViewModel::class)
 @Inject
 class MapViewModel(
-  private val parkingManager: ParkingManager,
-  private val repository: ParkingRepository,
+  repository: ParkingRepository,
   private val preferencesRepository: PreferencesRepository,
-  private val analyticsTracker: AnalyticsTracker,
   @WithDispatcherType(DispatcherType.DEFAULT) private val defaultDispatcher: CoroutineDispatcher,
 ) : ViewModel() {
 
@@ -97,11 +93,6 @@ class MapViewModel(
 
   fun markMapNuxSeen() {
     viewModelScope.launch { preferencesRepository.setHasSeenMapNux(true) }
-  }
-
-  fun parkHere(spot: ParkingSpot) {
-    analyticsTracker.logEvent("manual_park_click")
-    viewModelScope.launch { parkingManager.parkHere(spot) }
   }
 
   fun dismissZoneNudge() {

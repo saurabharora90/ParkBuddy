@@ -16,6 +16,7 @@ kotlin {
       implementation(project(":core:base"))
       implementation(project(":core:data:api"))
       implementation(project(":core:model"))
+      implementation(project(":core:navigation"))
       implementation(project(":core:util"))
       implementation(project(":core:shared-ui"))
       implementation(project(":core:theme"))
@@ -29,7 +30,6 @@ kotlin {
     }
     androidMain.dependencies {
       implementation(project(":core:bluetooth:api"))
-      implementation(project(":core:navigation"))
       implementation(libs.accompanist.permissions)
       implementation(libs.androidx.activity.compose)
       implementation(libs.androidx.core.ktx)

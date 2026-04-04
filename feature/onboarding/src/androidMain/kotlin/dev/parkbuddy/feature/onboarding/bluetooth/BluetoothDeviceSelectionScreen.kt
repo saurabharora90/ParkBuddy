@@ -51,6 +51,9 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
+import dev.bongballe.parkbuddy.core.navigation.BluetoothDeviceSelectionRoute
+import dev.bongballe.parkbuddy.core.navigation.MainRoute
+import dev.bongballe.parkbuddy.core.navigation.MainRoute.Tab
 import dev.bongballe.parkbuddy.core.navigation.Navigator
 import dev.bongballe.parkbuddy.model.BluetoothDeviceUiModel
 import dev.bongballe.parkbuddy.theme.ParkBuddyTheme
@@ -66,6 +69,7 @@ import dev.zacsweers.metrox.viewmodel.metroViewModel
 
 @Composable
 fun BluetoothDeviceSelectionScreen(
+  route: BluetoothDeviceSelectionRoute,
   navigator: Navigator,
   viewModel: BluetoothDeviceSelectionViewModel = metroViewModel(),
 ) {
@@ -133,7 +137,7 @@ fun BluetoothDeviceSelectionScreen(
       },
       onSkipClick = {
         viewModel.clearDeviceSelection()
-        navigator.goBack()
+        goToNext(route, navigator)
       },
     )
   } else {
@@ -142,10 +146,14 @@ fun BluetoothDeviceSelectionScreen(
     BluetoothDeviceSelectionScreenContent(
       uiState = uiState,
       onDeviceSelect = viewModel::selectDevice,
-      onContinueClick = navigator::goBack,
-      onSkipClick = { navigator.goBack() },
+      onContinueClick = { goToNext(route, navigator) },
+      onSkipClick = { goToNext(route, navigator) },
     )
   }
+}
+
+private fun goToNext(sourceArgs: BluetoothDeviceSelectionRoute, navigator: Navigator) {
+  if (sourceArgs.isFromOnboarding) navigator.goTo(MainRoute(tab = Tab.MAP)) else navigator.goBack()
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

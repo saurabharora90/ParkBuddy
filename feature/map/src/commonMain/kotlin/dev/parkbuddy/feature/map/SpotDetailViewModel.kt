@@ -2,6 +2,7 @@ package dev.parkbuddy.feature.map
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dev.bongballe.parkbuddy.analytics.AnalyticsTracker
 import dev.bongballe.parkbuddy.data.repository.ParkingManager
 import dev.bongballe.parkbuddy.data.repository.utils.DateTimeUtils
 import dev.bongballe.parkbuddy.data.repository.utils.ParkingRestrictionEvaluator
@@ -67,6 +68,7 @@ data class UpcomingEnforcementDisplay(
 @AssistedInject
 class SpotDetailViewModel(
   private val parkingManager: ParkingManager,
+  private val analyticsTracker: AnalyticsTracker,
   @Assisted private val spot: ParkingSpot,
   @Assisted private val userPermitZone: String?,
 ) : ViewModel() {
@@ -77,6 +79,7 @@ class SpotDetailViewModel(
       .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), evaluate(spot, userPermitZone))
 
   fun parkHere() {
+    analyticsTracker.logEvent("manual_park_click")
     viewModelScope.launch { parkingManager.parkHere(spot) }
   }
 
