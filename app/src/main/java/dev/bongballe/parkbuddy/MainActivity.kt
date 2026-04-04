@@ -35,7 +35,7 @@ import dev.zacsweers.metrox.viewmodel.LocalMetroViewModelFactory
 import dev.zacsweers.metrox.viewmodel.MetroViewModelFactory
 
 @ContributesIntoMap(AppScope::class, binding<Activity>())
-@ActivityKey(MainActivity::class)
+@ActivityKey
 @Inject
 class MainActivity(
   private val viewModelFactory: MetroViewModelFactory,
@@ -85,7 +85,7 @@ class MainActivity(
             val hasBluetooth =
               PermissionChecker.areBluetoothPermissionsGranted(this@MainActivity)
             if (hasBluetooth)
-              navigator.goTo(BluetoothDeviceSelectionRoute)
+              navigator.goTo(BluetoothDeviceSelectionRoute(isFromOnboarding = true))
           }
         }
       }

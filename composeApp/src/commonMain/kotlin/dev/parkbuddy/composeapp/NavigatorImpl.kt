@@ -23,7 +23,9 @@ class NavigatorImpl(private val preferencesRepository: PreferencesRepository) : 
 
   init {
     val hasSeenOnboarding = runBlocking { preferencesRepository.hasSeenOnboarding.first() }
-    if (!hasSeenOnboarding) backStack.add(OnboardingRoute)
+    if (!hasSeenOnboarding) {
+      backStack[0] = OnboardingRoute
+    }
   }
 
   override fun goTo(destination: NavKey) {
