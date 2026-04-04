@@ -1,6 +1,7 @@
 package dev.parkbuddy.composeapp
 
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.navigation3.runtime.NavKey
 import dev.bongballe.parkbuddy.core.navigation.MainRoute
@@ -24,18 +25,26 @@ class NavigatorImpl(private val preferencesRepository: PreferencesRepository) : 
   init {
     val hasSeenOnboarding = runBlocking { preferencesRepository.hasSeenOnboarding.first() }
     if (!hasSeenOnboarding) {
-      backStack[0] = OnboardingRoute
+      resetRoot(OnboardingRoute)
     }
   }
 
   override fun goTo(destination: NavKey) {
     if (destination is MainRoute) {
-      backStack.clear()
+      resetRoot(destination)
+    } else {
+      backStack.add(destination)
     }
-    backStack.add(destination)
   }
 
   override fun goBack() {
     if (backStack.size > 1) backStack.removeLast()
+  }
+
+  override fun resetRoot(destination: NavKey) {
+    Snapshot.withMutableSnapshot {
+      backStack.clear()
+      backStack.add(destination)
+    }
   }
 }

@@ -7,4 +7,7 @@ interface Navigator {
   fun goTo(destination: NavKey)
 
   fun goBack()
+
+  /** Atomically replaces the entire backstack with [destination] as the new root. */
+  fun resetRoot(destination: NavKey)
 }
