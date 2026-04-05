@@ -11,7 +11,7 @@ plugins {
 }
 
 kotlin {
-  androidLibrary {
+  android {
     namespace = "dev.parkbuddy.composeapp"
     androidResources { enable = true }
   }

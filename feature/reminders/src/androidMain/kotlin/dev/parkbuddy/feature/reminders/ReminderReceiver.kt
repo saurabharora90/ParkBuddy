@@ -27,7 +27,7 @@ import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 
 @ContributesIntoMap(AppScope::class, binding<BroadcastReceiver>())
-@BroadcastReceiverKey(ReminderReceiver::class)
+@BroadcastReceiverKey
 @Inject
 class ReminderReceiver(
   private val preferencesRepository: PreferencesRepository,

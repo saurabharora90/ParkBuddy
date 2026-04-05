@@ -6,7 +6,7 @@ plugins {
 }
 
 kotlin {
-  androidLibrary { namespace = "com.parkbuddy.feature.settings" }
+  android { namespace = "com.parkbuddy.feature.settings" }
   iosArm64()
   iosSimulatorArm64()
 

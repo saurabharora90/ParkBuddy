@@ -17,7 +17,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 @ContributesIntoMap(AppScope::class)
-@ViewModelKey(BluetoothDeviceSelectionViewModel::class)
+@ViewModelKey
 @Inject
 class BluetoothDeviceSelectionViewModel(
   private val preferencesRepository: PreferencesRepository,

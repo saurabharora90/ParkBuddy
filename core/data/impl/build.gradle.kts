@@ -6,7 +6,7 @@ plugins {
 }
 
 kotlin {
-  androidLibrary {
+  android {
     namespace = "dev.bongballe.parkbuddy.data.impl"
     withHostTestBuilder {}
   }

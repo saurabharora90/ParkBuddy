@@ -7,7 +7,7 @@ plugins {
 }
 
 kotlin {
-  androidLibrary { namespace = "com.parkbuddy.feature.onboarding" }
+  android { namespace = "com.parkbuddy.feature.onboarding" }
   iosArm64()
   iosSimulatorArm64()
 

@@ -21,7 +21,7 @@ import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 
 @ContributesIntoMap(AppScope::class, binding<BroadcastReceiver>())
-@BroadcastReceiverKey(BluetoothConnectionReceiver::class)
+@BroadcastReceiverKey
 @Inject
 class BluetoothConnectionReceiver(
   private val preferencesRepository: PreferencesRepository,

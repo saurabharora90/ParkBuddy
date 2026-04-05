@@ -8,7 +8,6 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
-import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.scene.SinglePaneSceneStrategy
@@ -56,27 +55,27 @@ class MainActivity(
         ParkBuddyTheme {
           NavDisplay(
             backStack = navigator.backStack,
-            onBack = { navigator.goBack() },
-            sceneStrategy =
-              BottomSheetSceneStrategy<NavKey>() then
-                SinglePaneSceneStrategy(),
-            entryDecorators =
-              listOf(
-                rememberSaveableStateHolderNavEntryDecorator(),
-                rememberViewModelStoreNavEntryDecorator(),
-              ),
-            entryProvider = entryProvider {
-              entryBuilders.forEach { builder -> this.builder() }
-              entry<MainRoute> { key ->
-                MainScreen(
-                  selectedTab = key.tab,
-                  navigator = navigator,
-                  settingScreenContent = {
-                    SettingsScreen(navigator = navigator)
-                  },
-                )
-              }
-            },
+            sceneStrategies = listOf(
+              BottomSheetSceneStrategy(),
+              SinglePaneSceneStrategy(),
+            ),
+            entryDecorators = listOf(
+              rememberSaveableStateHolderNavEntryDecorator(),
+              rememberViewModelStoreNavEntryDecorator(),
+            ),
+            entryProvider =
+              entryProvider {
+                entryBuilders.forEach { builder -> this.builder() }
+                entry<MainRoute> { key ->
+                  MainScreen(
+                    selectedTab = key.tab,
+                    navigator = navigator,
+                    settingScreenContent = {
+                      SettingsScreen(navigator = navigator)
+                    },
+                  )
+                }
+              },
           )
         }
 

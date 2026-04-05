@@ -10,7 +10,7 @@ import dev.zacsweers.metrox.viewmodel.ViewModelKey
 import kotlinx.coroutines.launch
 
 @ContributesIntoMap(AppScope::class)
-@ViewModelKey(SetupChecklistViewModel::class)
+@ViewModelKey
 @Inject
 class SetupChecklistViewModel(private val preferencesRepository: PreferencesRepository) :
   ViewModel() {
