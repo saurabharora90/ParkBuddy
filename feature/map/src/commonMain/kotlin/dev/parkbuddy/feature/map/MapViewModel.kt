@@ -26,7 +26,7 @@ import kotlinx.coroutines.launch
 
 @OptIn(FlowPreview::class)
 @ContributesIntoMap(AppScope::class)
-@ViewModelKey(MapViewModel::class)
+@ViewModelKey
 @Inject
 class MapViewModel(
   repository: ParkingRepository,

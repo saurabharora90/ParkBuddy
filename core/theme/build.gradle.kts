@@ -6,7 +6,7 @@ plugins {
 }
 
 kotlin {
-  androidLibrary {
+  android {
     namespace = "dev.bongballe.parkbuddy.theme"
     androidResources { enable = true }
   }

@@ -6,7 +6,7 @@ plugins {
 }
 
 kotlin {
-  androidLibrary {
+  android {
     namespace = "dev.parkbuddy.core.ui"
     androidResources { enable = true }
   }

@@ -7,7 +7,7 @@ plugins {
 }
 
 kotlin {
-  androidLibrary {
+  android {
     namespace = "com.parkbuddy.feature.map"
     withHostTestBuilder {}
   }

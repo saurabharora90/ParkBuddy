@@ -84,7 +84,7 @@ class SpotDetailViewModel(
   }
 
   @AssistedFactory
-  @ManualViewModelAssistedFactoryKey(Factory::class)
+  @ManualViewModelAssistedFactoryKey
   @ContributesIntoMap(AppScope::class)
   fun interface Factory : ManualViewModelAssistedFactory {
     fun create(spot: ParkingSpot, userPermitZone: String?): SpotDetailViewModel
