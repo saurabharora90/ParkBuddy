@@ -68,7 +68,7 @@ class MainActivity(
                 entryBuilders.forEach { builder -> this.builder() }
                 entry<MainRoute> { key ->
                   MainScreen(
-                    selectedTab = key.tab,
+                    initialTab = key.tab,
                     navigator = navigator,
                     settingScreenContent = {
                       SettingsScreen(navigator = navigator)
