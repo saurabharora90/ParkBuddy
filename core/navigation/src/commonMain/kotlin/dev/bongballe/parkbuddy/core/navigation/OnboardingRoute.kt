@@ -6,5 +6,5 @@ import kotlinx.serialization.Serializable
 @Serializable
 data object OnboardingRoute : NavKey {
 
-  data object Complete : NavResult
+  data object Complete
 }

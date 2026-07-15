@@ -17,13 +17,13 @@ kotlin {
   sourceSets {
     commonMain.dependencies {
       implementation(project(":core:base"))
-      implementation(project(":core:navigation"))
       implementation(project(":core:data:api"))
-      implementation(project(":core:model"))
-      implementation(project(":core:util"))
       implementation(project(":core:fixtures"))
+      implementation(project(":core:model"))
+      implementation(project(":core:navigation"))
       implementation(project(":core:shared-ui"))
       implementation(project(":core:theme"))
+      implementation(project(":core:util"))
       implementation(libs.androidx.annotation)
       implementation(libs.compose.animation)
       implementation(libs.compose.material3)

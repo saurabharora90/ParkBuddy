@@ -52,7 +52,7 @@ Compose:
     # treatAsLambda: MyLambdaType
   CompositionLocalAllowlist:
     active: true
-    allowedCompositionLocals: LocalScaffoldContentPadding, LocalResultEventBus
+    allowedCompositionLocals: LocalScaffoldContentPadding
   CompositionLocalNaming:
     active: true
   ContentEmitterReturningValues:

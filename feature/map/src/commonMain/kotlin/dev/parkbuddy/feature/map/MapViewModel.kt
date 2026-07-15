@@ -64,8 +64,9 @@ class MapViewModel(
             spots.filter { spot -> spot.isParkable && spot.intersectsViewport(viewport) }
           }
 
-        val parkedSpot =
-          parkedLocation?.let { loc -> spots.firstOrNull { it.objectId == loc.spotId } }
+        val parkedSpot = parkedLocation?.let { loc ->
+          spots.firstOrNull { it.objectId == loc.spotId }
+        }
 
         State(
           visibleSpots = visibleSpots,

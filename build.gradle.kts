@@ -28,7 +28,7 @@ subprojects {
 
   pluginManager.withPlugin("org.jetbrains.kotlin.plugin.compose") {
     configure<org.jetbrains.kotlin.compose.compiler.gradle.ComposeCompilerGradlePluginExtension> {
-      stabilityConfigurationFile.set(rootProject.layout.projectDirectory.file("compose_stability_config.conf"))
+      stabilityConfigurationFiles.add(rootProject.layout.projectDirectory.file("compose_stability_config.conf"))
       metricsDestination.set(layout.buildDirectory.dir("compose-metrics"))
       reportsDestination.set(layout.buildDirectory.dir("compose-reports"))
     }

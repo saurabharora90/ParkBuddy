@@ -66,11 +66,11 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
+import androidx.navigation3.runtime.result.LocalResultEventBus
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
 import com.google.accompanist.permissions.rememberPermissionState
-import dev.bongballe.parkbuddy.core.navigation.LocalResultEventBus
 import dev.bongballe.parkbuddy.core.navigation.Navigator
 import dev.bongballe.parkbuddy.core.navigation.OnboardingRoute
 import dev.bongballe.parkbuddy.theme.Goldenrod
@@ -240,7 +240,7 @@ fun SetupChecklistScreen(
   LaunchedEffect(allStepsDone) {
     if (allStepsDone) {
       viewModel.markOnboardingComplete()
-      resultEventBus.sendResult<OnboardingRoute>(result = OnboardingRoute.Complete)
+      resultEventBus.sendResult(result = OnboardingRoute.Complete)
       navigator.goBack()
     }
   }

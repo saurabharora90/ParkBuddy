@@ -15,11 +15,12 @@ kotlin {
 
   sourceSets {
     commonMain.dependencies {
+      api(libs.androidx.datastore.preferences)
+
       implementation(project(":core:base"))
       implementation(project(":core:data:api"))
       implementation(project(":core:model"))
       implementation(project(":core:util"))
-      api(libs.androidx.datastore.preferences)
       implementation(libs.kotlinx.datetime)
       implementation(libs.kotlinx.serialization.json)
     }

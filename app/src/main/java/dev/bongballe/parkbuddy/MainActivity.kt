@@ -10,16 +10,16 @@ import androidx.compose.runtime.remember
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
+import androidx.navigation3.runtime.result.LocalResultEventBus
+import androidx.navigation3.runtime.result.ResultEffect
+import androidx.navigation3.runtime.result.ResultEventBus
 import androidx.navigation3.scene.SinglePaneSceneStrategy
 import androidx.navigation3.ui.NavDisplay
 import dev.bongballe.parkbuddy.core.navigation.BluetoothDeviceSelectionRoute
 import dev.bongballe.parkbuddy.core.navigation.BottomSheetSceneStrategy
-import dev.bongballe.parkbuddy.core.navigation.LocalResultEventBus
 import dev.bongballe.parkbuddy.core.navigation.MainRoute
 import dev.bongballe.parkbuddy.core.navigation.NavEntryItem
 import dev.bongballe.parkbuddy.core.navigation.OnboardingRoute
-import dev.bongballe.parkbuddy.core.navigation.ResultEffect
-import dev.bongballe.parkbuddy.core.navigation.ResultEventBus
 import dev.bongballe.parkbuddy.theme.ParkBuddyTheme
 import dev.parkbuddy.composeapp.MainScreen
 import dev.parkbuddy.composeapp.NavigatorImpl
@@ -46,11 +46,10 @@ class MainActivity(
     enableEdgeToEdge()
 
     setContent {
-      val resultBus = remember { ResultEventBus() }
-
+      val eventBus = remember { ResultEventBus() }
       CompositionLocalProvider(
         LocalMetroViewModelFactory provides viewModelFactory,
-        LocalResultEventBus provides resultBus,
+        LocalResultEventBus provides eventBus,
       ) {
         ParkBuddyTheme {
           NavDisplay(
@@ -79,13 +78,11 @@ class MainActivity(
           )
         }
 
-        ResultEffect<OnboardingRoute> { result ->
-          if (result is OnboardingRoute.Complete) {
-            val hasBluetooth =
-              PermissionChecker.areBluetoothPermissionsGranted(this@MainActivity)
-            if (hasBluetooth)
-              navigator.resetRoot(BluetoothDeviceSelectionRoute(isFromOnboarding = true))
-          }
+        ResultEffect<OnboardingRoute.Complete> { result ->
+          val hasBluetooth =
+            PermissionChecker.areBluetoothPermissionsGranted(this@MainActivity)
+          if (hasBluetooth)
+            navigator.resetRoot(BluetoothDeviceSelectionRoute(isFromOnboarding = true))
         }
       }
     }
