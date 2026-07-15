@@ -390,10 +390,9 @@ class ParkingRepositoryImpl(
         }
 
         // ── Build meter bridges ──
-        val filteredMeters =
-          meterFeatures.filter { m ->
-            m.attributes.activeMeterFlag != "U" && m.attributes.activeMeterFlag != "L"
-          }
+        val filteredMeters = meterFeatures.filter { m ->
+          m.attributes.activeMeterFlag != "U" && m.attributes.activeMeterFlag != "L"
+        }
         val blockfaceToCnn = mutableMapOf<Long, String>()
         for (m in filteredMeters) {
           val bfId = m.attributes.blockfaceId?.toLong() ?: continue
@@ -535,11 +534,10 @@ class ParkingRepositoryImpl(
           // stop covers a small fraction of a block and should not make the whole block Forbidden.
           if (isForbiddenReg && attrs.lengthFt != null && attrs.lengthFt > 0) {
             val regLength = LocationUtils.polylineLength(poly)
-            overlaps =
-              overlaps.filter { match ->
-                val blockLength = LocationUtils.polylineLength(match.geometry)
-                blockLength <= 0 || (regLength / blockLength) >= 0.4
-              }
+            overlaps = overlaps.filter { match ->
+              val blockLength = LocationUtils.polylineLength(match.geometry)
+              blockLength <= 0 || (regLength / blockLength) >= 0.4
+            }
           }
 
           val contexts =
@@ -669,14 +667,13 @@ class ParkingRepositoryImpl(
           val soStreet = soCtx.streetName?.lowercase() ?: continue
 
           val candidates = neighborIndex[soStreet to soCtx.side] ?: continue
-          val neighbor =
-            candidates.firstOrNull { key ->
-              key !in absorbed &&
-                geometriesAdjacent(
-                  soGeom,
-                  unifiedContexts[key]?.let { it.curbsideGeometry ?: it.centerline },
-                )
-            }
+          val neighbor = candidates.firstOrNull { key ->
+            key !in absorbed &&
+              geometriesAdjacent(
+                soGeom,
+                unifiedContexts[key]?.let { it.curbsideGeometry ?: it.centerline },
+              )
+          }
 
           if (neighbor != null) {
             val nCtx = unifiedContexts[neighbor] ?: continue
@@ -830,26 +827,25 @@ class ParkingRepositoryImpl(
     policies: List<MeterPolicyResponse>,
     rppAreas: List<String>,
   ): List<ParkingInterval> {
-    val entries =
-      policies.mapNotNull { p ->
-        val day = DayParser.parseMeterDays(p.dayOfWeek)?.singleOrNull() ?: return@mapNotNull null
-        if (p.scheduleType.equals("FREE", true)) return@mapNotNull null
-        val rawStart = TimeParser.parsePolicyTime(p.startTime) ?: return@mapNotNull null
-        val rawEnd = TimeParser.parsePolicyTime(p.endTime) ?: return@mapNotNull null
-        val (start, end) = TimeParser.normalizeWindow(rawStart, rawEnd)
-        val rawLimit = p.timeLimitMinutes?.filter { it.isDigit() }?.toIntOrNull() ?: 0
-        val windowMinutes = windowDurationMinutes(start, end)
-        val capLower = p.capColor?.lowercase().orEmpty()
+    val entries = policies.mapNotNull { p ->
+      val day = DayParser.parseMeterDays(p.dayOfWeek)?.singleOrNull() ?: return@mapNotNull null
+      if (p.scheduleType.equals("FREE", true)) return@mapNotNull null
+      val rawStart = TimeParser.parsePolicyTime(p.startTime) ?: return@mapNotNull null
+      val rawEnd = TimeParser.parsePolicyTime(p.endTime) ?: return@mapNotNull null
+      val (start, end) = TimeParser.normalizeWindow(rawStart, rawEnd)
+      val rawLimit = p.timeLimitMinutes?.filter { it.isDigit() }?.toIntOrNull() ?: 0
+      val windowMinutes = windowDurationMinutes(start, end)
+      val capLower = p.capColor?.lowercase().orEmpty()
 
-        ParsedMeterEntry(
-          days = setOf(day),
-          start = start,
-          end = end,
-          limitMinutes = if (rawLimit >= windowMinutes) 0 else rawLimit,
-          isTow = p.scheduleType.equals("TOW", true),
-          isCommercial = capLower in setOf("yellow", "red", "orange"),
-        )
-      }
+      ParsedMeterEntry(
+        days = setOf(day),
+        start = start,
+        end = end,
+        limitMinutes = if (rawLimit >= windowMinutes) 0 else rawLimit,
+        isTow = p.scheduleType.equals("TOW", true),
+        isCommercial = capLower in setOf("yellow", "red", "orange"),
+      )
+    }
     return meterEntriesToIntervals(entries, rppAreas)
   }
 
@@ -857,25 +853,24 @@ class ParkingRepositoryImpl(
     responses: List<MeterScheduleResponse>,
     rppAreas: List<String>,
   ): List<ParkingInterval> {
-    val entries =
-      responses.mapNotNull { r ->
-        val days = DayParser.parseMeterDays(r.daysApplied) ?: return@mapNotNull null
-        val rawStart = TimeParser.parseMeterTime(r.fromTime) ?: return@mapNotNull null
-        val rawEnd = TimeParser.parseMeterTime(r.toTime) ?: return@mapNotNull null
-        val (start, end) = TimeParser.normalizeWindow(rawStart, rawEnd)
-        val rawLimit = r.timeLimit?.filter { it.isDigit() }?.toIntOrNull() ?: 0
-        val windowMinutes = windowDurationMinutes(start, end)
-        val colorPrefix = r.appliedColorRule?.substringBefore("-")?.trim()?.lowercase()
+    val entries = responses.mapNotNull { r ->
+      val days = DayParser.parseMeterDays(r.daysApplied) ?: return@mapNotNull null
+      val rawStart = TimeParser.parseMeterTime(r.fromTime) ?: return@mapNotNull null
+      val rawEnd = TimeParser.parseMeterTime(r.toTime) ?: return@mapNotNull null
+      val (start, end) = TimeParser.normalizeWindow(rawStart, rawEnd)
+      val rawLimit = r.timeLimit?.filter { it.isDigit() }?.toIntOrNull() ?: 0
+      val windowMinutes = windowDurationMinutes(start, end)
+      val colorPrefix = r.appliedColorRule?.substringBefore("-")?.trim()?.lowercase()
 
-        ParsedMeterEntry(
-          days = days,
-          start = start,
-          end = end,
-          limitMinutes = if (rawLimit >= windowMinutes) 0 else rawLimit,
-          isTow = r.scheduleType?.contains("Tow", true) == true,
-          isCommercial = colorPrefix in setOf("yellow", "red", "orange"),
-        )
-      }
+      ParsedMeterEntry(
+        days = days,
+        start = start,
+        end = end,
+        limitMinutes = if (rawLimit >= windowMinutes) 0 else rawLimit,
+        isTow = r.scheduleType?.contains("Tow", true) == true,
+        isCommercial = colorPrefix in setOf("yellow", "red", "orange"),
+      )
+    }
     return meterEntriesToIntervals(entries, rppAreas)
   }
 

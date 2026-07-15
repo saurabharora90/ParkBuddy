@@ -136,17 +136,12 @@ class ParkingManager(
     // Phase 1: Find the closest centerline among all CNNs
     data class CenterlineMatch(val cnn: String, val distance: Double, val centerline: Geometry)
 
-    val centerlineMatches =
-      withCenterline.mapNotNull { (cnn, cnnSpots) ->
-        val centerline = cnnSpots.firstOrNull()?.centerlineGeometry ?: return@mapNotNull null
-        val dist =
-          LocationUtils.calculateDistanceToPolyline(
-            location.latitude,
-            location.longitude,
-            centerline,
-          )
-        if (dist < centerlineThresholdMeters) CenterlineMatch(cnn, dist, centerline) else null
-      }
+    val centerlineMatches = withCenterline.mapNotNull { (cnn, cnnSpots) ->
+      val centerline = cnnSpots.firstOrNull()?.centerlineGeometry ?: return@mapNotNull null
+      val dist =
+        LocationUtils.calculateDistanceToPolyline(location.latitude, location.longitude, centerline)
+      if (dist < centerlineThresholdMeters) CenterlineMatch(cnn, dist, centerline) else null
+    }
 
     // Phase 2: For the closest centerline, use cross product to pick the correct side
     val bestCenterline = centerlineMatches.minByOrNull { it.distance }

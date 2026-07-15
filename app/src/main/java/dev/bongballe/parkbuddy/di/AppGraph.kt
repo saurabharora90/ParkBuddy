@@ -10,7 +10,6 @@ import dev.parkbuddy.core.workmanager.MetroWorkerFactory
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.DependencyGraph
 import dev.zacsweers.metro.Multibinds
-import dev.zacsweers.metro.Provider
 import dev.zacsweers.metro.Provides
 import dev.zacsweers.metrox.android.MetroAppComponentProviders
 import dev.zacsweers.metrox.viewmodel.ViewModelGraph
@@ -22,11 +21,12 @@ import kotlinx.coroutines.SupervisorJob
 @DependencyGraph(AppScope::class)
 interface AppGraph : MetroAppComponentProviders, ViewModelGraph {
 
-  @Provides fun provideApplicationContext(application: Application): Context = application
+  @Provides
+  fun provideApplicationContext(application: Application): Context = application
 
   @Multibinds
   val workerProviders:
-    Map<KClass<out ListenableWorker>, Provider<MetroWorkerFactory.WorkerInstanceFactory<*>>>
+    Map<KClass<out ListenableWorker>, () -> MetroWorkerFactory.WorkerInstanceFactory<*>>
 
   val workerFactory: MetroWorkerFactory
 

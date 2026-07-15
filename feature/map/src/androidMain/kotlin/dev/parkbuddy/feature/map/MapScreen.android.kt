@@ -26,8 +26,9 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -183,7 +184,11 @@ actual fun MapScreen(
 
   var bannerDismissed by remember { mutableStateOf(false) }
 
-  val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+  val sheetState =
+    rememberBottomSheetState(
+      initialValue = SheetValue.Hidden,
+      enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
+    )
 
   var showLegendSheet by remember { mutableStateOf(false) }
 
@@ -217,18 +222,27 @@ actual fun MapScreen(
       }
 
       val parkedLocation = state.parkedLocation
-      if (parkedLocation != null) {
+      val marker =
+        remember(parkedLocation) {
+          parkedLocation?.let {
+            MarkerState(position = LatLng(it.location.latitude, it.location.longitude))
+          }
+        }
+      marker?.let {
         Marker(
-          state =
-            MarkerState(
-              position = LatLng(parkedLocation.location.latitude, parkedLocation.location.longitude)
-            ),
+          state = it,
           title = "Your Car",
           icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ROSE),
           onClick = {
             val spot = state.parkedSpot
             if (spot != null) {
-              navigator.goTo(ParkedSpotDetailRoute(spot, parkedLocation.parkedAt, state.permitZone))
+              navigator.goTo(
+                ParkedSpotDetailRoute(
+                  spot,
+                  requireNotNull(parkedLocation).parkedAt,
+                  state.permitZone,
+                )
+              )
             }
             true
           },

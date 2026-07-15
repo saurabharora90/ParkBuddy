@@ -106,10 +106,9 @@ fun BluetoothDeviceSelectionScreen(
   if (!hasBluetoothPermission) {
     BluetoothPermissionContent(
       onGrantClick = {
-        val promptable =
-          activity?.let { act ->
-            btPermissions.filter { ActivityCompat.shouldShowRequestPermissionRationale(act, it) }
-          }
+        val promptable = activity?.let { act ->
+          btPermissions.filter { ActivityCompat.shouldShowRequestPermissionRationale(act, it) }
+        }
         if (!promptable.isNullOrEmpty()) {
           permissionLauncher.launch(promptable.toTypedArray())
         } else {

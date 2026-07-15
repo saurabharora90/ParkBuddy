@@ -600,11 +600,10 @@ private fun CleaningAlertsSection(
   if (reminders.isEmpty() || nextCleaning == null) return
 
   val displayedReminders = reminders.take(2)
-  val activeCount =
-    displayedReminders.count { reminder ->
-      val alertTime = nextCleaning - reminder.value.minutes
-      alertTime > now
-    }
+  val activeCount = displayedReminders.count { reminder ->
+    val alertTime = nextCleaning - reminder.value.minutes
+    alertTime > now
+  }
 
   Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
     Row(

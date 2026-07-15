@@ -34,19 +34,20 @@ kotlin {
 
   sourceSets {
     commonMain.dependencies {
-      api(project(":core:model"))
       api(project(":core:base"))
-      api(project(":core:navigation"))
       api(project(":core:data:api"))
       api(project(":core:data:impl"))
       api(project(":core:data:sf-impl"))
+      api(project(":core:model"))
+      api(project(":core:navigation"))
       api(project(":core:network"))
-      api(project(":core:theme"))
       api(project(":core:shared-ui"))
-      api(project(":feature:settings"))
+      api(project(":core:theme"))
       api(project(":feature:map"))
-      api(project(":feature:reminders"))
       api(project(":feature:onboarding"))
+      api(project(":feature:reminders"))
+      api(project(":feature:settings"))
+
       implementation(libs.compose.components.resources)
       implementation(libs.compose.material3)
       implementation(libs.compose.ui)
@@ -56,9 +57,9 @@ kotlin {
       implementation(libs.metrox.viewmodel.compose)
     }
     androidMain.dependencies {
-      implementation(libs.androidx.lifecycle.viewmodel.navigation3)
       implementation(project(":core:bluetooth:api"))
       implementation(project(":core:bluetooth:impl"))
+      implementation(libs.androidx.lifecycle.viewmodel.navigation3)
     }
   }
 }
